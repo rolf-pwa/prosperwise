@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Clock, Users, CalendarCheck, ArrowRight } from "lucide-react";
+import { CommandCenter } from "@/components/CommandCenter";
 import { differenceInDays, addDays, format } from "date-fns";
 
 interface ContactSummary {
@@ -190,21 +191,8 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Command Center Placeholder */}
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-            <CalendarCheck className="h-10 w-10 text-muted-foreground/40" />
-            <div>
-              <h3 className="font-semibold text-foreground">Command Center</h3>
-              <p className="text-sm text-muted-foreground">
-                Google Calendar & Gmail integration coming in Phase 2.
-              </p>
-            </div>
-            <Badge variant="outline" className="text-sanctuary-green border-sanctuary-green/30">
-              Coming Soon
-            </Badge>
-          </CardContent>
-        </Card>
+        {/* Command Center — Calendar & Gmail */}
+        <CommandCenter />
       </div>
     </AppLayout>
   );

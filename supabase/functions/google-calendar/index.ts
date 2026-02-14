@@ -1,0 +1,148 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
+
+async function getValidToken(supabaseAdmin: any, userId: string): Promise<string> {
+  const { data, error } = await supabaseAdmin
+    .from("google_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) throw new Error("Google not connected");
+
+  // Refresh if expired
+  if (new Date(data.token_expiry) <= new Date()) {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        refresh_token: data.refresh_token,
+        grant_type: "refresh_token",
+      }),
+    });
+    const tokens = await res.json();
+    if (tokens.error) throw new Error(`Token refresh failed: ${tokens.error}`);
+
+    const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+    await supabaseAdmin
+      .from("google_tokens")
+      .update({ access_token: tokens.access_token, token_expiry: newExpiry })
+      .eq("user_id", userId);
+
+    return tokens.access_token;
+  }
+
+  return data.access_token;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUser = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await supabaseUser.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const accessToken = await getValidToken(supabaseAdmin, user.id);
+
+    const url = new URL(req.url);
+    const action = url.searchParams.get("action");
+
+    if (action === "list") {
+      const timeMin = url.searchParams.get("timeMin") || new Date().toISOString();
+      const timeMax = url.searchParams.get("timeMax") || new Date(Date.now() + 7 * 86400000).toISOString();
+      const maxResults = url.searchParams.get("maxResults") || "20";
+
+      const calRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+        new URLSearchParams({
+          timeMin,
+          timeMax,
+          maxResults,
+          singleEvents: "true",
+          orderBy: "startTime",
+        }),
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      if (!calRes.ok) {
+        const err = await calRes.text();
+        console.error("Calendar API error:", err);
+        throw new Error(`Calendar API error: ${calRes.status}`);
+      }
+
+      const data = await calRes.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "create") {
+      const event = await req.json();
+      const calRes = await fetch(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(event),
+        }
+      );
+
+      if (!calRes.ok) {
+        const err = await calRes.text();
+        console.error("Calendar create error:", err);
+        throw new Error(`Calendar create error: ${calRes.status}`);
+      }
+
+      const data = await calRes.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid action" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("google-calendar error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
