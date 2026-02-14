@@ -218,90 +218,6 @@ const ContactDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Resources</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {resourceLinks.map(({ label, url, icon: Icon }) => (
-                  <a
-                    key={label}
-                    href={url || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-3 rounded-md border p-3 text-sm transition-colors ${
-                      url
-                        ? "hover:bg-muted/50"
-                        : "cursor-not-allowed opacity-50"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 font-medium">{label}</span>
-                    {url && (
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    )}
-                  </a>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Household Members */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Household Members</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {householdMembers.length > 0 ? (
-                  <ul className="space-y-1 text-sm">
-                    {householdMembers.map((hm) => (
-                      <li key={hm.id}>
-                        <Link
-                          to={`/contacts/${hm.member_contact_id}`}
-                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
-                        >
-                          <span className="font-medium">{hm.contact?.full_name || "Unknown"}</span>
-                          {hm.relationship_label && (
-                            <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
-                          )}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No household members linked.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Professional Team */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Professional Team</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="space-y-3 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Lawyer</dt>
-                    <dd className="font-medium">
-                      {contact.lawyer_name
-                        ? `${contact.lawyer_name}${contact.lawyer_firm ? ` — ${contact.lawyer_firm}` : ""}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Accountant</dt>
-                    <dd className="font-medium">
-                      {contact.accountant_name
-                        ? `${contact.accountant_name}${contact.accountant_firm ? ` — ${contact.accountant_firm}` : ""}`
-                        : "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </CardContent>
-            </Card>
-
             {/* Vineyard & Storehouses */}
             <Card>
               <CardHeader>
@@ -398,6 +314,90 @@ const ContactDetail = () => {
                     })}
                   </Accordion>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Resources</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {resourceLinks.map(({ label, url, icon: Icon }) => (
+                  <a
+                    key={label}
+                    href={url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-3 rounded-md border p-3 text-sm transition-colors ${
+                      url
+                        ? "hover:bg-muted/50"
+                        : "cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1 font-medium">{label}</span>
+                    {url && (
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Household Members */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Household Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {householdMembers.length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {householdMembers.map((hm) => (
+                      <li key={hm.id}>
+                        <Link
+                          to={`/contacts/${hm.member_contact_id}`}
+                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="font-medium">{hm.contact?.full_name || "Unknown"}</span>
+                          {hm.relationship_label && (
+                            <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
+                          )}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No household members linked.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Professional Team */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Professional Team</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-3 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Lawyer</dt>
+                    <dd className="font-medium">
+                      {contact.lawyer_name
+                        ? `${contact.lawyer_name}${contact.lawyer_firm ? ` — ${contact.lawyer_firm}` : ""}`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Accountant</dt>
+                    <dd className="font-medium">
+                      {contact.accountant_name
+                        ? `${contact.accountant_name}${contact.accountant_firm ? ` — ${contact.accountant_firm}` : ""}`
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
               </CardContent>
             </Card>
           </div>
