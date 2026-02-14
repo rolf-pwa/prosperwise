@@ -24,6 +24,8 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
+import { ContactEmails } from "@/components/ContactEmails";
+import { ContactCalendar } from "@/components/ContactCalendar";
 
 interface Storehouse {
   id: string;
@@ -346,6 +348,9 @@ const ContactDetail = () => {
                 </Accordion>
               </CardContent>
             </Card>
+            {/* Email & Calendar */}
+            <ContactEmails contactEmail={contact.email} />
+            <ContactCalendar contactEmail={contact.email} />
           </div>
 
           {/* Resource Sidebar */}
