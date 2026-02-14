@@ -211,149 +211,12 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Professional Team */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Professional Team</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Lawyer</dt>
-                    <dd className="font-medium">
-                      {contact.lawyer_name
-                        ? `${contact.lawyer_name}${contact.lawyer_firm ? ` — ${contact.lawyer_firm}` : ""}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Accountant</dt>
-                    <dd className="font-medium">
-                      {contact.accountant_name
-                        ? `${contact.accountant_name}${contact.accountant_firm ? ` — ${contact.accountant_firm}` : ""}`
-                        : "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </CardContent>
-            </Card>
-
-            {/* The Vineyard */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">The Vineyard — Entity Data</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">EBITDA</dt>
-                    <dd className="text-lg font-semibold">
-                      {contact.vineyard_ebitda != null
-                        ? `$${Number(contact.vineyard_ebitda).toLocaleString()}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Operating Income</dt>
-                    <dd className="text-lg font-semibold">
-                      {contact.vineyard_operating_income != null
-                        ? `$${Number(contact.vineyard_operating_income).toLocaleString()}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div className="col-span-3">
-                    <dt className="text-muted-foreground">Balance Sheet Summary</dt>
-                    <dd className="font-medium">
-                      {contact.vineyard_balance_sheet_summary || "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </CardContent>
-            </Card>
-
-            {/* The 4 Storehouses */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  The 4 Storehouses — Liquidity Vessels
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="multiple" className="w-full">
-                  {[1, 2, 3, 4].map((num) => {
-                    const sh = storehouses.find(
-                      (s) => s.storehouse_number === num
-                    );
-                    return (
-                      <AccordionItem key={num} value={`sh-${num}`}>
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex items-center gap-3">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                              {num}
-                            </span>
-                            <span>{STOREHOUSE_LABELS[num - 1]}</span>
-                            {sh && (
-                              <Badge
-                                variant="outline"
-                                className={
-                                  sh.charter_alignment === "aligned"
-                                    ? "border-green-500/30 text-green-600"
-                                    : sh.charter_alignment === "misaligned"
-                                    ? "border-destructive/30 text-destructive"
-                                    : "border-muted-foreground/30 text-muted-foreground"
-                                }
-                              >
-                                {sh.charter_alignment.replace("_", " ")}
-                              </Badge>
-                            )}
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          {sh ? (
-                            <dl className="grid grid-cols-2 gap-3 text-sm pl-10">
-                              <div>
-                                <dt className="text-muted-foreground">
-                                  Asset Type
-                                </dt>
-                                <dd className="font-medium">
-                                  {sh.asset_type || "—"}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="text-muted-foreground">
-                                  Risk Cap
-                                </dt>
-                                <dd className="font-medium">
-                                  {sh.risk_cap || "—"}
-                                </dd>
-                              </div>
-                              {sh.notes && (
-                                <div className="col-span-2">
-                                  <dt className="text-muted-foreground">
-                                    Notes
-                                  </dt>
-                                  <dd>{sh.notes}</dd>
-                                </div>
-                              )}
-                            </dl>
-                          ) : (
-                            <p className="pl-10 text-sm text-muted-foreground">
-                              Not configured yet.
-                            </p>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
-              </CardContent>
-            </Card>
             {/* Email & Calendar */}
             <ContactEmails contactEmail={contact.email} />
             <ContactCalendar contactEmail={contact.email} />
           </div>
 
-          {/* Resource Sidebar */}
+          {/* Right Sidebar */}
           <div className="space-y-4">
             <Card>
               <CardHeader>
@@ -409,6 +272,132 @@ const ContactDetail = () => {
                     No household members linked.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Professional Team */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Professional Team</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-3 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Lawyer</dt>
+                    <dd className="font-medium">
+                      {contact.lawyer_name
+                        ? `${contact.lawyer_name}${contact.lawyer_firm ? ` — ${contact.lawyer_firm}` : ""}`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Accountant</dt>
+                    <dd className="font-medium">
+                      {contact.accountant_name
+                        ? `${contact.accountant_name}${contact.accountant_firm ? ` — ${contact.accountant_firm}` : ""}`
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+
+            {/* Vineyard & Storehouses */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">The Vineyard & Storehouses</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {/* Vineyard metrics */}
+                <div>
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entity Data</h4>
+                  <dl className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <dt className="text-muted-foreground">EBITDA</dt>
+                      <dd className="font-semibold">
+                        {contact.vineyard_ebitda != null
+                          ? `$${Number(contact.vineyard_ebitda).toLocaleString()}`
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt className="text-muted-foreground">Operating Income</dt>
+                      <dd className="font-semibold">
+                        {contact.vineyard_operating_income != null
+                          ? `$${Number(contact.vineyard_operating_income).toLocaleString()}`
+                          : "—"}
+                      </dd>
+                    </div>
+                    {contact.vineyard_balance_sheet_summary && (
+                      <div>
+                        <dt className="text-muted-foreground">Balance Sheet</dt>
+                        <dd className="mt-0.5 font-medium">{contact.vineyard_balance_sheet_summary}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+
+                {/* Storehouses */}
+                <div>
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Liquidity Vessels</h4>
+                  <Accordion type="multiple" className="w-full">
+                    {[1, 2, 3, 4].map((num) => {
+                      const sh = storehouses.find(
+                        (s) => s.storehouse_number === num
+                      );
+                      return (
+                        <AccordionItem key={num} value={`sh-${num}`}>
+                          <AccordionTrigger className="hover:no-underline py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                {num}
+                              </span>
+                              <span className="text-sm">{STOREHOUSE_LABELS[num - 1]}</span>
+                              {sh && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] ${
+                                    sh.charter_alignment === "aligned"
+                                      ? "border-green-500/30 text-green-600"
+                                      : sh.charter_alignment === "misaligned"
+                                      ? "border-destructive/30 text-destructive"
+                                      : "border-muted-foreground/30 text-muted-foreground"
+                                  }`}
+                                >
+                                  {sh.charter_alignment.replace("_", " ")}
+                                </Badge>
+                              )}
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            {sh ? (
+                              <dl className="space-y-1 text-sm pl-8">
+                                <div>
+                                  <dt className="text-muted-foreground text-xs">Asset Type</dt>
+                                  <dd className="font-medium">{sh.asset_type || "—"}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-muted-foreground text-xs">Risk Cap</dt>
+                                  <dd className="font-medium">{sh.risk_cap || "—"}</dd>
+                                </div>
+                                {sh.notes && (
+                                  <div>
+                                    <dt className="text-muted-foreground text-xs">Notes</dt>
+                                    <dd>{sh.notes}</dd>
+                                  </div>
+                                )}
+                              </dl>
+                            ) : (
+                              <p className="pl-8 text-sm text-muted-foreground">
+                                Not configured yet.
+                              </p>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </div>
               </CardContent>
             </Card>
           </div>
