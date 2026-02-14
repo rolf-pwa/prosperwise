@@ -92,6 +92,45 @@ export type Database = {
         }
         Relationships: []
       }
+      household_relationships: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          member_contact_id: string
+          relationship_label: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          member_contact_id: string
+          relationship_label?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          member_contact_id?: string
+          relationship_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_relationships_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_relationships_member_contact_id_fkey"
+            columns: ["member_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

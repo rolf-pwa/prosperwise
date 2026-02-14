@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,13 @@ interface Storehouse {
   notes: string | null;
 }
 
+interface HouseholdMember {
+  id: string;
+  member_contact_id: string;
+  relationship_label: string | null;
+  contact: { id: string; full_name: string } | null;
+}
+
 const STOREHOUSE_LABELS = [
   "Storehouse I — Foundation",
   "Storehouse II — Growth",
@@ -47,21 +54,27 @@ const ContactDetail = () => {
   const navigate = useNavigate();
   const [contact, setContact] = useState<any>(null);
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
+  const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     async function fetch() {
-      const [contactRes, storehouseRes] = await Promise.all([
-        supabase.from("contacts").select("*").eq("id", id).single(),
+      const [contactRes, storehouseRes, householdRes] = await Promise.all([
+        supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
         supabase
           .from("storehouses")
           .select("*")
           .eq("contact_id", id)
           .order("storehouse_number"),
+        supabase
+          .from("household_relationships")
+          .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, full_name)")
+          .eq("contact_id", id),
       ]);
       setContact(contactRes.data);
       setStorehouses(storehouseRes.data || []);
+      setHouseholdMembers((householdRes.data as any) || []);
       setLoading(false);
     }
     fetch();
@@ -370,19 +383,25 @@ const ContactDetail = () => {
                 <CardTitle className="text-base">Household Members</CardTitle>
               </CardHeader>
               <CardContent>
-                {contact.household_members &&
-                Array.isArray(contact.household_members) &&
-                contact.household_members.length > 0 ? (
+                {householdMembers.length > 0 ? (
                   <ul className="space-y-1 text-sm">
-                    {contact.household_members.map((member: any, i: number) => (
-                      <li key={i} className="rounded-md bg-muted/50 px-3 py-2">
-                        {typeof member === "string" ? member : member.name || JSON.stringify(member)}
+                    {householdMembers.map((hm) => (
+                      <li key={hm.id}>
+                        <Link
+                          to={`/contacts/${hm.member_contact_id}`}
+                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="font-medium">{hm.contact?.full_name || "Unknown"}</span>
+                          {hm.relationship_label && (
+                            <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
+                          )}
+                        </Link>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No household members listed.
+                    No household members linked.
                   </p>
                 )}
               </CardContent>
