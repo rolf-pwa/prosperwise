@@ -23,26 +23,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if the URL contains auth callback hash params
-    const hasAuthCallback = window.location.hash?.includes("access_token");
+    console.log("[Auth] Init - hash:", window.location.hash?.substring(0, 50), "pathname:", window.location.pathname);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        console.log("[Auth] onAuthStateChange:", event, "user:", session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    // If there are auth hash params, let onAuthStateChange handle the session.
-    // Only use getSession for non-callback page loads.
-    if (!hasAuthCallback) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      });
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[Auth] getSession result:", session?.user?.email ?? "no session");
+      // Only update if onAuthStateChange hasn't already set a user
+      setSession(prev => prev ?? session);
+      setUser(prev => prev ?? session?.user ?? null);
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
