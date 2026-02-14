@@ -47,6 +47,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        sanctuary: {
+          gold: "hsl(var(--sanctuary-gold))",
+          teal: "hsl(var(--sanctuary-teal))",
+          navy: "hsl(var(--sanctuary-navy))",
+          slate: "hsl(var(--sanctuary-slate))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
