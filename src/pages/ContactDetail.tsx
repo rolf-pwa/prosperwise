@@ -212,8 +212,8 @@ const ContactDetail = () => {
             </Card>
 
             {/* Email & Calendar */}
-            <ContactEmails contactEmail={contact.email} />
             <ContactCalendar contactEmail={contact.email} />
+            <ContactEmails contactEmail={contact.email} />
           </div>
 
           {/* Right Sidebar */}
