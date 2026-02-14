@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +108,13 @@ export function CommandCenter() {
 }
 
 function CalendarWidget() {
-  const now = new Date();
-  const timeMin = now.toISOString();
-  const timeMax = new Date(now.getTime() + 7 * 86400000).toISOString();
+  const { timeMin, timeMax } = useMemo(() => {
+    const now = new Date();
+    return {
+      timeMin: now.toISOString(),
+      timeMax: new Date(now.getTime() + 7 * 86400000).toISOString(),
+    };
+  }, []);
   const { data, isLoading, error } = useCalendarEvents(timeMin, timeMax);
   const createEvent = useCreateCalendarEvent();
   const [showCreate, setShowCreate] = useState(false);
