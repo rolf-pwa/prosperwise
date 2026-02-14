@@ -21,6 +21,7 @@ import {
   CheckSquare,
   ShieldCheck,
   AlertCircle,
+  FolderOpen,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 
@@ -97,6 +98,7 @@ const ContactDetail = () => {
 
   const resourceLinks = [
     { label: "SideDrawer", url: contact.sidedrawer_url, icon: Folder },
+    { label: "Google Drive", url: contact.google_drive_url, icon: FolderOpen },
     { label: "Asana", url: contact.asana_url, icon: CheckSquare },
     { label: "IA Financial", url: contact.ia_financial_url, icon: ShieldCheck },
   ];

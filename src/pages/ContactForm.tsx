@@ -43,6 +43,7 @@ const ContactForm = () => {
     sidedrawer_url: "",
     asana_url: "",
     ia_financial_url: "",
+    google_drive_url: "",
     household_members_text: "",
   });
 
@@ -73,6 +74,7 @@ const ContactForm = () => {
           sidedrawer_url: data.sidedrawer_url || "",
           asana_url: data.asana_url || "",
           ia_financial_url: data.ia_financial_url || "",
+          google_drive_url: data.google_drive_url || "",
           household_members_text:
             Array.isArray(data.household_members)
               ? data.household_members.join("\n")
@@ -115,6 +117,7 @@ const ContactForm = () => {
       sidedrawer_url: form.sidedrawer_url || null,
       asana_url: form.asana_url || null,
       ia_financial_url: form.ia_financial_url || null,
+      google_drive_url: form.google_drive_url || null,
       household_members: form.household_members_text
         ? form.household_members_text.split("\n").filter(Boolean)
         : [],
@@ -301,10 +304,14 @@ const ContactForm = () => {
               <Label>Asana URL</Label>
               <Input value={form.asana_url} onChange={(e) => update("asana_url", e.target.value)} placeholder="https://..." />
             </div>
-            <div>
-              <Label>IA Financial URL</Label>
-              <Input value={form.ia_financial_url} onChange={(e) => update("ia_financial_url", e.target.value)} placeholder="https://..." />
-            </div>
+             <div>
+               <Label>IA Financial URL</Label>
+               <Input value={form.ia_financial_url} onChange={(e) => update("ia_financial_url", e.target.value)} placeholder="https://..." />
+             </div>
+             <div>
+               <Label>Google Drive Folder URL</Label>
+               <Input value={form.google_drive_url} onChange={(e) => update("google_drive_url", e.target.value)} placeholder="https://drive.google.com/..." />
+             </div>
           </CardContent>
         </Card>
 
