@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useCalendarEvents } from "@/hooks/useGoogle";
 import { useGoogleStatus } from "@/hooks/useGoogle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +11,10 @@ interface ContactCalendarProps {
 
 export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
   const { data: status } = useGoogleStatus();
-  const now = new Date().toISOString();
-  const sixMonthsOut = new Date(Date.now() + 180 * 86400000).toISOString();
+  const { now, sixMonthsOut } = useMemo(() => ({
+    now: new Date().toISOString(),
+    sixMonthsOut: new Date(Date.now() + 180 * 86400000).toISOString(),
+  }), []);
   const { data, isLoading, error } = useCalendarEvents(now, sixMonthsOut, status?.connected);
 
   if (!contactEmail) {
