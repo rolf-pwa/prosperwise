@@ -207,36 +207,34 @@ function CalendarWidget() {
               const start = event.start?.dateTime || event.start?.date;
               const startDate = start ? parseISO(start) : null;
               return (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-3 rounded-md border border-border p-3"
-                >
-                  <div className="min-w-[3rem] text-center">
-                    {startDate && (
-                      <>
-                        <p className="text-xs text-muted-foreground">
-                          {format(startDate, "EEE")}
-                        </p>
-                        <p className="text-sm font-semibold">
-                          {format(startDate, "d")}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{event.summary}</p>
-                    {startDate && event.start?.dateTime && (
-                      <p className="text-xs text-muted-foreground">
-                        {format(startDate, "h:mm a")}
-                      </p>
-                    )}
-                  </div>
-                  {event.htmlLink && (
-                    <a href={event.htmlLink} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    </a>
-                  )}
-                </div>
+                 <a
+                    key={event.id}
+                    href={event.htmlLink || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+                  >
+                   <div className="min-w-[3rem] text-center">
+                     {startDate && (
+                       <>
+                         <p className="text-xs text-muted-foreground">
+                           {format(startDate, "EEE")}
+                         </p>
+                         <p className="text-sm font-semibold">
+                           {format(startDate, "d")}
+                         </p>
+                       </>
+                     )}
+                   </div>
+                   <div className="flex-1 min-w-0">
+                     <p className="text-sm font-medium truncate">{event.summary}</p>
+                     {startDate && event.start?.dateTime && (
+                       <p className="text-xs text-muted-foreground">
+                         {format(startDate, "h:mm a")}
+                       </p>
+                     )}
+                   </div>
+                 </a>
               );
             })}
           </div>
@@ -324,25 +322,28 @@ function GmailWidget() {
             {data.messages.slice(0, 8).map((msg: any) => {
               const fromName = msg.from?.replace(/<.*>/, "").trim() || "Unknown";
               return (
-                <div
-                  key={msg.id}
-                  className="rounded-md border border-border p-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium truncate flex-1">
-                      {msg.subject || "(No subject)"}
-                    </p>
-                    {msg.labelIds?.includes("UNREAD") && (
-                      <Badge variant="secondary" className="text-[10px] shrink-0">
-                        New
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">{fromName}</p>
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                    {msg.snippet}
-                  </p>
-                </div>
+                 <a
+                    key={msg.id}
+                    href={`https://mail.google.com/mail/u/0/#all/${msg.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+                  >
+                   <div className="flex items-start justify-between gap-2">
+                     <p className="text-sm font-medium truncate flex-1">
+                       {msg.subject || "(No subject)"}
+                     </p>
+                     {msg.labelIds?.includes("UNREAD") && (
+                       <Badge variant="secondary" className="text-[10px] shrink-0">
+                         New
+                       </Badge>
+                     )}
+                   </div>
+                   <p className="text-xs text-muted-foreground truncate">{fromName}</p>
+                   <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                     {msg.snippet}
+                   </p>
+                 </a>
               );
             })}
           </div>

@@ -84,27 +84,34 @@ export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
               const start = event.start?.dateTime || event.start?.date;
               const parsedStart = start ? new Date(start) : null;
               return (
-                <li key={event.id} className="flex items-start gap-3 border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                  {parsedStart && !isNaN(parsedStart.getTime()) && (
-                    <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <span className="text-[10px] font-medium uppercase leading-none">
-                        {format(parsedStart, "MMM")}
-                      </span>
-                      <span className="text-sm font-bold leading-tight">
-                        {format(parsedStart, "d")}
-                      </span>
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {event.summary || "(No title)"}
-                    </p>
+                <li key={event.id}>
+                  <a
+                    href={event.htmlLink || `https://calendar.google.com/calendar/r/day/${parsedStart ? format(parsedStart, "yyyy/MM/dd") : ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 rounded-md border-b border-border/50 pb-3 last:border-0 last:pb-0 transition-colors hover:bg-muted/50 -mx-1 px-1"
+                  >
                     {parsedStart && !isNaN(parsedStart.getTime()) && (
-                      <p className="text-xs text-muted-foreground">
-                        {format(parsedStart, "EEEE, MMM d · h:mm a")}
-                      </p>
+                      <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <span className="text-[10px] font-medium uppercase leading-none">
+                          {format(parsedStart, "MMM")}
+                        </span>
+                        <span className="text-sm font-bold leading-tight">
+                          {format(parsedStart, "d")}
+                        </span>
+                      </div>
                     )}
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {event.summary || "(No title)"}
+                      </p>
+                      {parsedStart && !isNaN(parsedStart.getTime()) && (
+                        <p className="text-xs text-muted-foreground">
+                          {format(parsedStart, "EEEE, MMM d · h:mm a")}
+                        </p>
+                      )}
+                    </div>
+                  </a>
                 </li>
               );
             })}

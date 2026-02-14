@@ -67,27 +67,34 @@ export function ContactEmails({ contactEmail }: ContactEmailsProps) {
             {data.messages.slice(0, 10).map((msg: any) => {
               const parsedDate = msg.date ? new Date(msg.date) : null;
               return (
-                <li key={msg.id} className="border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {msg.subject || "(No subject)"}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {msg.from}
-                      </p>
-                      {msg.snippet && (
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/70">
-                          {msg.snippet}
+                <li key={msg.id}>
+                  <a
+                    href={`https://mail.google.com/mail/u/0/#all/${msg.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-md border-b border-border/50 pb-3 last:border-0 last:pb-0 transition-colors hover:bg-muted/50 -mx-1 px-1"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {msg.subject || "(No subject)"}
                         </p>
-                      )}
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {msg.from}
+                        </p>
+                        {msg.snippet && (
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground/70">
+                            {msg.snippet}
+                          </p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {parsedDate && !isNaN(parsedDate.getTime())
+                          ? format(parsedDate, "MMM d")
+                          : ""}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {parsedDate && !isNaN(parsedDate.getTime())
-                        ? format(parsedDate, "MMM d")
-                        : ""}
-                    </span>
-                  </div>
+                  </a>
                 </li>
               );
             })}
