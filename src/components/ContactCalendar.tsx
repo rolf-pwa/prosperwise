@@ -1,0 +1,109 @@
+import { useCalendarEvents } from "@/hooks/useGoogle";
+import { useGoogleStatus } from "@/hooks/useGoogle";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "lucide-react";
+import { format } from "date-fns";
+
+interface ContactCalendarProps {
+  contactEmail: string | null;
+}
+
+export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
+  const { data: status } = useGoogleStatus();
+  const now = new Date().toISOString();
+  const sixMonthsOut = new Date(Date.now() + 180 * 86400000).toISOString();
+  const { data, isLoading, error } = useCalendarEvents(now, sixMonthsOut, status?.connected);
+
+  if (!contactEmail) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Calendar className="h-4 w-4" />
+            Upcoming Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No email address on file.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!status?.connected) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Calendar className="h-4 w-4" />
+            Upcoming Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Connect Google on the Dashboard to see events.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Filter events where the contact is an attendee
+  const contactEvents = (data?.items || []).filter((event: any) => {
+    const attendees = event.attendees || [];
+    return attendees.some(
+      (a: any) => a.email?.toLowerCase() === contactEmail.toLowerCase()
+    );
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Calendar className="h-4 w-4" />
+          Upcoming Events
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground animate-pulse">Loading events...</p>
+        ) : error ? (
+          <p className="text-sm text-destructive">Failed to load events.</p>
+        ) : !contactEvents.length ? (
+          <p className="text-sm text-muted-foreground">No upcoming events with this contact.</p>
+        ) : (
+          <ul className="space-y-3">
+            {contactEvents.slice(0, 10).map((event: any) => {
+              const start = event.start?.dateTime || event.start?.date;
+              const parsedStart = start ? new Date(start) : null;
+              return (
+                <li key={event.id} className="flex items-start gap-3 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                  {parsedStart && !isNaN(parsedStart.getTime()) && (
+                    <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <span className="text-[10px] font-medium uppercase leading-none">
+                        {format(parsedStart, "MMM")}
+                      </span>
+                      <span className="text-sm font-bold leading-tight">
+                        {format(parsedStart, "d")}
+                      </span>
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {event.summary || "(No title)"}
+                    </p>
+                    {parsedStart && !isNaN(parsedStart.getTime()) && (
+                      <p className="text-xs text-muted-foreground">
+                        {format(parsedStart, "EEEE, MMM d · h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
