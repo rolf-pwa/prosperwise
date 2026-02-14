@@ -50,10 +50,14 @@ export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
 
   // Filter events where the contact is an attendee
   const contactEvents = (data?.items || []).filter((event: any) => {
+    const email = contactEmail.toLowerCase();
     const attendees = event.attendees || [];
-    return attendees.some(
-      (a: any) => a.email?.toLowerCase() === contactEmail.toLowerCase()
+    const isAttendee = attendees.some(
+      (a: any) => a.email?.toLowerCase() === email
     );
+    const isOrganizer = event.organizer?.email?.toLowerCase() === email;
+    const isCreator = event.creator?.email?.toLowerCase() === email;
+    return isAttendee || isOrganizer || isCreator;
   });
 
   return (
