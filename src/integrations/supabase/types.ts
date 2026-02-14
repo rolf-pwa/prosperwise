@@ -25,6 +25,7 @@ export type Database = {
           email: string | null
           fiduciary_entity: Database["public"]["Enums"]["fiduciary_entity"]
           full_name: string
+          google_drive_url: string | null
           governance_status: Database["public"]["Enums"]["governance_status"]
           household_members: Json | null
           ia_financial_url: string | null
@@ -49,6 +50,7 @@ export type Database = {
           email?: string | null
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
           full_name: string
+          google_drive_url?: string | null
           governance_status?: Database["public"]["Enums"]["governance_status"]
           household_members?: Json | null
           ia_financial_url?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           email?: string | null
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
           full_name?: string
+          google_drive_url?: string | null
           governance_status?: Database["public"]["Enums"]["governance_status"]
           household_members?: Json | null
           ia_financial_url?: string | null

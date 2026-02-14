@@ -1,0 +1,1 @@
+ALTER TABLE public.contacts ADD COLUMN google_drive_url text;
