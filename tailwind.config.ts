@@ -48,10 +48,10 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
         sanctuary: {
-          gold: "hsl(var(--sanctuary-gold))",
-          teal: "hsl(var(--sanctuary-teal))",
-          navy: "hsl(var(--sanctuary-navy))",
-          slate: "hsl(var(--sanctuary-slate))",
+          green: "hsl(var(--sanctuary-green))",
+          bronze: "hsl(var(--sanctuary-bronze))",
+          stone: "hsl(var(--sanctuary-stone))",
+          charcoal: "hsl(var(--sanctuary-charcoal))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

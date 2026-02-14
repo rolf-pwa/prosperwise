@@ -49,7 +49,7 @@ const Contacts = () => {
               The Sovereignty Engine — {contacts.length} contacts
             </p>
           </div>
-          <Button asChild className="bg-sanctuary-gold text-sanctuary-navy hover:bg-sanctuary-gold/90">
+          <Button asChild className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90">
             <Link to="/contacts/new">
               <Plus className="mr-2 h-4 w-4" />
               New Contact
@@ -105,7 +105,7 @@ const Contacts = () => {
                         variant={c.governance_status === "sovereign" ? "default" : "secondary"}
                         className={
                           c.governance_status === "sovereign"
-                            ? "bg-sanctuary-gold/20 text-sanctuary-gold border-sanctuary-gold/30"
+                            ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
                             : ""
                         }
                       >
