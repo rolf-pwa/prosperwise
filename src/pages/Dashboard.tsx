@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Clock, Users, CalendarCheck, ArrowRight } from "lucide-react";
+import { Shield, Clock, Users, CalendarCheck } from "lucide-react";
 import { CommandCenter } from "@/components/CommandCenter";
 import { differenceInDays, addDays, format } from "date-fns";
 
@@ -48,7 +48,7 @@ const Dashboard = () => {
     .filter((c) => c.daysLeft > 0 && c.daysLeft <= 30)
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
-  const recentContacts = contacts.slice(0, 5);
+  
 
   return (
     <AppLayout>
@@ -108,88 +108,39 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Recent Contacts */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Recent Contacts</CardTitle>
-              <Link
-                to="/contacts"
-                className="flex items-center gap-1 text-xs text-sanctuary-bronze hover:underline"
-              >
-                View all <ArrowRight className="h-3 w-3" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              ) : recentContacts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No contacts yet.{" "}
-                  <Link to="/contacts/new" className="text-sanctuary-bronze hover:underline">
-                    Add your first contact
-                  </Link>
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {recentContacts.map((c) => (
-                    <Link
-                      key={c.id}
-                      to={`/contacts/${c.id}`}
-                      className="flex items-center justify-between rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
-                    >
+        {/* Upcoming Milestones */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Upcoming Milestones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcomingMilestones.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No contacts approaching Quiet Period completion.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {upcomingMilestones.map((c) => (
+                  <Link
+                    key={c.id}
+                    to={`/contacts/${c.id}`}
+                    className="flex items-center justify-between rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <div>
                       <span className="text-sm font-medium">{c.full_name}</span>
-                      <Badge
-                        variant={c.governance_status === "sovereign" ? "default" : "secondary"}
-                        className={
-                          c.governance_status === "sovereign"
-                            ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
-                            : ""
-                        }
-                      >
-                        {c.governance_status === "sovereign" ? "Sovereign" : "Stabilization"}
-                      </Badge>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Milestones */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Upcoming Milestones</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {upcomingMilestones.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No contacts approaching Quiet Period completion.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingMilestones.map((c) => (
-                    <Link
-                      key={c.id}
-                      to={`/contacts/${c.id}`}
-                      className="flex items-center justify-between rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
-                    >
-                      <div>
-                        <span className="text-sm font-medium">{c.full_name}</span>
-                        <p className="text-xs text-muted-foreground">
-                          Completes {format(c.endDate, "MMM d, yyyy")}
-                        </p>
-                      </div>
-                      <Badge className="bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30">
-                        {c.daysLeft}d left
-                      </Badge>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                      <p className="text-xs text-muted-foreground">
+                        Completes {format(c.endDate, "MMM d, yyyy")}
+                      </p>
+                    </div>
+                    <Badge className="bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30">
+                      {c.daysLeft}d left
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Command Center — Calendar & Gmail */}
         <CommandCenter />
