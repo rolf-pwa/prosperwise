@@ -309,7 +309,7 @@ const ContactForm = () => {
         </Card>
 
         <div className="flex gap-3">
-          <Button type="submit" disabled={saving} className="bg-sanctuary-gold text-sanctuary-navy hover:bg-sanctuary-gold/90">
+          <Button type="submit" disabled={saving} className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90">
             {saving ? "Saving..." : isEdit ? "Update Contact" : "Create Contact"}
           </Button>
           <Button

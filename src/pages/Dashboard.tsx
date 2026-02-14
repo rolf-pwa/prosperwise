@@ -63,8 +63,8 @@ const Dashboard = () => {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sanctuary-teal/10">
-                <Clock className="h-6 w-6 text-sanctuary-teal" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sanctuary-green/10">
+                <Clock className="h-6 w-6 text-sanctuary-green" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active Quiet Periods</p>
@@ -74,8 +74,8 @@ const Dashboard = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sanctuary-gold/10">
-                <Shield className="h-6 w-6 text-sanctuary-gold" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sanctuary-bronze/10">
+                <Shield className="h-6 w-6 text-sanctuary-bronze" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Ratified Charters</p>
@@ -101,7 +101,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Command Center</p>
-                <p className="text-xs text-sanctuary-teal font-medium">Phase 2</p>
+                <p className="text-xs text-sanctuary-green font-medium">Phase 2</p>
               </div>
             </CardContent>
           </Card>
@@ -114,7 +114,7 @@ const Dashboard = () => {
               <CardTitle className="text-lg">Recent Contacts</CardTitle>
               <Link
                 to="/contacts"
-                className="flex items-center gap-1 text-xs text-sanctuary-gold hover:underline"
+                className="flex items-center gap-1 text-xs text-sanctuary-bronze hover:underline"
               >
                 View all <ArrowRight className="h-3 w-3" />
               </Link>
@@ -125,7 +125,7 @@ const Dashboard = () => {
               ) : recentContacts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No contacts yet.{" "}
-                  <Link to="/contacts/new" className="text-sanctuary-gold hover:underline">
+                  <Link to="/contacts/new" className="text-sanctuary-bronze hover:underline">
                     Add your first contact
                   </Link>
                 </p>
@@ -142,7 +142,7 @@ const Dashboard = () => {
                         variant={c.governance_status === "sovereign" ? "default" : "secondary"}
                         className={
                           c.governance_status === "sovereign"
-                            ? "bg-sanctuary-gold/20 text-sanctuary-gold border-sanctuary-gold/30"
+                            ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
                             : ""
                         }
                       >
@@ -179,7 +179,7 @@ const Dashboard = () => {
                           Completes {format(c.endDate, "MMM d, yyyy")}
                         </p>
                       </div>
-                      <Badge className="bg-sanctuary-teal/20 text-sanctuary-teal border-sanctuary-teal/30">
+                      <Badge className="bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30">
                         {c.daysLeft}d left
                       </Badge>
                     </Link>
@@ -200,7 +200,7 @@ const Dashboard = () => {
                 Google Calendar & Gmail integration coming in Phase 2.
               </p>
             </div>
-            <Badge variant="outline" className="text-sanctuary-teal border-sanctuary-teal/30">
+            <Badge variant="outline" className="text-sanctuary-green border-sanctuary-green/30">
               Coming Soon
             </Badge>
           </CardContent>

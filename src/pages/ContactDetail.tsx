@@ -119,8 +119,8 @@ const ContactDetail = () => {
                 <Badge
                   className={
                     isStabilization
-                      ? "bg-sanctuary-teal/20 text-sanctuary-teal border-sanctuary-teal/30"
-                      : "bg-sanctuary-gold/20 text-sanctuary-gold border-sanctuary-gold/30"
+                       ? "bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30"
+                       : "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
                   }
                 >
                   {isStabilization ? "Stabilization Phase" : "Sovereign Phase"}
@@ -141,12 +141,12 @@ const ContactDetail = () => {
           <div className="space-y-6 lg:col-span-2">
             {/* Quiet Period Timer */}
             {isStabilization && quietStart && (
-              <Card className="border-sanctuary-teal/30">
+               <Card className="border-sanctuary-green/30">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <Clock className="h-5 w-5 text-sanctuary-teal" />
+                    <Clock className="h-5 w-5 text-sanctuary-green" />
                     <h3 className="font-semibold">Quiet Period</h3>
-                    <Badge className="ml-auto bg-sanctuary-teal/10 text-sanctuary-teal border-sanctuary-teal/20">
+                    <Badge className="ml-auto bg-sanctuary-green/10 text-sanctuary-green border-sanctuary-green/20">
                       <AlertCircle className="mr-1 h-3 w-3" />
                       Zero Sales Pressure
                     </Badge>
@@ -162,7 +162,7 @@ const ContactDetail = () => {
                     <span>Ends {quietEnd && format(quietEnd, "MMM d, yyyy")}</span>
                   </div>
                   {daysLeft === 0 && (
-                    <div className="mt-4 rounded-md bg-sanctuary-gold/10 p-3 text-center text-sm text-sanctuary-gold">
+                    <div className="mt-4 rounded-md bg-sanctuary-bronze/10 p-3 text-center text-sm text-sanctuary-bronze">
                       <Shield className="mr-1 inline h-4 w-4" />
                       Ready for Charter Ratification
                     </div>
