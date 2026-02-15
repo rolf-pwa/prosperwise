@@ -1,13 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
-import { LayoutDashboard, Users, LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Shield, Folder, CheckSquare, ShieldCheck, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/contacts", label: "Contacts", icon: Users },
+];
+
+const externalLinks = [
+  { href: "https://prosperwise.sidedrawer.com", label: "SideDrawer", icon: Folder },
+  { href: "https://app.asana.com", label: "Asana", icon: CheckSquare },
+  { href: "https://iaa.secureweb.inalco.com/MKMWPN23/home", label: "IA Financial", icon: ShieldCheck },
+  { href: "https://workspace.google.com", label: "Google Workspace", icon: ExternalLink },
 ];
 
 export function AppSidebar() {
@@ -43,6 +51,25 @@ export function AppSidebar() {
             <Icon className="h-4 w-4" />
             {label}
           </Link>
+        ))}
+
+        <Separator className="my-3 bg-sidebar-border" />
+
+        <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+          Integrations
+        </p>
+        {externalLinks.map(({ href, label, icon: Icon }) => (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+            <ExternalLink className="ml-auto h-3 w-3 opacity-40" />
+          </a>
         ))}
       </nav>
 
