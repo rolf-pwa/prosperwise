@@ -1,17 +1,8 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Calendar, Mail, Plus, Send, Loader2, ExternalLink, Link2Off } from "lucide-react";
+import { Calendar, Mail, Plus, Send, Loader2, Link2Off } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -20,8 +11,6 @@ import {
   useDisconnectGoogle,
   useCalendarEvents,
   useGmailMessages,
-  useCreateCalendarEvent,
-  useSendGmail,
 } from "@/hooks/useGoogle";
 
 export function CommandCenter() {
@@ -116,32 +105,7 @@ function CalendarWidget() {
     };
   }, []);
   const { data, isLoading, error } = useCalendarEvents(timeMin, timeMax);
-  const createEvent = useCreateCalendarEvent();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newEvent, setNewEvent] = useState({ summary: "", date: "", startTime: "", endTime: "" });
 
-  const handleCreate = () => {
-    if (!newEvent.summary || !newEvent.date || !newEvent.startTime || !newEvent.endTime) {
-      toast.error("Please fill all fields");
-      return;
-    }
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    createEvent.mutate(
-      {
-        summary: newEvent.summary,
-        start: { dateTime: `${newEvent.date}T${newEvent.startTime}:00`, timeZone: tz },
-        end: { dateTime: `${newEvent.date}T${newEvent.endTime}:00`, timeZone: tz },
-      },
-      {
-        onSuccess: () => {
-          toast.success("Event created");
-          setShowCreate(false);
-          setNewEvent({ summary: "", date: "", startTime: "", endTime: "" });
-        },
-        onError: (err) => toast.error(err.message),
-      }
-    );
-  };
 
   return (
     <Card>
@@ -150,47 +114,12 @@ function CalendarWidget() {
           <Calendar className="h-4 w-4 text-sanctuary-bronze" />
           Upcoming Events
         </CardTitle>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Plus className="mr-1 h-3 w-3" />
-              New
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Calendar Event</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input
-                placeholder="Event title"
-                value={newEvent.summary}
-                onChange={(e) => setNewEvent((p) => ({ ...p, summary: e.target.value }))}
-              />
-              <Input
-                type="date"
-                value={newEvent.date}
-                onChange={(e) => setNewEvent((p) => ({ ...p, date: e.target.value }))}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="time"
-                  value={newEvent.startTime}
-                  onChange={(e) => setNewEvent((p) => ({ ...p, startTime: e.target.value }))}
-                />
-                <Input
-                  type="time"
-                  value={newEvent.endTime}
-                  onChange={(e) => setNewEvent((p) => ({ ...p, endTime: e.target.value }))}
-                />
-              </div>
-              <Button onClick={handleCreate} disabled={createEvent.isPending} className="w-full">
-                {createEvent.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Create Event
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <a href="https://calendar.google.com/calendar/r/eventedit" target="_blank" rel="noopener noreferrer">
+          <Button variant="ghost" size="sm">
+            <Plus className="mr-1 h-3 w-3" />
+            New
+          </Button>
+        </a>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -246,24 +175,6 @@ function CalendarWidget() {
 
 function GmailWidget() {
   const { data, isLoading, error } = useGmailMessages();
-  const sendEmail = useSendGmail();
-  const [showCompose, setShowCompose] = useState(false);
-  const [email, setEmail] = useState({ to: "", subject: "", body: "" });
-
-  const handleSend = () => {
-    if (!email.to || !email.subject) {
-      toast.error("Please fill To and Subject");
-      return;
-    }
-    sendEmail.mutate(email, {
-      onSuccess: () => {
-        toast.success("Email sent");
-        setShowCompose(false);
-        setEmail({ to: "", subject: "", body: "" });
-      },
-      onError: (err) => toast.error(err.message),
-    });
-  };
 
   return (
     <Card>
@@ -272,41 +183,12 @@ function GmailWidget() {
           <Mail className="h-4 w-4 text-sanctuary-bronze" />
           Recent Emails
         </CardTitle>
-        <Dialog open={showCompose} onOpenChange={setShowCompose}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Send className="mr-1 h-3 w-3" />
-              Compose
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Compose Email</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Input
-                placeholder="To"
-                value={email.to}
-                onChange={(e) => setEmail((p) => ({ ...p, to: e.target.value }))}
-              />
-              <Input
-                placeholder="Subject"
-                value={email.subject}
-                onChange={(e) => setEmail((p) => ({ ...p, subject: e.target.value }))}
-              />
-              <Textarea
-                placeholder="Message..."
-                rows={5}
-                value={email.body}
-                onChange={(e) => setEmail((p) => ({ ...p, body: e.target.value }))}
-              />
-              <Button onClick={handleSend} disabled={sendEmail.isPending} className="w-full">
-                {sendEmail.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Send Email
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <a href="https://mail.google.com/mail/u/0/#inbox?compose=new" target="_blank" rel="noopener noreferrer">
+          <Button variant="ghost" size="sm">
+            <Send className="mr-1 h-3 w-3" />
+            Compose
+          </Button>
+        </a>
       </CardHeader>
       <CardContent>
         {isLoading ? (
