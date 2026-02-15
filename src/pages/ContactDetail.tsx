@@ -87,7 +87,7 @@ const ContactDetail = () => {
       setFamilyMembers((familyRes.data as any) || []);
 
       // Look up professional team contacts by name
-      const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name].filter(Boolean) as string[];
+      const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
       if (names.length > 0) {
         const { data: matchedContacts } = await supabase
           .from("contacts")
@@ -436,11 +436,15 @@ const ContactDetail = () => {
                 {[
                   { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
                   { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
+                  { role: "Executor", name: contact.executor_name, firm: contact.executor_firm },
+                  { role: "Power of Attorney", name: contact.poa_name, firm: contact.poa_firm },
                 ].filter(({ name }) => name).length > 0 ? (
                   <ul className="space-y-1 text-sm">
                     {[
                       { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
                       { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
+                      { role: "Executor", name: contact.executor_name, firm: contact.executor_firm },
+                      { role: "Power of Attorney", name: contact.poa_name, firm: contact.poa_firm },
                     ].map(({ role, name, firm }) => {
                       if (!name) return null;
                       const matched = professionalContacts[name];

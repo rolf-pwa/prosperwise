@@ -23,6 +23,8 @@ export type Database = {
           created_at: string
           created_by: string
           email: string | null
+          executor_firm: string | null
+          executor_name: string | null
           fiduciary_entity: Database["public"]["Enums"]["fiduciary_entity"]
           full_name: string
           google_drive_url: string | null
@@ -33,6 +35,8 @@ export type Database = {
           lawyer_firm: string | null
           lawyer_name: string | null
           phone: string | null
+          poa_firm: string | null
+          poa_name: string | null
           quiet_period_start_date: string | null
           sidedrawer_url: string | null
           updated_at: string
@@ -48,6 +52,8 @@ export type Database = {
           created_at?: string
           created_by: string
           email?: string | null
+          executor_firm?: string | null
+          executor_name?: string | null
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
           full_name: string
           google_drive_url?: string | null
@@ -58,6 +64,8 @@ export type Database = {
           lawyer_firm?: string | null
           lawyer_name?: string | null
           phone?: string | null
+          poa_firm?: string | null
+          poa_name?: string | null
           quiet_period_start_date?: string | null
           sidedrawer_url?: string | null
           updated_at?: string
@@ -73,6 +81,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           email?: string | null
+          executor_firm?: string | null
+          executor_name?: string | null
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
           full_name?: string
           google_drive_url?: string | null
@@ -83,6 +93,8 @@ export type Database = {
           lawyer_firm?: string | null
           lawyer_name?: string | null
           phone?: string | null
+          poa_firm?: string | null
+          poa_name?: string | null
           quiet_period_start_date?: string | null
           sidedrawer_url?: string | null
           updated_at?: string
