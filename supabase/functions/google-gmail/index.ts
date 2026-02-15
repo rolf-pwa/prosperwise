@@ -192,6 +192,45 @@ serve(async (req) => {
       });
     }
 
+    if (action === "draft") {
+      const { to, subject, body } = await req.json();
+      const rawMessage = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        "Content-Type: text/html; charset=utf-8",
+        "",
+        body,
+      ].join("\r\n");
+
+      const encoded = btoa(unescape(encodeURIComponent(rawMessage)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+      const gmailRes = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/drafts",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message: { raw: encoded } }),
+        }
+      );
+
+      if (!gmailRes.ok) {
+        const err = await gmailRes.text();
+        console.error("Gmail draft error:", err);
+        throw new Error(`Gmail draft error: ${gmailRes.status}`);
+      }
+
+      const data = await gmailRes.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Invalid action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
