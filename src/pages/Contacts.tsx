@@ -6,17 +6,44 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Plus,
+  Search,
+  Folder,
+  FolderOpen,
+  CheckSquare,
+  ShieldCheck,
+  Mail,
+  Phone,
+  MapPin,
+} from "lucide-react";
 
 interface Contact {
   id: string;
   full_name: string;
   email: string | null;
   phone: string | null;
+  address: string | null;
   governance_status: string;
   fiduciary_entity: string;
   updated_at: string;
+  sidedrawer_url: string | null;
+  google_drive_url: string | null;
+  asana_url: string | null;
+  ia_financial_url: string | null;
 }
+
+const RESOURCE_ICONS = [
+  { key: "sidedrawer_url" as const, label: "SideDrawer", icon: Folder },
+  { key: "google_drive_url" as const, label: "Google Drive", icon: FolderOpen },
+  { key: "asana_url" as const, label: "Asana", icon: CheckSquare },
+  { key: "ia_financial_url" as const, label: "IA Financial", icon: ShieldCheck },
+];
 
 const Contacts = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -27,7 +54,7 @@ const Contacts = () => {
     async function fetchContacts() {
       const { data } = await supabase
         .from("contacts")
-        .select("id, full_name, email, phone, governance_status, fiduciary_entity, updated_at")
+        .select("id, full_name, email, phone, address, governance_status, fiduciary_entity, updated_at, sidedrawer_url, google_drive_url, asana_url, ia_financial_url")
         .order("full_name");
       setContacts(data || []);
       setLoading(false);
@@ -85,36 +112,78 @@ const Contacts = () => {
         ) : (
           <div className="space-y-2">
             {filtered.map((c) => (
-              <Link key={c.id} to={`/contacts/${c.id}`}>
-                <Card className="transition-colors hover:bg-muted/30">
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="space-y-0.5">
-                      <p className="font-medium">{c.full_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {[c.email, c.phone].filter(Boolean).join(" · ") || "No contact info"}
-                      </p>
+              <Card key={c.id} className="transition-colors hover:bg-muted/30">
+                <CardContent className="flex items-center gap-4 p-4">
+                  {/* Name & Info */}
+                  <Link to={`/contacts/${c.id}`} className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{c.full_name}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      {c.email && (
+                        <span className="flex items-center gap-1 truncate">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{c.email}</span>
+                        </span>
+                      )}
+                      {c.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          {c.phone}
+                        </span>
+                      )}
+                      {c.address && (
+                        <span className="flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{c.address}</span>
+                        </span>
+                      )}
+                      {!c.email && !c.phone && !c.address && "No contact info"}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="text-xs uppercase"
-                      >
-                        {c.fiduciary_entity}
-                      </Badge>
-                      <Badge
-                        variant={c.governance_status === "sovereign" ? "default" : "secondary"}
-                        className={
-                          c.governance_status === "sovereign"
-                            ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
-                            : ""
-                        }
-                      >
-                        {c.governance_status === "sovereign" ? "Sovereign" : "Stabilization"}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                  </Link>
+
+                  {/* Resource Icons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {RESOURCE_ICONS.map(({ key, label, icon: Icon }) => {
+                      const url = c[key];
+                      if (!url) return null;
+                      return (
+                        <Tooltip key={key}>
+                          <TooltipTrigger asChild>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                            </a>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs">
+                            {label}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+
+                  {/* Badges */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant="outline" className="text-xs uppercase">
+                      {c.fiduciary_entity}
+                    </Badge>
+                    <Badge
+                      variant={c.governance_status === "sovereign" ? "default" : "secondary"}
+                      className={
+                        c.governance_status === "sovereign"
+                          ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
+                          : ""
+                      }
+                    >
+                      {c.governance_status === "sovereign" ? "Sovereign" : "Stabilization"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
