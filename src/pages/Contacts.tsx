@@ -26,7 +26,8 @@ import {
 
 interface Contact {
   id: string;
-  full_name: string;
+  first_name: string;
+  last_name: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
@@ -54,8 +55,9 @@ const Contacts = () => {
   const fetchContacts = useCallback(async () => {
     const { data } = await supabase
       .from("contacts")
-      .select("id, full_name, email, phone, address, governance_status, fiduciary_entity, updated_at, sidedrawer_url, google_drive_url, asana_url, ia_financial_url")
-      .order("full_name");
+      .select("id, first_name, last_name, email, phone, address, governance_status, fiduciary_entity, updated_at, sidedrawer_url, google_drive_url, asana_url, ia_financial_url")
+      .order("last_name")
+      .order("first_name");
     setContacts(data || []);
     setLoading(false);
   }, []);
@@ -64,9 +66,10 @@ const Contacts = () => {
     fetchContacts();
   }, [fetchContacts]);
 
-  const filtered = contacts.filter((c) =>
-    c.full_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = contacts.filter((c) => {
+    const name = `${c.first_name} ${c.last_name || ""}`.toLowerCase();
+    return name.includes(search.toLowerCase());
+  });
 
   return (
     <AppLayout>
@@ -121,7 +124,7 @@ const Contacts = () => {
                 <CardContent className="flex items-center gap-4 p-4">
                   {/* Name & Info */}
                   <Link to={`/contacts/${c.id}`} className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{c.full_name}</p>
+                    <p className="font-medium truncate">{c.first_name} {c.last_name}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       {c.email && (
                         <span className="flex items-center gap-1 truncate">

@@ -22,9 +22,9 @@ import { ArrowLeft, X, Plus, Search } from "lucide-react";
 interface LinkedMember {
   relationship_id?: string;
   contact_id: string;
-  full_name: string;
+  display_name: string;
   relationship_label: string;
-  isNew?: boolean; // true if we need to create the contact
+  isNew?: boolean;
 }
 
 const ContactForm = () => {
@@ -36,7 +36,8 @@ const ContactForm = () => {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    full_name: searchParams.get("full_name") || "",
+    first_name: searchParams.get("first_name") || "",
+    last_name: searchParams.get("last_name") || "",
     email: "",
     phone: "",
     address: "",
@@ -64,7 +65,7 @@ const ContactForm = () => {
   const [householdMembers, setHouseholdMembers] = useState<LinkedMember[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
   const [memberLabel, setMemberLabel] = useState("");
-  const [searchResults, setSearchResults] = useState<{ id: string; full_name: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<{ id: string; first_name: string; last_name: string | null }[]>([]);
   const [showResults, setShowResults] = useState(false);
 
   // Search contacts for household linking
@@ -72,8 +73,8 @@ const ContactForm = () => {
     if (query.length < 2) { setSearchResults([]); return; }
     const { data } = await supabase
       .from("contacts")
-      .select("id, full_name")
-      .ilike("full_name", `%${query}%`)
+      .select("id, first_name, last_name")
+      .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
       .neq("id", id || "")
       .limit(5);
     setSearchResults(data || []);
@@ -92,13 +93,14 @@ const ContactForm = () => {
         supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
         supabase
           .from("household_relationships")
-          .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, full_name)")
+          .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, first_name, last_name)")
           .eq("contact_id", id),
       ]);
       const data = contactRes.data;
       if (!data) return;
       setForm({
-        full_name: data.full_name || "",
+        first_name: data.first_name || "",
+        last_name: data.last_name || "",
         email: data.email || "",
         phone: data.phone || "",
         address: data.address || "",
@@ -125,7 +127,7 @@ const ContactForm = () => {
         (householdRes.data || []).map((r: any) => ({
           relationship_id: r.id,
           contact_id: r.member_contact_id,
-          full_name: r.contact?.full_name || "Unknown",
+          display_name: `${r.contact?.first_name || ""} ${r.contact?.last_name || ""}`.trim() || "Unknown",
           relationship_label: r.relationship_label || "",
         }))
       );
@@ -133,14 +135,14 @@ const ContactForm = () => {
     load();
   }, [id]);
 
-  function addExistingMember(contact: { id: string; full_name: string }) {
+  function addExistingMember(contact: { id: string; first_name: string; last_name: string | null }) {
     if (householdMembers.some((m) => m.contact_id === contact.id)) {
       toast.error("Already added.");
       return;
     }
     setHouseholdMembers((prev) => [
       ...prev,
-      { contact_id: contact.id, full_name: contact.full_name, relationship_label: memberLabel },
+      { contact_id: contact.id, display_name: `${contact.first_name} ${contact.last_name || ""}`.trim(), relationship_label: memberLabel },
     ]);
     setMemberSearch("");
     setMemberLabel("");
@@ -151,7 +153,7 @@ const ContactForm = () => {
     if (!user) return;
     setHouseholdMembers((prev) => [
       ...prev,
-      { contact_id: "", full_name: name, relationship_label: memberLabel, isNew: true },
+      { contact_id: "", display_name: name, relationship_label: memberLabel, isNew: true },
     ]);
     setMemberSearch("");
     setMemberLabel("");
@@ -171,9 +173,10 @@ const ContactForm = () => {
 
       // Create new contact if needed
       if (member.isNew || !memberId) {
+        const nameParts = member.display_name.split(" ");
         const { data } = await supabase
           .from("contacts")
-          .insert({ full_name: member.full_name, created_by: user!.id })
+          .insert({ full_name: member.display_name, first_name: nameParts[0] || "", last_name: nameParts.slice(1).join(" ") || "", created_by: user!.id } as any)
           .select("id")
           .single();
         if (data) memberId = data.id;
@@ -194,15 +197,17 @@ const ContactForm = () => {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.full_name.trim()) {
-      toast.error("Full name is required.");
+    if (!form.first_name.trim()) {
+      toast.error("First name is required.");
       return;
     }
 
     setSaving(true);
 
-    const payload = {
-      full_name: form.full_name,
+    const payload: any = {
+      full_name: `${form.first_name} ${form.last_name}`.trim(),
+      first_name: form.first_name,
+      last_name: form.last_name || null,
       email: form.email || null,
       phone: form.phone || null,
       address: form.address || null,
@@ -286,13 +291,21 @@ const ContactForm = () => {
             <CardTitle className="text-lg">Basic Information</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Label htmlFor="full_name">Full Name *</Label>
+            <div>
+              <Label htmlFor="first_name">First Name *</Label>
               <Input
-                id="full_name"
-                value={form.full_name}
-                onChange={(e) => update("full_name", e.target.value)}
+                id="first_name"
+                value={form.first_name}
+                onChange={(e) => update("first_name", e.target.value)}
                 required
+              />
+            </div>
+            <div>
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input
+                id="last_name"
+                value={form.last_name}
+                onChange={(e) => update("last_name", e.target.value)}
               />
             </div>
             <div>
@@ -424,7 +437,7 @@ const ContactForm = () => {
                 <div className="space-y-1">
                   {householdMembers.map((m, i) => (
                     <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                      <span className="flex-1 text-sm font-medium">{m.full_name}</span>
+                      <span className="flex-1 text-sm font-medium">{m.display_name}</span>
                       {m.relationship_label && (
                         <Badge variant="secondary" className="text-xs">{m.relationship_label}</Badge>
                       )}
@@ -460,7 +473,7 @@ const ContactForm = () => {
                           className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted"
                           onMouseDown={() => addExistingMember(c)}
                         >
-                          {c.full_name}
+                          {c.first_name} {c.last_name}
                         </button>
                       ))}
                       {memberSearch.length >= 2 && (

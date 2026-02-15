@@ -58,7 +58,7 @@ interface HouseholdMember {
   id: string;
   member_contact_id: string;
   relationship_label: string | null;
-  contact: { id: string; full_name: string } | null;
+  contact: { id: string; first_name: string; last_name: string | null } | null;
 }
 
 const STOREHOUSE_LABELS = [
@@ -89,11 +89,11 @@ const ContactDetail = () => {
         .order("storehouse_number"),
       supabase
         .from("household_relationships")
-        .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, full_name)")
+        .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, first_name, last_name)")
         .eq("contact_id", id),
       supabase
         .from("family_relationships")
-        .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, full_name)")
+        .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)")
         .eq("contact_id", id),
     ]);
     setContact(contactRes.data);
@@ -106,12 +106,12 @@ const ContactDetail = () => {
     if (names.length > 0) {
       const { data: matchedContacts } = await supabase
         .from("contacts")
-        .select("id, full_name")
+        .select("id, first_name, last_name, full_name")
         .in("full_name", names);
       const map: Record<string, { id: string; full_name: string } | null> = {};
       names.forEach((name) => {
         const match = matchedContacts?.find((c) => c.full_name === name) || null;
-        map[name] = match;
+        map[name] = match ? { id: match.id, full_name: match.full_name } : null;
       });
       setProfessionalContacts(map);
     }
@@ -169,7 +169,7 @@ const ContactDetail = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">{contact.full_name}</h1>
+              <h1 className="text-2xl font-bold">{contact.first_name} {contact.last_name}</h1>
               <div className="mt-1 flex items-center gap-2">
                 <Badge variant="outline" className="text-xs uppercase">
                   {contact.fiduciary_entity}
@@ -203,7 +203,7 @@ const ContactDetail = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete contact</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete {contact.full_name} and all associated relationships. This action cannot be undone.
+                    This will permanently delete {contact.first_name} {contact.last_name} and all associated relationships. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -433,7 +433,7 @@ const ContactDetail = () => {
                           to={`/contacts/${hm.member_contact_id}`}
                           className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
                         >
-                          <span className="font-medium">{hm.contact?.full_name || "Unknown"}</span>
+                          <span className="font-medium">{hm.contact ? `${(hm.contact as any).first_name} ${(hm.contact as any).last_name || ""}`.trim() : "Unknown"}</span>
                           {hm.relationship_label && (
                             <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
                           )}
@@ -473,7 +473,7 @@ const ContactDetail = () => {
                           to={`/contacts/${fm.member_contact_id}`}
                           className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
                         >
-                          <span className="font-medium">{fm.contact?.full_name || "Unknown"}</span>
+                          <span className="font-medium">{fm.contact ? `${(fm.contact as any).first_name} ${(fm.contact as any).last_name || ""}`.trim() : "Unknown"}</span>
                           {fm.relationship_label && (
                             <span className="text-xs text-muted-foreground">{fm.relationship_label}</span>
                           )}
