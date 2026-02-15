@@ -46,6 +46,10 @@ const ContactForm = () => {
     lawyer_firm: "",
     accountant_name: "",
     accountant_firm: "",
+    executor_name: "",
+    executor_firm: "",
+    poa_name: "",
+    poa_firm: "",
     vineyard_ebitda: "",
     vineyard_operating_income: "",
     vineyard_balance_sheet_summary: "",
@@ -104,6 +108,10 @@ const ContactForm = () => {
         lawyer_firm: data.lawyer_firm || "",
         accountant_name: data.accountant_name || "",
         accountant_firm: data.accountant_firm || "",
+        executor_name: (data as any).executor_name || "",
+        executor_firm: (data as any).executor_firm || "",
+        poa_name: (data as any).poa_name || "",
+        poa_firm: (data as any).poa_firm || "",
         vineyard_ebitda: data.vineyard_ebitda?.toString() || "",
         vineyard_operating_income: data.vineyard_operating_income?.toString() || "",
         vineyard_balance_sheet_summary: data.vineyard_balance_sheet_summary || "",
@@ -204,6 +212,10 @@ const ContactForm = () => {
       lawyer_firm: form.lawyer_firm || null,
       accountant_name: form.accountant_name || null,
       accountant_firm: form.accountant_firm || null,
+      executor_name: form.executor_name || null,
+      executor_firm: form.executor_firm || null,
+      poa_name: form.poa_name || null,
+      poa_firm: form.poa_firm || null,
       vineyard_ebitda: form.vineyard_ebitda ? Number(form.vineyard_ebitda) : null,
       vineyard_operating_income: form.vineyard_operating_income
         ? Number(form.vineyard_operating_income)
@@ -357,6 +369,22 @@ const ContactForm = () => {
             <div>
               <Label>Accountant Firm</Label>
               <Input value={form.accountant_firm} onChange={(e) => update("accountant_firm", e.target.value)} />
+            </div>
+            <div>
+              <Label>Executor Name</Label>
+              <Input value={form.executor_name} onChange={(e) => update("executor_name", e.target.value)} />
+            </div>
+            <div>
+              <Label>Executor Firm</Label>
+              <Input value={form.executor_firm} onChange={(e) => update("executor_firm", e.target.value)} />
+            </div>
+            <div>
+              <Label>Power of Attorney Name</Label>
+              <Input value={form.poa_name} onChange={(e) => update("poa_name", e.target.value)} />
+            </div>
+            <div>
+              <Label>Power of Attorney Firm</Label>
+              <Input value={form.poa_firm} onChange={(e) => update("poa_firm", e.target.value)} />
             </div>
           </CardContent>
         </Card>
