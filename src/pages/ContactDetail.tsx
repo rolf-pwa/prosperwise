@@ -58,13 +58,14 @@ const ContactDetail = () => {
   const [contact, setContact] = useState<any>(null);
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<HouseholdMember[]>([]);
   const [professionalContacts, setProfessionalContacts] = useState<Record<string, { id: string; full_name: string } | null>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     async function fetch() {
-      const [contactRes, storehouseRes, householdRes] = await Promise.all([
+      const [contactRes, storehouseRes, householdRes, familyRes] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
         supabase
           .from("storehouses")
@@ -75,10 +76,15 @@ const ContactDetail = () => {
           .from("household_relationships")
           .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, full_name)")
           .eq("contact_id", id),
+        supabase
+          .from("family_relationships")
+          .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, full_name)")
+          .eq("contact_id", id),
       ]);
       setContact(contactRes.data);
       setStorehouses(storehouseRes.data || []);
       setHouseholdMembers((householdRes.data as any) || []);
+      setFamilyMembers((familyRes.data as any) || []);
 
       // Look up professional team contacts by name
       const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name].filter(Boolean) as string[];
@@ -392,7 +398,36 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Professional Team */}
+            {/* Family Members */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Family Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {familyMembers.length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {familyMembers.map((fm) => (
+                      <li key={fm.id}>
+                        <Link
+                          to={`/contacts/${fm.member_contact_id}`}
+                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="font-medium">{fm.contact?.full_name || "Unknown"}</span>
+                          {fm.relationship_label && (
+                            <span className="text-xs text-muted-foreground">{fm.relationship_label}</span>
+                          )}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No family members linked.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Professional Team</CardTitle>
