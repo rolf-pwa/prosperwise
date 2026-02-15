@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
-import { LayoutDashboard, Users, LogOut, Shield, Folder, CheckSquare, ShieldCheck, ExternalLink } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Shield, Folder, CheckSquare, ShieldCheck, ExternalLink, Calendar, Mail, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +15,9 @@ const externalLinks = [
   { href: "https://prosperwise.sidedrawer.com", label: "SideDrawer", icon: Folder },
   { href: "https://app.asana.com", label: "Asana", icon: CheckSquare },
   { href: "https://iaa.secureweb.inalco.com/MKMWPN23/home", label: "IA Financial", icon: ShieldCheck },
-  { href: "https://workspace.google.com", label: "Google Workspace", icon: ExternalLink },
+  { href: "https://calendar.google.com", label: "Google Calendar", icon: Calendar },
+  { href: "https://mail.google.com", label: "Gmail", icon: Mail },
+  { href: "https://drive.google.com", label: "Google Drive", icon: FolderOpen },
 ];
 
 export function AppSidebar() {
