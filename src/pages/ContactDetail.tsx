@@ -398,41 +398,38 @@ const ContactDetail = () => {
                 <CardTitle className="text-base">Professional Team</CardTitle>
               </CardHeader>
               <CardContent>
-                <dl className="space-y-3 text-sm">
-                  {[
-                    { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
-                    { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
-                  ].map(({ role, name, firm }) => {
-                    const matched = name ? professionalContacts[name] : null;
-                    return (
-                      <div key={role}>
-                        <dt className="text-muted-foreground">{role}</dt>
-                        <dd className="font-medium">
-                          {name ? (
-                            matched ? (
-                              <Link
-                                to={`/contacts/${matched.id}`}
-                                className="text-primary underline-offset-4 hover:underline"
-                              >
-                                {name}{firm ? ` — ${firm}` : ""}
-                              </Link>
-                            ) : (
-                              <Link
-                                to={`/contacts/new?full_name=${encodeURIComponent(name)}`}
-                                className="text-primary underline-offset-4 hover:underline flex items-center gap-1"
-                              >
-                                {name}{firm ? ` — ${firm}` : ""}
-                                <Plus className="h-3 w-3" />
-                              </Link>
-                            )
-                          ) : (
-                            "—"
-                          )}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
+                {[
+                  { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
+                  { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
+                ].filter(({ name }) => name).length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {[
+                      { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
+                      { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
+                    ].map(({ role, name, firm }) => {
+                      if (!name) return null;
+                      const matched = professionalContacts[name];
+                      return (
+                        <li key={role}>
+                          <Link
+                            to={matched ? `/contacts/${matched.id}` : `/contacts/new?full_name=${encodeURIComponent(name)}`}
+                            className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                          >
+                            <span className="font-medium flex items-center gap-1">
+                              {name}{firm ? ` — ${firm}` : ""}
+                              {!matched && <Plus className="h-3 w-3" />}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{role}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No professionals linked.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
