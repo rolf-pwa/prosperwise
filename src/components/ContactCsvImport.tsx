@@ -25,6 +25,8 @@ import { Upload, FileUp, AlertCircle } from "lucide-react";
 const CONTACT_FIELDS = [
   { value: "__skip__", label: "— Skip —" },
   { value: "full_name", label: "Full Name" },
+  { value: "first_name", label: "First Name" },
+  { value: "last_name", label: "Last Name" },
   { value: "email", label: "Email" },
   { value: "phone", label: "Phone" },
   { value: "address", label: "Address" },
@@ -84,6 +86,8 @@ function parseCSV(text: string): { headers: string[]; rows: string[][] } {
 function guessMapping(header: string): string {
   const h = header.toLowerCase().replace(/[_\-\s]+/g, "");
   if (h.includes("fullname") || h === "name" || h === "contactname") return "full_name";
+  if (h === "firstname" || h === "first") return "first_name";
+  if (h === "lastname" || h === "last" || h === "surname") return "last_name";
   if (h.includes("email") || h.includes("mail")) return "email";
   if (h.includes("phone") || h.includes("tel") || h.includes("mobile")) return "phone";
   if (h.includes("address") || h.includes("addr")) return "address";
@@ -144,12 +148,12 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
     setMapping((prev) => ({ ...prev, [colIndex]: field }));
   }
 
-  const hasFullName = Object.values(mapping).includes("full_name");
+  const hasName = Object.values(mapping).includes("full_name") || Object.values(mapping).includes("first_name");
 
   async function handleImport() {
     if (!user) return;
-    if (!hasFullName) {
-      toast.error("You must map at least one column to Full Name.");
+    if (!hasName) {
+      toast.error("You must map at least one column to Full Name or First Name.");
       return;
     }
 
@@ -164,12 +168,22 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
           const value = row[Number(colIdx)]?.trim();
           record[field] = value || null;
         });
+        // If full_name mapped but not first/last, split it
+        if (record.full_name && !record.first_name) {
+          const parts = (record.full_name as string).split(" ");
+          record.first_name = parts[0] || "";
+          record.last_name = parts.slice(1).join(" ") || "";
+        }
+        // If first_name mapped but no full_name, construct it
+        if (record.first_name && !record.full_name) {
+          record.full_name = `${record.first_name} ${record.last_name || ""}`.trim();
+        }
         return record;
       })
-      .filter((r) => r.full_name);
+      .filter((r) => r.first_name || r.full_name);
 
     if (contacts.length === 0) {
-      toast.error("No valid rows found (all missing Full Name).");
+      toast.error("No valid rows found (all missing name).");
       setImporting(false);
       setStep("map");
       return;
@@ -245,10 +259,10 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
             <div className="flex items-center gap-2 text-sm">
               <Badge variant="secondary">{rows.length} rows</Badge>
               <Badge variant="secondary">{headers.length} columns</Badge>
-              {!hasFullName && (
+              {!hasName && (
                 <span className="flex items-center gap-1 text-destructive text-xs">
                   <AlertCircle className="h-3 w-3" />
-                  Map a column to "Full Name"
+                  Map a column to "Full Name" or "First Name"
                 </span>
               )}
             </div>
@@ -298,7 +312,7 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
               </Button>
               <Button
                 onClick={handleImport}
-                disabled={!hasFullName}
+                disabled={!hasName}
                 className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90"
               >
                 Import {rows.length} contact{rows.length !== 1 ? "s" : ""}

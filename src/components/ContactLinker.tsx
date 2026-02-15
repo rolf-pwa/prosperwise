@@ -26,7 +26,7 @@ export function ContactLinker({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [label, setLabel] = useState("");
-  const [results, setResults] = useState<{ id: string; full_name: string }[]>([]);
+  const [results, setResults] = useState<{ id: string; first_name: string; last_name: string | null }[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -40,8 +40,8 @@ export function ContactLinker({
       }
       const { data } = await supabase
         .from("contacts")
-        .select("id, full_name")
-        .ilike("full_name", `%${query}%`)
+        .select("id, first_name, last_name")
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
         .neq("id", excludeContactId || contactId)
         .limit(5);
       setResults(data || []);
@@ -55,8 +55,9 @@ export function ContactLinker({
     return () => clearTimeout(timer);
   }, [search, searchContacts]);
 
-  async function linkExisting(target: { id: string; full_name: string }) {
+  async function linkExisting(target: { id: string; first_name: string; last_name: string | null }) {
     setSaving(true);
+    const displayName = `${target.first_name} ${target.last_name || ""}`.trim();
     const { error } = await supabase.from(table).insert({
       contact_id: contactId,
       member_contact_id: target.id,
@@ -65,7 +66,7 @@ export function ContactLinker({
     if (error) {
       toast.error("Failed to link contact.");
     } else {
-      toast.success(`${target.full_name} linked.`);
+      toast.success(`${displayName} linked.`);
       onLinked();
     }
     reset();
@@ -74,9 +75,10 @@ export function ContactLinker({
   async function createAndLink(name: string) {
     if (!user) return;
     setSaving(true);
+    const nameParts = name.split(" ");
     const { data, error: createErr } = await supabase
       .from("contacts")
-      .insert({ full_name: name, created_by: user.id })
+      .insert({ full_name: name, first_name: nameParts[0] || "", last_name: nameParts.slice(1).join(" ") || "", created_by: user.id } as any)
       .select("id")
       .single();
     if (createErr || !data) {
@@ -143,7 +145,7 @@ export function ContactLinker({
                   className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted"
                   onMouseDown={() => linkExisting(c)}
                 >
-                  {c.full_name}
+                  {c.first_name} {c.last_name}
                 </button>
               ))}
               {search.length >= 2 && (

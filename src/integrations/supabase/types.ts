@@ -26,12 +26,14 @@ export type Database = {
           executor_firm: string | null
           executor_name: string | null
           fiduciary_entity: Database["public"]["Enums"]["fiduciary_entity"]
+          first_name: string
           full_name: string
           google_drive_url: string | null
           governance_status: Database["public"]["Enums"]["governance_status"]
           household_members: Json | null
           ia_financial_url: string | null
           id: string
+          last_name: string | null
           lawyer_firm: string | null
           lawyer_name: string | null
           phone: string | null
@@ -55,12 +57,14 @@ export type Database = {
           executor_firm?: string | null
           executor_name?: string | null
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
+          first_name?: string
           full_name: string
           google_drive_url?: string | null
           governance_status?: Database["public"]["Enums"]["governance_status"]
           household_members?: Json | null
           ia_financial_url?: string | null
           id?: string
+          last_name?: string | null
           lawyer_firm?: string | null
           lawyer_name?: string | null
           phone?: string | null
@@ -84,12 +88,14 @@ export type Database = {
           executor_firm?: string | null
           executor_name?: string | null
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
+          first_name?: string
           full_name?: string
           google_drive_url?: string | null
           governance_status?: Database["public"]["Enums"]["governance_status"]
           household_members?: Json | null
           ia_financial_url?: string | null
           id?: string
+          last_name?: string | null
           lawyer_firm?: string | null
           lawyer_name?: string | null
           phone?: string | null

@@ -32,7 +32,7 @@ export function ProfessionalLinker({ contactId, contact, onLinked }: Professiona
   const [role, setRole] = useState("");
   const [search, setSearch] = useState("");
   const [firm, setFirm] = useState("");
-  const [results, setResults] = useState<{ id: string; full_name: string }[]>([]);
+  const [results, setResults] = useState<{ id: string; first_name: string; last_name: string | null }[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -47,8 +47,8 @@ export function ProfessionalLinker({ contactId, contact, onLinked }: Professiona
       }
       const { data } = await supabase
         .from("contacts")
-        .select("id, full_name")
-        .ilike("full_name", `%${query}%`)
+        .select("id, first_name, last_name")
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
         .neq("id", contactId)
         .limit(5);
       setResults(data || []);
@@ -95,7 +95,7 @@ export function ProfessionalLinker({ contactId, contact, onLinked }: Professiona
     // Create the contact first
     await supabase
       .from("contacts")
-      .insert({ full_name: name, created_by: user.id });
+      .insert({ full_name: name, first_name: name.split(" ")[0] || "", last_name: name.split(" ").slice(1).join(" ") || "", created_by: user.id } as any);
     // Then assign
     await assignProfessional(name);
   }
@@ -158,9 +158,9 @@ export function ProfessionalLinker({ contactId, contact, onLinked }: Professiona
                   key={c.id}
                   type="button"
                   className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted"
-                  onMouseDown={() => assignProfessional(c.full_name)}
-                >
-                  {c.full_name}
+                   onMouseDown={() => assignProfessional(`${c.first_name} ${c.last_name || ""}`.trim())}
+                 >
+                   {c.first_name} {c.last_name}
                 </button>
               ))}
               {search.length >= 2 && (
