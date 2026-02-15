@@ -251,6 +251,47 @@ export type Database = {
         }
         Relationships: []
       }
+      sovereignty_audit_trail: {
+        Row: {
+          action_description: string
+          action_type: string
+          approved_at: string
+          contact_id: string
+          created_at: string
+          id: string
+          proposed_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          action_description: string
+          action_type: string
+          approved_at?: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          proposed_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          action_description?: string
+          action_type?: string
+          approved_at?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          proposed_data?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sovereignty_audit_trail_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storehouses: {
         Row: {
           asset_type: string | null

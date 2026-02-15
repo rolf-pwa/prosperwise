@@ -43,6 +43,10 @@ import { ContactEmails } from "@/components/ContactEmails";
 import { ContactCalendar } from "@/components/ContactCalendar";
 import { ContactLinker } from "@/components/ContactLinker";
 import { ProfessionalLinker } from "@/components/ProfessionalLinker";
+import { SovereigntyAssistant } from "@/components/SovereigntyAssistant";
+import { AuditTrail } from "@/components/AuditTrail";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Bot } from "lucide-react";
 
 interface Storehouse {
   id: string;
@@ -286,9 +290,48 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Email & Calendar */}
-            <ContactCalendar contactEmail={contact.email} />
-            <ContactEmails contactEmail={contact.email} />
+            {/* Email, Calendar, AI Assistant */}
+            <Tabs defaultValue="comms" className="w-full">
+              <TabsList className="w-full">
+                <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
+                <TabsTrigger value="assistant" className="flex-1">
+                  <Bot className="mr-1.5 h-3.5 w-3.5" />
+                  AI Assistant
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="comms" className="space-y-6 mt-4">
+                <ContactCalendar contactEmail={contact.email} />
+                <ContactEmails contactEmail={contact.email} />
+              </TabsContent>
+              <TabsContent value="assistant" className="space-y-4 mt-4">
+                <SovereigntyAssistant
+                  variant="embedded"
+                  contactId={id}
+                  contactContext={{
+                    id: contact.id,
+                    name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+                    email: contact.email,
+                    phone: contact.phone,
+                    governance_status: contact.governance_status,
+                    fiduciary_entity: contact.fiduciary_entity,
+                    vineyard_ebitda: contact.vineyard_ebitda,
+                    vineyard_operating_income: contact.vineyard_operating_income,
+                    vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
+                    storehouses: storehouses.map((s) => ({
+                      number: s.storehouse_number,
+                      label: s.label,
+                      asset_type: s.asset_type,
+                      risk_cap: s.risk_cap,
+                      charter_alignment: s.charter_alignment,
+                    })),
+                    quiet_period_start_date: contact.quiet_period_start_date,
+                    asana_url: contact.asana_url,
+                    google_drive_url: contact.google_drive_url,
+                  }}
+                />
+                <AuditTrail contactId={id!} />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Right Sidebar */}

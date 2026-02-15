@@ -1,4 +1,5 @@
 import { AppSidebar } from "./AppSidebar";
+import { AssistantSidebar } from "./AssistantSidebar";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl px-6 py-8">{children}</div>
       </main>
+      <AssistantSidebar />
     </div>
   );
 }
