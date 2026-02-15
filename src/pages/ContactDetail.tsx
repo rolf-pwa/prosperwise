@@ -23,8 +23,21 @@ import {
   AlertCircle,
   FolderOpen,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ContactEmails } from "@/components/ContactEmails";
 import { ContactCalendar } from "@/components/ContactCalendar";
 import { ContactLinker } from "@/components/ContactLinker";
@@ -172,12 +185,46 @@ const ContactDetail = () => {
               </div>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/contacts/${id}/edit`)}
-          >
-            Edit Contact
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/contacts/${id}/edit`)}
+            >
+              Edit Contact
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="icon" className="text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete contact</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {contact.full_name} and all associated relationships. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const { error } = await supabase.from("contacts").delete().eq("id", id!);
+                      if (error) {
+                        toast.error("Failed to delete contact.");
+                      } else {
+                        toast.success("Contact deleted.");
+                        navigate("/contacts");
+                      }
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
