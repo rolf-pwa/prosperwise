@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 import { toast } from "sonner";
@@ -427,16 +428,26 @@ const ContactDetail = () => {
                 {householdMembers.length > 0 ? (
                   <ul className="space-y-1 text-sm">
                     {householdMembers.map((hm) => (
-                      <li key={hm.id}>
+                      <li key={hm.id} className="flex items-center gap-1">
                         <Link
                           to={`/contacts/${hm.member_contact_id}`}
-                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                          className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
                         >
                           <span className="font-medium">{hm.contact?.full_name || "Unknown"}</span>
                           {hm.relationship_label && (
                             <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
                           )}
                         </Link>
+                        <button
+                          onClick={async () => {
+                            await supabase.from("household_relationships").delete().eq("id", hm.id);
+                            toast.success("Removed.");
+                            fetchData();
+                          }}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -457,16 +468,26 @@ const ContactDetail = () => {
                 {familyMembers.length > 0 ? (
                   <ul className="space-y-1 text-sm">
                     {familyMembers.map((fm) => (
-                      <li key={fm.id}>
+                      <li key={fm.id} className="flex items-center gap-1">
                         <Link
                           to={`/contacts/${fm.member_contact_id}`}
-                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                          className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
                         >
                           <span className="font-medium">{fm.contact?.full_name || "Unknown"}</span>
                           {fm.relationship_label && (
                             <span className="text-xs text-muted-foreground">{fm.relationship_label}</span>
                           )}
                         </Link>
+                        <button
+                          onClick={async () => {
+                            await supabase.from("family_relationships").delete().eq("id", fm.id);
+                            toast.success("Removed.");
+                            fetchData();
+                          }}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -492,18 +513,18 @@ const ContactDetail = () => {
                 ].filter(({ name }) => name).length > 0 ? (
                   <ul className="space-y-1 text-sm">
                     {[
-                      { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
-                      { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
-                      { role: "Executor", name: contact.executor_name, firm: contact.executor_firm },
-                      { role: "Power of Attorney", name: contact.poa_name, firm: contact.poa_firm },
-                    ].map(({ role, name, firm }) => {
+                      { role: "Lawyer", nameCol: "lawyer_name", firmCol: "lawyer_firm", name: contact.lawyer_name, firm: contact.lawyer_firm },
+                      { role: "Accountant", nameCol: "accountant_name", firmCol: "accountant_firm", name: contact.accountant_name, firm: contact.accountant_firm },
+                      { role: "Executor", nameCol: "executor_name", firmCol: "executor_firm", name: contact.executor_name, firm: contact.executor_firm },
+                      { role: "Power of Attorney", nameCol: "poa_name", firmCol: "poa_firm", name: contact.poa_name, firm: contact.poa_firm },
+                    ].map(({ role, nameCol, firmCol, name, firm }) => {
                       if (!name) return null;
                       const matched = professionalContacts[name];
                       return (
-                        <li key={role}>
+                        <li key={role} className="flex items-center gap-1">
                           <Link
                             to={matched ? `/contacts/${matched.id}` : `/contacts/new?full_name=${encodeURIComponent(name)}`}
-                            className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                            className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
                           >
                             <span className="font-medium flex items-center gap-1">
                               {name}{firm ? ` — ${firm}` : ""}
@@ -511,6 +532,16 @@ const ContactDetail = () => {
                             </span>
                             <span className="text-xs text-muted-foreground">{role}</span>
                           </Link>
+                          <button
+                            onClick={async () => {
+                              await supabase.from("contacts").update({ [nameCol]: null, [firmCol]: null }).eq("id", id!);
+                              toast.success(`${role} removed.`);
+                              fetchData();
+                            }}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         </li>
                       );
                     })}
