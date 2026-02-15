@@ -120,3 +120,15 @@ export async function sendGmailMessage(to: string, subject: string, body: string
   if (!res.ok) throw new Error(data.error || "Failed to send message");
   return data;
 }
+
+export async function createGmailDraft(to: string, subject: string, body: string) {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${FUNCTIONS_URL}/google-gmail?action=draft`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ to, subject, body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to create draft");
+  return data;
+}

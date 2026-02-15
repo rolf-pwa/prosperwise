@@ -8,10 +8,14 @@ import {
   Mail,
   ListTodo,
   Loader2,
-  ExternalLink,
+  UserPlus,
+  UserCog,
+  CalendarPlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditAction, type FunctionCall } from "@/lib/vertex-ai";
+import { createGmailDraft } from "@/lib/google-api";
+import { createCalendarEvent } from "@/lib/google-api";
 import { toast } from "sonner";
 
 interface ProposedUpdateCardProps {
@@ -26,6 +30,9 @@ const CARD_CONFIG: Record<string, { icon: typeof Database; label: string; color:
   propose_storehouse_update: { icon: Database, label: "Storehouse Update", color: "text-sanctuary-bronze" },
   draft_stabilization_email: { icon: Mail, label: "Draft Email", color: "text-blue-500" },
   draft_asana_task: { icon: ListTodo, label: "Draft Task", color: "text-purple-500" },
+  create_contact: { icon: UserPlus, label: "New Contact", color: "text-emerald-500" },
+  update_contact: { icon: UserCog, label: "Update Contact", color: "text-amber-500" },
+  schedule_meeting: { icon: CalendarPlus, label: "Schedule Meeting", color: "text-indigo-500" },
 };
 
 export function ProposedUpdateCard({ functionCall, contactId, isApproved, onApproved }: ProposedUpdateCardProps) {
@@ -75,7 +82,6 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           if (args.charter_alignment) storehouseData.charter_alignment = args.charter_alignment;
           if (args.notes) storehouseData.notes = args.notes;
 
-          // Upsert: check if storehouse exists
           const { data: existing } = await supabase
             .from("storehouses")
             .select("id")
@@ -102,24 +108,22 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
         }
 
         case "draft_stabilization_email": {
-          // Open Gmail compose with pre-filled content (draft mode)
-          const gmailUrl = `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(args.to_email)}&su=${encodeURIComponent(args.subject)}&body=${encodeURIComponent(args.body)}`;
-          window.open(gmailUrl, "_blank");
+          // Save as Gmail draft via API
+          await createGmailDraft(args.to_email, args.subject, args.body);
 
           if (cid) {
             await logAuditAction(
               cid,
               "draft_email",
-              `AI Assistant drafted Stabilization Email for ${args.to_name}: "${args.subject}"`,
+              `AI Assistant drafted email for ${args.to_name}: "${args.subject}" — saved to Gmail Drafts`,
               args
             );
           }
-          toast.success("Email draft opened in Gmail. Review before sending.");
+          toast.success("Email saved to Gmail Drafts. Open Gmail to review & send.");
           break;
         }
 
         case "draft_asana_task": {
-          // Copy task content to clipboard (link-only mode)
           const taskText = `${args.task_title}\n\n${args.task_description}\n\nContact: ${args.contact_name}\nPriority: ${args.priority || "medium"}`;
           await navigator.clipboard.writeText(taskText);
 
@@ -134,6 +138,101 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           toast.success("Task copied to clipboard. Paste into Asana to create.");
           break;
         }
+
+        case "create_contact": {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error("Not authenticated");
+
+          const fullName = [args.first_name, args.last_name].filter(Boolean).join(" ");
+          const contactData: Record<string, any> = {
+            first_name: args.first_name,
+            full_name: fullName,
+            created_by: user.id,
+          };
+          if (args.last_name) contactData.last_name = args.last_name;
+          if (args.email) contactData.email = args.email;
+          if (args.phone) contactData.phone = args.phone;
+          if (args.address) contactData.address = args.address;
+          if (args.fiduciary_entity) contactData.fiduciary_entity = args.fiduciary_entity;
+          if (args.governance_status) contactData.governance_status = args.governance_status;
+
+          const { data: newContact, error } = await supabase
+            .from("contacts")
+            .insert(contactData as any)
+            .select("id")
+            .single();
+          if (error) throw error;
+
+          await logAuditAction(
+            newContact.id,
+            "create_contact",
+            `AI Assistant created contact "${fullName}": ${args.rationale}`,
+            args
+          );
+          toast.success(`Contact "${fullName}" created successfully.`);
+          break;
+        }
+
+        case "update_contact": {
+          if (!cid) throw new Error("No contact ID");
+          const updates: Record<string, any> = {};
+          const fieldsToCopy = [
+            "first_name", "last_name", "email", "phone", "address",
+            "fiduciary_entity", "governance_status", "google_drive_url",
+            "asana_url", "sidedrawer_url", "ia_financial_url",
+            "lawyer_name", "lawyer_firm", "accountant_name", "accountant_firm",
+          ];
+          for (const field of fieldsToCopy) {
+            if (args[field] != null) updates[field] = args[field];
+          }
+          // Recompute full_name if name fields changed
+          if (updates.first_name || updates.last_name) {
+            const { data: current } = await supabase.from("contacts").select("first_name, last_name").eq("id", cid).single();
+            const fn = updates.first_name || current?.first_name || "";
+            const ln = updates.last_name ?? current?.last_name ?? "";
+            updates.full_name = [fn, ln].filter(Boolean).join(" ");
+          }
+
+          if (Object.keys(updates).length > 0) {
+            const { error } = await supabase.from("contacts").update(updates).eq("id", cid);
+            if (error) throw error;
+          }
+
+          await logAuditAction(
+            cid,
+            "update_contact",
+            `AI Assistant updated contact "${args.contact_name}": ${args.rationale}`,
+            args
+          );
+          toast.success(`Contact "${args.contact_name}" updated.`);
+          break;
+        }
+
+        case "schedule_meeting": {
+          const tz = args.timezone || "America/Toronto";
+          const attendees = args.attendees
+            ? args.attendees.split(",").map((e: string) => ({ email: e.trim() }))
+            : [];
+
+          await createCalendarEvent({
+            summary: args.summary,
+            description: args.description || "",
+            start: { dateTime: args.start_datetime, timeZone: tz },
+            end: { dateTime: args.end_datetime, timeZone: tz },
+            attendees,
+          });
+
+          if (cid) {
+            await logAuditAction(
+              cid,
+              "schedule_meeting",
+              `AI Assistant scheduled meeting "${args.summary}" for ${args.contact_name || "N/A"}: ${args.rationale}`,
+              args
+            );
+          }
+          toast.success(`Meeting "${args.summary}" scheduled on Google Calendar.`);
+          break;
+        }
       }
 
       onApproved();
@@ -143,6 +242,9 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
       setLoading(false);
     }
   };
+
+  // Fields to hide from display
+  const hiddenFields = ["contact_id"];
 
   return (
     <Card className="border-sanctuary-bronze/30 bg-accent/5">
@@ -158,7 +260,7 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
         {/* Render args as key-value pairs */}
         <dl className="space-y-1 text-xs">
           {Object.entries(args)
-            .filter(([key]) => !["contact_id"].includes(key))
+            .filter(([key]) => !hiddenFields.includes(key))
             .map(([key, value]) => (
               <div key={key} className="flex gap-2">
                 <dt className="text-muted-foreground capitalize min-w-[100px]">

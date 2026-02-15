@@ -93,8 +93,11 @@ When appropriate, use these tools to propose structured actions:
 
 1. **propose_vineyard_update** — Extract and propose updates to a contact's Vineyard financial metrics (EBITDA, Operating Income, Balance Sheet Summary).
 2. **propose_storehouse_update** — Propose updates to a contact's Storehouse (liquidity vessel) configuration.
-3. **draft_stabilization_email** — Draft a "Stabilization Email" for the Personal CFO to review before sending. This stays in DRAFT status.
+3. **draft_stabilization_email** — Draft a "Stabilization Email" and save it as a Gmail draft for the Personal CFO to review before sending.
 4. **draft_asana_task** — Draft a follow-up task description for Asana. This stays in DRAFT status.
+5. **create_contact** — Create a new contact record in the system with the provided details.
+6. **update_contact** — Update an existing contact's information (name, email, phone, address, professional links, etc.).
+7. **schedule_meeting** — Schedule a Google Calendar meeting with specified attendees, date/time, and details.
 
 ## Rules
 - ALWAYS label your outputs as "📋 Draft for CFO Review" when proposing actions.
@@ -102,7 +105,10 @@ When appropriate, use these tools to propose structured actions:
 - When analyzing documents, extract specific financial data points and map them to the Vineyard/Storehouse schema.
 - Maintain PIPEDA compliance — never suggest sending client data outside the secure environment.
 - Be concise, professional, and action-oriented.
-- When you don't have enough context, ask clarifying questions before proposing actions.`;
+- When you don't have enough context, ask clarifying questions before proposing actions.
+- For emails, always use the draft_stabilization_email tool so the email is saved as a Gmail draft.
+- For meetings, collect date, time, duration, attendees, and purpose before proposing.
+- When creating or updating contacts, confirm the details with the CFO before proposing.`;
 
 // ---------- Tool Definitions ----------
 
@@ -146,7 +152,7 @@ const TOOLS = [
       },
       {
         name: "draft_stabilization_email",
-        description: "Draft a Stabilization Email for a contact. The email stays in DRAFT status until the Personal CFO reviews and sends it.",
+        description: "Draft a Stabilization Email and save it as a Gmail draft for the Personal CFO to review before sending.",
         parameters: {
           type: "OBJECT",
           properties: {
@@ -172,6 +178,70 @@ const TOOLS = [
             context: { type: "STRING", description: "Why this task is needed" },
           },
           required: ["task_title", "task_description", "contact_name", "context"],
+        },
+      },
+      {
+        name: "create_contact",
+        description: "Create a new contact record in the system. The contact will be created after CFO approval.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            first_name: { type: "STRING", description: "Contact's first name" },
+            last_name: { type: "STRING", description: "Contact's last name" },
+            email: { type: "STRING", description: "Contact's email address" },
+            phone: { type: "STRING", description: "Contact's phone number" },
+            address: { type: "STRING", description: "Contact's address" },
+            fiduciary_entity: { type: "STRING", description: "Fiduciary entity type: pws or pwa" },
+            governance_status: { type: "STRING", description: "Governance status: stabilization or sovereign" },
+            rationale: { type: "STRING", description: "Why this contact is being added" },
+          },
+          required: ["first_name", "rationale"],
+        },
+      },
+      {
+        name: "update_contact",
+        description: "Update an existing contact's information. Changes are applied after CFO approval.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            contact_id: { type: "STRING", description: "UUID of the contact to update" },
+            contact_name: { type: "STRING", description: "Current name of the contact for display" },
+            first_name: { type: "STRING", description: "Updated first name" },
+            last_name: { type: "STRING", description: "Updated last name" },
+            email: { type: "STRING", description: "Updated email address" },
+            phone: { type: "STRING", description: "Updated phone number" },
+            address: { type: "STRING", description: "Updated address" },
+            fiduciary_entity: { type: "STRING", description: "Updated fiduciary entity: pws or pwa" },
+            governance_status: { type: "STRING", description: "Updated governance status: stabilization or sovereign" },
+            google_drive_url: { type: "STRING", description: "Updated Google Drive URL" },
+            asana_url: { type: "STRING", description: "Updated Asana URL" },
+            sidedrawer_url: { type: "STRING", description: "Updated Sidedrawer URL" },
+            ia_financial_url: { type: "STRING", description: "Updated IA Financial URL" },
+            lawyer_name: { type: "STRING", description: "Updated lawyer name" },
+            lawyer_firm: { type: "STRING", description: "Updated lawyer firm" },
+            accountant_name: { type: "STRING", description: "Updated accountant name" },
+            accountant_firm: { type: "STRING", description: "Updated accountant firm" },
+            rationale: { type: "STRING", description: "Why these updates are being proposed" },
+          },
+          required: ["contact_id", "contact_name", "rationale"],
+        },
+      },
+      {
+        name: "schedule_meeting",
+        description: "Schedule a Google Calendar meeting. The meeting is created after CFO approval.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            summary: { type: "STRING", description: "Meeting title" },
+            description: { type: "STRING", description: "Meeting description/agenda" },
+            start_datetime: { type: "STRING", description: "Start date and time in ISO 8601 format (e.g., 2026-02-20T10:00:00)" },
+            end_datetime: { type: "STRING", description: "End date and time in ISO 8601 format (e.g., 2026-02-20T11:00:00)" },
+            timezone: { type: "STRING", description: "Timezone (e.g., America/Toronto). Defaults to America/Toronto." },
+            attendees: { type: "STRING", description: "Comma-separated list of attendee email addresses" },
+            contact_name: { type: "STRING", description: "Related contact name for audit trail" },
+            rationale: { type: "STRING", description: "Purpose/context for this meeting" },
+          },
+          required: ["summary", "start_datetime", "end_datetime", "rationale"],
         },
       },
     ],
