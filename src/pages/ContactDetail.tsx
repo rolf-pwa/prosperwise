@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   AlertCircle,
   FolderOpen,
+  Plus,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 import { ContactEmails } from "@/components/ContactEmails";
@@ -57,6 +58,7 @@ const ContactDetail = () => {
   const [contact, setContact] = useState<any>(null);
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
+  const [professionalContacts, setProfessionalContacts] = useState<Record<string, { id: string; full_name: string } | null>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,6 +79,22 @@ const ContactDetail = () => {
       setContact(contactRes.data);
       setStorehouses(storehouseRes.data || []);
       setHouseholdMembers((householdRes.data as any) || []);
+
+      // Look up professional team contacts by name
+      const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name].filter(Boolean) as string[];
+      if (names.length > 0) {
+        const { data: matchedContacts } = await supabase
+          .from("contacts")
+          .select("id, full_name")
+          .in("full_name", names);
+        const map: Record<string, { id: string; full_name: string } | null> = {};
+        names.forEach((name) => {
+          const match = matchedContacts?.find((c) => c.full_name === name) || null;
+          map[name] = match;
+        });
+        setProfessionalContacts(map);
+      }
+
       setLoading(false);
     }
     fetch();
@@ -381,22 +399,39 @@ const ContactDetail = () => {
               </CardHeader>
               <CardContent>
                 <dl className="space-y-3 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Lawyer</dt>
-                    <dd className="font-medium">
-                      {contact.lawyer_name
-                        ? `${contact.lawyer_name}${contact.lawyer_firm ? ` — ${contact.lawyer_firm}` : ""}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Accountant</dt>
-                    <dd className="font-medium">
-                      {contact.accountant_name
-                        ? `${contact.accountant_name}${contact.accountant_firm ? ` — ${contact.accountant_firm}` : ""}`
-                        : "—"}
-                    </dd>
-                  </div>
+                  {[
+                    { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
+                    { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
+                  ].map(({ role, name, firm }) => {
+                    const matched = name ? professionalContacts[name] : null;
+                    return (
+                      <div key={role}>
+                        <dt className="text-muted-foreground">{role}</dt>
+                        <dd className="font-medium">
+                          {name ? (
+                            matched ? (
+                              <Link
+                                to={`/contacts/${matched.id}`}
+                                className="text-primary underline-offset-4 hover:underline"
+                              >
+                                {name}{firm ? ` — ${firm}` : ""}
+                              </Link>
+                            ) : (
+                              <Link
+                                to={`/contacts/new?full_name=${encodeURIComponent(name)}`}
+                                className="text-primary underline-offset-4 hover:underline flex items-center gap-1"
+                              >
+                                {name}{firm ? ` — ${firm}` : ""}
+                                <Plus className="h-3 w-3" />
+                              </Link>
+                            )
+                          ) : (
+                            "—"
+                          )}
+                        </dd>
+                      </div>
+                    );
+                  })}
                 </dl>
               </CardContent>
             </Card>
