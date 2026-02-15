@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -27,6 +27,8 @@ import {
 import { differenceInDays, addDays, format } from "date-fns";
 import { ContactEmails } from "@/components/ContactEmails";
 import { ContactCalendar } from "@/components/ContactCalendar";
+import { ContactLinker } from "@/components/ContactLinker";
+import { ProfessionalLinker } from "@/components/ProfessionalLinker";
 
 interface Storehouse {
   id: string;
@@ -62,49 +64,50 @@ const ContactDetail = () => {
   const [professionalContacts, setProfessionalContacts] = useState<Record<string, { id: string; full_name: string } | null>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
-    async function fetch() {
-      const [contactRes, storehouseRes, householdRes, familyRes] = await Promise.all([
-        supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
-        supabase
-          .from("storehouses")
-          .select("*")
-          .eq("contact_id", id)
-          .order("storehouse_number"),
-        supabase
-          .from("household_relationships")
-          .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, full_name)")
-          .eq("contact_id", id),
-        supabase
-          .from("family_relationships")
-          .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, full_name)")
-          .eq("contact_id", id),
-      ]);
-      setContact(contactRes.data);
-      setStorehouses(storehouseRes.data || []);
-      setHouseholdMembers((householdRes.data as any) || []);
-      setFamilyMembers((familyRes.data as any) || []);
+    const [contactRes, storehouseRes, householdRes, familyRes] = await Promise.all([
+      supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
+      supabase
+        .from("storehouses")
+        .select("*")
+        .eq("contact_id", id)
+        .order("storehouse_number"),
+      supabase
+        .from("household_relationships")
+        .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, full_name)")
+        .eq("contact_id", id),
+      supabase
+        .from("family_relationships")
+        .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, full_name)")
+        .eq("contact_id", id),
+    ]);
+    setContact(contactRes.data);
+    setStorehouses(storehouseRes.data || []);
+    setHouseholdMembers((householdRes.data as any) || []);
+    setFamilyMembers((familyRes.data as any) || []);
 
-      // Look up professional team contacts by name
-      const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
-      if (names.length > 0) {
-        const { data: matchedContacts } = await supabase
-          .from("contacts")
-          .select("id, full_name")
-          .in("full_name", names);
-        const map: Record<string, { id: string; full_name: string } | null> = {};
-        names.forEach((name) => {
-          const match = matchedContacts?.find((c) => c.full_name === name) || null;
-          map[name] = match;
-        });
-        setProfessionalContacts(map);
-      }
-
-      setLoading(false);
+    // Look up professional team contacts by name
+    const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
+    if (names.length > 0) {
+      const { data: matchedContacts } = await supabase
+        .from("contacts")
+        .select("id, full_name")
+        .in("full_name", names);
+      const map: Record<string, { id: string; full_name: string } | null> = {};
+      names.forEach((name) => {
+        const match = matchedContacts?.find((c) => c.full_name === name) || null;
+        map[name] = match;
+      });
+      setProfessionalContacts(map);
     }
-    fetch();
+
+    setLoading(false);
   }, [id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -395,10 +398,10 @@ const ContactDetail = () => {
                     No household members linked.
                   </p>
                 )}
+                <ContactLinker contactId={id!} excludeContactId={id} type="household" onLinked={fetchData} />
               </CardContent>
             </Card>
 
-            {/* Family Members */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Family Members</CardTitle>
@@ -425,6 +428,7 @@ const ContactDetail = () => {
                     No family members linked.
                   </p>
                 )}
+                <ContactLinker contactId={id!} excludeContactId={id} type="family" onLinked={fetchData} labelPlaceholder="Relationship (e.g. Uncle)" />
               </CardContent>
             </Card>
 
@@ -469,6 +473,7 @@ const ContactDetail = () => {
                     No professionals linked.
                   </p>
                 )}
+                <ProfessionalLinker contactId={id!} contact={contact} onLinked={fetchData} />
               </CardContent>
             </Card>
           </div>
