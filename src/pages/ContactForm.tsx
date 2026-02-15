@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
@@ -29,13 +29,14 @@ interface LinkedMember {
 
 const ContactForm = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    full_name: "",
+    full_name: searchParams.get("full_name") || "",
     email: "",
     phone: "",
     address: "",
