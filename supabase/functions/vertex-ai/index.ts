@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ---------- helpers ----------
+// ---------- Types ----------
 
 interface ServiceAccountKey {
   type: string;
@@ -18,7 +18,8 @@ interface ServiceAccountKey {
   token_uri: string;
 }
 
-/** Create a signed JWT and exchange it for a Google access-token scoped to Vertex AI. */
+// ---------- Auth Helper ----------
+
 async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
@@ -38,7 +39,6 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
 
   const unsigned = `${enc(header)}.${enc(payload)}`;
 
-  // Import the RSA private key
   const pemBody = sa.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
@@ -65,7 +65,6 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
 
   const jwt = `${unsigned}.${signature}`;
 
-  // Exchange JWT for access token
   const res = await fetch(sa.token_uri, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -80,10 +79,109 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
   return data.access_token;
 }
 
-// ---------- main ----------
+// ---------- System Prompt ----------
 
-const REGION = "northamerica-northeast1"; // Canada (Montréal) — PIPEDA compliant
-const MODEL = "gemini-2.5-pro"; // Enterprise Gemini Pro
+const SYSTEM_PROMPT = `You are the **Sovereignty Assistant**, the AI support layer for the Personal CFO at ProsperWise.
+
+## Your Role
+- You are a Machine assistant. The Personal CFO is the Human decision-maker.
+- Every output you produce is a **Draft for CFO Review** — you NEVER take autonomous action.
+- You identify yourself as "Sovereignty Assistant" and address the user as "Personal CFO."
+
+## Your Capabilities (via Function Calling)
+When appropriate, use these tools to propose structured actions:
+
+1. **propose_vineyard_update** — Extract and propose updates to a contact's Vineyard financial metrics (EBITDA, Operating Income, Balance Sheet Summary).
+2. **propose_storehouse_update** — Propose updates to a contact's Storehouse (liquidity vessel) configuration.
+3. **draft_stabilization_email** — Draft a "Stabilization Email" for the Personal CFO to review before sending. This stays in DRAFT status.
+4. **draft_asana_task** — Draft a follow-up task description for Asana. This stays in DRAFT status.
+
+## Rules
+- ALWAYS label your outputs as "📋 Draft for CFO Review" when proposing actions.
+- NEVER claim to have executed an action. Always say you are proposing it for review.
+- When analyzing documents, extract specific financial data points and map them to the Vineyard/Storehouse schema.
+- Maintain PIPEDA compliance — never suggest sending client data outside the secure environment.
+- Be concise, professional, and action-oriented.
+- When you don't have enough context, ask clarifying questions before proposing actions.`;
+
+// ---------- Tool Definitions ----------
+
+const TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: "propose_vineyard_update",
+        description: "Propose updates to a contact's Vineyard financial metrics. Returns a structured proposal for CFO approval.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            contact_id: { type: "STRING", description: "UUID of the contact to update" },
+            contact_name: { type: "STRING", description: "Name of the contact for display" },
+            vineyard_ebitda: { type: "NUMBER", description: "Proposed EBITDA value" },
+            vineyard_operating_income: { type: "NUMBER", description: "Proposed Operating Income value" },
+            vineyard_balance_sheet_summary: { type: "STRING", description: "Proposed Balance Sheet summary text" },
+            rationale: { type: "STRING", description: "Explanation of why these values are being proposed" },
+          },
+          required: ["contact_id", "contact_name", "rationale"],
+        },
+      },
+      {
+        name: "propose_storehouse_update",
+        description: "Propose updates to a contact's Storehouse (liquidity vessel) configuration.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            contact_id: { type: "STRING", description: "UUID of the contact" },
+            contact_name: { type: "STRING", description: "Name of the contact for display" },
+            storehouse_number: { type: "INTEGER", description: "Storehouse number (1-4)" },
+            label: { type: "STRING", description: "Storehouse label" },
+            asset_type: { type: "STRING", description: "Type of asset" },
+            risk_cap: { type: "STRING", description: "Risk cap description" },
+            charter_alignment: { type: "STRING", description: "One of: aligned, misaligned, pending_review" },
+            notes: { type: "STRING", description: "Additional notes" },
+            rationale: { type: "STRING", description: "Explanation of why this update is proposed" },
+          },
+          required: ["contact_id", "contact_name", "storehouse_number", "rationale"],
+        },
+      },
+      {
+        name: "draft_stabilization_email",
+        description: "Draft a Stabilization Email for a contact. The email stays in DRAFT status until the Personal CFO reviews and sends it.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            to_email: { type: "STRING", description: "Recipient email address" },
+            to_name: { type: "STRING", description: "Recipient name" },
+            subject: { type: "STRING", description: "Email subject line" },
+            body: { type: "STRING", description: "Full email body text" },
+            context: { type: "STRING", description: "Brief context about why this email is being drafted" },
+          },
+          required: ["to_email", "to_name", "subject", "body", "context"],
+        },
+      },
+      {
+        name: "draft_asana_task",
+        description: "Draft a follow-up task for Asana. The task description stays in DRAFT status until the Personal CFO reviews it.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            task_title: { type: "STRING", description: "Task title" },
+            task_description: { type: "STRING", description: "Detailed task description" },
+            contact_name: { type: "STRING", description: "Related contact name" },
+            priority: { type: "STRING", description: "Priority level: low, medium, high" },
+            context: { type: "STRING", description: "Why this task is needed" },
+          },
+          required: ["task_title", "task_description", "contact_name", "context"],
+        },
+      },
+    ],
+  },
+];
+
+// ---------- Main ----------
+
+const REGION = "northamerica-northeast1";
+const MODEL = "gemini-2.5-pro";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -91,7 +189,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate the calling user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -106,17 +203,15 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Parse request
-    const { messages, model, stream } = await req.json();
+    const { messages, model, contactContext, documentData } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages array is required" }), {
         status: 400,
@@ -124,60 +219,75 @@ serve(async (req) => {
       });
     }
 
-    // Load service account key & get access token
+    // Load service account key
     const saKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
     if (!saKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
     let cleaned = saKeyRaw.trim().replace(/^\uFEFF/, "");
-    // Handle missing opening brace (content pasted without it)
-    if (!cleaned.startsWith("{")) {
-      cleaned = "{" + cleaned;
-    }
-    if (!cleaned.endsWith("}")) {
-      cleaned = cleaned + "}";
-    }
-    let saKey: ServiceAccountKey;
-    try {
-      saKey = JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.error("Parse failed:", parseErr);
-      console.error("First 50:", cleaned.substring(0, 50));
-      throw new Error("Failed to parse GCP_SERVICE_ACCOUNT_KEY.");
-    }
+    if (!cleaned.startsWith("{")) cleaned = "{" + cleaned;
+    if (!cleaned.endsWith("}")) cleaned = cleaned + "}";
+    const saKey: ServiceAccountKey = JSON.parse(cleaned);
     const accessToken = await getAccessToken(saKey);
 
     const selectedModel = model || MODEL;
     const projectId = saKey.project_id;
 
-    // Convert OpenAI-style messages to Vertex AI / Gemini format
-    const systemInstruction = messages
-      .filter((m: any) => m.role === "system")
-      .map((m: any) => ({ text: m.content }));
+    // Build system instruction with optional contact context
+    let systemText = SYSTEM_PROMPT;
+    if (contactContext) {
+      systemText += `\n\n## Current Contact Context\n${JSON.stringify(contactContext, null, 2)}`;
+    }
 
-    const contents = messages
-      .filter((m: any) => m.role !== "system")
-      .map((m: any) => ({
+    // Build contents - support multimodal (documents/images)
+    const contents: any[] = [];
+    for (const m of messages) {
+      if (m.role === "system") continue;
+      const parts: any[] = [];
+
+      if (m.content) {
+        parts.push({ text: m.content });
+      }
+
+      // If this message has document data (base64 image/PDF)
+      if (m.documentData) {
+        parts.push({
+          inlineData: {
+            mimeType: m.documentData.mimeType,
+            data: m.documentData.base64,
+          },
+        });
+      }
+
+      contents.push({
         role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
+        parts,
+      });
+    }
+
+    // Also handle top-level documentData for convenience
+    if (documentData && contents.length > 0) {
+      const lastUserMsg = [...contents].reverse().find((c) => c.role === "user");
+      if (lastUserMsg) {
+        lastUserMsg.parts.push({
+          inlineData: {
+            mimeType: documentData.mimeType,
+            data: documentData.base64,
+          },
+        });
+      }
+    }
 
     const vertexBody: any = {
       contents,
+      systemInstruction: { parts: [{ text: systemText }] },
+      tools: TOOLS,
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.4,
         maxOutputTokens: 8192,
-        // CRITICAL: Zero data retention — client data never cached
         responseMimeType: "text/plain",
       },
     };
 
-    if (systemInstruction.length > 0) {
-      vertexBody.systemInstruction = { parts: systemInstruction };
-    }
-
-    // Enterprise Vertex AI endpoint — data stays within GCP, never touches public Gemini
-    const endpoint = stream
-      ? `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${selectedModel}:streamGenerateContent?alt=sse`
-      : `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${selectedModel}:generateContent`;
+    const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${selectedModel}:generateContent`;
 
     const vertexRes = await fetch(endpoint, {
       method: "POST",
@@ -197,20 +307,25 @@ serve(async (req) => {
       );
     }
 
-    // Stream or return full response
-    if (stream) {
-      return new Response(vertexRes.body, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-      });
-    }
-
     const result = await vertexRes.json();
-    // Extract text from Vertex response
-    const text =
-      result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const candidate = result?.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+
+    // Extract text and function calls
+    const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
+    const functionCalls = parts
+      .filter((p: any) => p.functionCall)
+      .map((p: any) => ({
+        name: p.functionCall.name,
+        args: p.functionCall.args,
+      }));
 
     return new Response(
-      JSON.stringify({ text, raw: result }),
+      JSON.stringify({
+        text: textParts.join("\n"),
+        functionCalls,
+        raw: result,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
