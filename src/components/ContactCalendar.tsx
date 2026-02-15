@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useCalendarEvents } from "@/hooks/useGoogle";
 import { useGoogleStatus } from "@/hooks/useGoogle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, Plus } from "lucide-react";
 import { format } from "date-fns";
 
 interface ContactCalendarProps {
@@ -65,11 +66,23 @@ export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Calendar className="h-4 w-4" />
           Upcoming Events
         </CardTitle>
+        {contactEmail && (
+          <a
+            href={`https://calendar.google.com/calendar/r/eventedit?add=${encodeURIComponent(contactEmail)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="ghost" size="sm">
+              <Plus className="mr-1 h-3 w-3" />
+              New
+            </Button>
+          </a>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (
