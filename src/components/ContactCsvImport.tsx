@@ -86,9 +86,10 @@ function parseCSV(text: string): { headers: string[]; rows: string[][] } {
 function guessMapping(header: string): string {
   const h = header.toLowerCase().replace(/[_\-\s]+/g, "");
   if (h.includes("fullname") || h === "name" || h === "contactname") return "full_name";
-  if (h === "firstname" || h === "first") return "first_name";
-  if (h === "lastname" || h === "last" || h === "surname") return "last_name";
-  if (h.includes("email") || h.includes("mail")) return "email";
+  if (h === "firstname" || h === "first" || h === "fname") return "first_name";
+  if (h === "lastname" || h === "last" || h === "surname" || h === "lname") return "last_name";
+  // Only match "email" exactly or "emailaddress" — not "emailstatus", "emailsubscriber", etc.
+  if (h === "email" || h === "emailaddress" || h === "e-mail") return "email";
   if (h.includes("phone") || h.includes("tel") || h.includes("mobile")) return "phone";
   if (h.includes("address") || h.includes("addr")) return "address";
   if (h.includes("lawyername")) return "lawyer_name";
@@ -168,6 +169,10 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
           const value = row[Number(colIdx)]?.trim();
           record[field] = value || null;
         });
+        // Validate email looks like an email, otherwise discard it
+        if (record.email && !record.email.includes("@")) {
+          record.email = null;
+        }
         // If full_name mapped but not first/last, split it
         if (record.full_name && !record.first_name) {
           const parts = (record.full_name as string).split(" ");
@@ -189,10 +194,57 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
       return;
     }
 
-    // Insert in batches of 50
+    // Fetch existing contacts for duplicate detection
+    const { data: existing } = await supabase
+      .from("contacts")
+      .select("id, full_name, first_name, last_name, email");
+
+    const makeKey = (firstName: string | null, lastName: string | null, email: string | null) =>
+      `${(firstName || "").toLowerCase()}|${(lastName || "").toLowerCase()}|${(email || "").toLowerCase()}`;
+
+    const existingByKey = new Map<string, any>();
+    (existing || []).forEach((c: any) => {
+      existingByKey.set(makeKey(c.first_name, c.last_name, c.email), c);
+      // Also match by full_name for legacy records
+      if (c.full_name) {
+        existingByKey.set(makeKey(c.full_name.split(" ")[0], c.full_name.split(" ").slice(1).join(" "), c.email), c);
+      }
+    });
+
+    const toInsert: Record<string, string | null>[] = [];
+    const toUpdate: { id: string; data: Record<string, string | null> }[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const record of contacts) {
+      const key = makeKey(record.first_name, record.last_name, record.email);
+      // Also try matching by name only (no email)
+      const nameKey = makeKey(record.first_name, record.last_name, null);
+
+      if (seenKeys.has(key)) continue; // skip duplicates within the CSV itself
+      seenKeys.add(key);
+
+      const match = existingByKey.get(key) || existingByKey.get(nameKey);
+      if (match) {
+        // Merge: update empty fields in existing record
+        const updates: Record<string, string | null> = {};
+        Object.entries(record).forEach(([field, value]) => {
+          if (field === "created_by" || field === "full_name") return;
+          if (value && !match[field]) {
+            updates[field] = value;
+          }
+        });
+        if (Object.keys(updates).length > 0) {
+          toUpdate.push({ id: match.id, data: updates });
+        }
+      } else {
+        toInsert.push(record);
+      }
+    }
+
+    // Perform inserts in batches
     let inserted = 0;
-    for (let i = 0; i < contacts.length; i += 50) {
-      const batch = contacts.slice(i, i + 50);
+    for (let i = 0; i < toInsert.length; i += 50) {
+      const batch = toInsert.slice(i, i + 50);
       const { error } = await supabase.from("contacts").insert(batch as any);
       if (error) {
         toast.error(`Import error at row ${i + 1}: ${error.message}`);
@@ -201,7 +253,20 @@ export function ContactCsvImport({ onImported }: ContactCsvImportProps) {
       inserted += batch.length;
     }
 
-    toast.success(`${inserted} contact${inserted !== 1 ? "s" : ""} imported.`);
+    // Perform updates
+    let updated = 0;
+    for (const { id, data } of toUpdate) {
+      const { error } = await supabase.from("contacts").update(data as any).eq("id", id);
+      if (!error) updated++;
+    }
+
+    const parts = [];
+    if (inserted > 0) parts.push(`${inserted} imported`);
+    if (updated > 0) parts.push(`${updated} merged`);
+    const skipped = contacts.length - inserted - updated;
+    if (skipped > 0) parts.push(`${skipped} duplicates skipped`);
+    toast.success(parts.join(", ") + ".");
+
     setImporting(false);
     reset();
     onImported();
