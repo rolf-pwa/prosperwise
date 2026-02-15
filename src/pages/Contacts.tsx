@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ContactCsvImport } from "@/components/ContactCsvImport";
 import {
   Tooltip,
   TooltipContent,
@@ -50,17 +51,18 @@ const Contacts = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchContacts() {
-      const { data } = await supabase
-        .from("contacts")
-        .select("id, full_name, email, phone, address, governance_status, fiduciary_entity, updated_at, sidedrawer_url, google_drive_url, asana_url, ia_financial_url")
-        .order("full_name");
-      setContacts(data || []);
-      setLoading(false);
-    }
-    fetchContacts();
+  const fetchContacts = useCallback(async () => {
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, full_name, email, phone, address, governance_status, fiduciary_entity, updated_at, sidedrawer_url, google_drive_url, asana_url, ia_financial_url")
+      .order("full_name");
+    setContacts(data || []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
 
   const filtered = contacts.filter((c) =>
     c.full_name.toLowerCase().includes(search.toLowerCase())
@@ -76,12 +78,15 @@ const Contacts = () => {
               The Sovereignty Engine — {contacts.length} contacts
             </p>
           </div>
-          <Button asChild className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90">
-            <Link to="/contacts/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Contact
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ContactCsvImport onImported={fetchContacts} />
+            <Button asChild className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90">
+              <Link to="/contacts/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Contact
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="relative max-w-sm">
