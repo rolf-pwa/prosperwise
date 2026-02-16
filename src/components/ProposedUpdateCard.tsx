@@ -84,6 +84,8 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           };
           if (args.label) storehouseData.label = args.label;
           if (args.asset_type) storehouseData.asset_type = args.asset_type;
+          if (args.current_value != null) storehouseData.current_value = args.current_value;
+          if (args.target_value != null) storehouseData.target_value = args.target_value;
           if (args.risk_cap) storehouseData.risk_cap = args.risk_cap;
           if (args.charter_alignment) storehouseData.charter_alignment = args.charter_alignment;
           if (args.notes) storehouseData.notes = args.notes;
