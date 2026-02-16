@@ -176,7 +176,7 @@ class AsanaService {
   async getDashboardTasks() {
     return withFailSafe("getDashboardTasks", async () => {
       const today = new Date().toISOString().split("T")[0];
-      const url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=name,completed,due_on,memberships.section.name,followers,notes&due_on.before=${today}&due_on.after=2000-01-01&is_subtask=false&completed=false&limit=50`;
+      const url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=name,completed,due_on,memberships.section.name,memberships.project.gid,followers,notes&due_on.before=${today}&due_on.after=2000-01-01&is_subtask=false&completed=false&limit=50`;
       console.log("[AsanaService] GET dashboard tasks");
 
       const res = await fetch(url, { headers: this.headers() });
