@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Grape, Landmark, Shield, Heart, Castle, Sword, Wheat, Lock } from "lucide-react";
+import { Grape, Landmark, Castle, Sword, Wheat, Lock } from "lucide-react";
 
 const STOREHOUSE_CONFIG = [
   { num: 1, name: "The Keep", subtitle: "Liquidity Reserve", icon: Castle },
@@ -21,7 +21,6 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
     0
   );
 
-  // Group accounts by type
   const byType: Record<string, { accounts: any[]; total: number }> = {};
   vineyardAccounts.forEach((a: any) => {
     const t = a.account_type || "Other";
@@ -33,21 +32,21 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
   return (
     <div className="space-y-6">
       {/* Vineyard Overview */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-              <Grape className="h-5 w-5 text-emerald-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Grape className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg text-slate-100 font-serif">The Vineyard</CardTitle>
-              <p className="text-xs text-slate-500">Total Asset Portfolio</p>
+              <CardTitle className="text-lg font-serif">The Vineyard</CardTitle>
+              <p className="text-xs text-muted-foreground">Total Asset Portfolio</p>
             </div>
             <div className="ml-auto text-right">
-              <p className="text-2xl font-bold text-emerald-400">
+              <p className="text-2xl font-bold text-primary">
                 ${totalVineyard.toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500">Total Value</p>
+              <p className="text-xs text-muted-foreground">Total Value</p>
             </div>
           </div>
         </CardHeader>
@@ -56,18 +55,18 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
             Object.entries(byType).map(([type, { accounts, total }]) => (
               <div key={type} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-slate-300">{type}</h4>
-                  <span className="text-sm font-semibold text-slate-200">
+                  <h4 className="text-sm font-medium text-foreground">{type}</h4>
+                  <span className="text-sm font-semibold text-foreground">
                     ${total.toLocaleString()}
                   </span>
                 </div>
                 {accounts.map((acc: any) => (
                   <div
                     key={acc.id}
-                    className="flex items-center justify-between rounded-lg bg-slate-800/50 px-4 py-2.5 border border-slate-700/50"
+                    className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
                   >
-                    <span className="text-sm text-slate-300">{acc.account_name}</span>
-                    <span className="text-sm font-medium text-slate-200">
+                    <span className="text-sm text-foreground/80">{acc.account_name}</span>
+                    <span className="text-sm font-medium text-foreground">
                       ${(Number(acc.current_value) || 0).toLocaleString()}
                     </span>
                   </div>
@@ -75,7 +74,7 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
               </div>
             ))
           ) : (
-            <p className="text-sm text-slate-500">No accounts have been configured yet.</p>
+            <p className="text-sm text-muted-foreground">No accounts have been configured yet.</p>
           )}
         </CardContent>
       </Card>
@@ -83,8 +82,8 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
       {/* Storehouses */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <Landmark className="h-5 w-5 text-sanctuary-bronze" />
-          <h2 className="text-lg font-semibold text-slate-100 font-serif">The Storehouses</h2>
+          <Landmark className="h-5 w-5 text-accent" />
+          <h2 className="text-lg font-semibold text-foreground font-serif">The Storehouses</h2>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {STOREHOUSE_CONFIG.map(({ num, name, subtitle, icon: Icon }) => {
@@ -94,22 +93,22 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
             const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
 
             return (
-              <Card key={num} className="bg-slate-900 border-slate-800">
+              <Card key={num}>
                 <CardContent className="p-5">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sanctuary-bronze/10 shrink-0">
-                      <Icon className="h-5 w-5 text-sanctuary-bronze" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 shrink-0">
+                      <Icon className="h-5 w-5 text-accent" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-100">{name}</h3>
-                      <p className="text-xs text-slate-500">{subtitle}</p>
+                      <h3 className="font-semibold text-foreground">{name}</h3>
+                      <p className="text-xs text-muted-foreground">{subtitle}</p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Current</span>
-                      <span className="font-semibold text-slate-200">
+                      <span className="text-muted-foreground">Current</span>
+                      <span className="font-semibold text-foreground">
                         ${current.toLocaleString()}
                       </span>
                     </div>
@@ -117,9 +116,9 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
                       <>
                         <Progress
                           value={pct}
-                          className="h-2 bg-slate-800 [&>div]:bg-sanctuary-bronze"
+                          className="h-2 bg-muted [&>div]:bg-accent"
                         />
-                        <div className="flex justify-between text-xs text-slate-500">
+                        <div className="flex justify-between text-xs text-muted-foreground">
                           <span>{Math.round(pct)}% funded</span>
                           <span>Target: ${target.toLocaleString()}</span>
                         </div>
@@ -129,10 +128,10 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
                     {sh?.charter_alignment && (
                       <div className={`text-xs rounded-full px-2 py-0.5 w-fit ${
                         sh.charter_alignment === "aligned"
-                          ? "bg-emerald-500/10 text-emerald-400"
+                          ? "bg-primary/10 text-primary"
                           : sh.charter_alignment === "misaligned"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-slate-700 text-slate-400"
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-muted text-muted-foreground"
                       }`}>
                         {sh.charter_alignment === "aligned" ? "Charter Aligned" : sh.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
                       </div>

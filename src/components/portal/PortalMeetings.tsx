@@ -8,9 +8,9 @@ interface Props {
 export function PortalMeetings({ meetings }: Props) {
   if (!meetings.length) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-8 text-center">
-        <Calendar className="mx-auto h-8 w-8 text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400">No upcoming meetings scheduled.</p>
+      <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+        <Calendar className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+        <p className="text-sm text-muted-foreground">No upcoming meetings scheduled.</p>
       </div>
     );
   }
@@ -29,14 +29,14 @@ export function PortalMeetings({ meetings }: Props) {
         return (
           <div
             key={event.id}
-            className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 hover:border-slate-700 transition-colors"
+            className="rounded-lg border border-border bg-card p-4 hover:border-accent/30 transition-colors"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-slate-200 truncate">
+                <h3 className="text-sm font-medium text-foreground truncate">
                   {event.summary || "Untitled Event"}
                 </h3>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {start
@@ -56,7 +56,7 @@ export function PortalMeetings({ meetings }: Props) {
                       href={event.hangoutLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-sanctuary-bronze hover:underline"
+                      className="flex items-center gap-1 text-accent hover:underline"
                     >
                       <Video className="h-3 w-3" />
                       Join Meeting
@@ -65,7 +65,7 @@ export function PortalMeetings({ meetings }: Props) {
                 </div>
               </div>
               {event.status === "confirmed" && (
-                <span className="shrink-0 rounded-full bg-emerald-900/30 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-800/30">
+                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
                   Confirmed
                 </span>
               )}
