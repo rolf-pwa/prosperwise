@@ -155,77 +155,91 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
       </Card>
 
       {/* Storehouses */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Landmark className="h-5 w-5 text-accent" />
-          <h2 className="text-lg font-semibold text-foreground font-serif">The Storehouses</h2>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+              <Landmark className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-serif">The Storehouses</CardTitle>
+              <p className="text-xs text-muted-foreground">Strategic Asset Allocation</p>
+            </div>
+            <div className="ml-auto text-right">
+              <p className="text-2xl font-bold text-accent">
+                ${visibleStorehouses.reduce((sum: number, s: any) => sum + (Number(s.current_value) || 0), 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">Total Value</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {STOREHOUSE_CONFIG.map(({ num, name, subtitle, icon: Icon }) => {
-            const sh = visibleStorehouses.find((s: any) => s.storehouse_number === num);
-            const isPrivate = storehouses.find((s: any) => s.storehouse_number === num && s.visibility_scope === "private");
-            const current = Number(sh?.current_value) || 0;
-            const target = Number(sh?.target_value) || 0;
-            const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+            const accounts = visibleStorehouses.filter((s: any) => s.storehouse_number === num);
+            const privateAccounts = storehouses.filter((s: any) => s.storehouse_number === num && s.visibility_scope === "private");
+            const total = accounts.reduce((sum: number, s: any) => sum + (Number(s.current_value) || 0), 0);
+            const targetTotal = accounts.reduce((sum: number, s: any) => sum + (Number(s.target_value) || 0), 0);
+            const pct = targetTotal > 0 ? Math.min((total / targetTotal) * 100, 100) : 0;
 
             return (
-              <Card key={num}>
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 shrink-0">
-                      <Icon className="h-5 w-5 text-accent" />
+              <div key={num} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-accent" />
+                    <h4 className="text-sm font-medium text-foreground">{name}</h4>
+                    <span className="text-xs text-muted-foreground">· {subtitle}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">
+                    ${total.toLocaleString()}
+                  </span>
+                </div>
+                {accounts.length > 0 ? (
+                  accounts.map((acc: any) => (
+                    <div
+                      key={acc.id}
+                      className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm text-foreground/80">{acc.label || name}</span>
+                        {acc.charter_alignment && (
+                          <span className={`text-xs mt-0.5 ${
+                            acc.charter_alignment === "aligned"
+                              ? "text-primary"
+                              : acc.charter_alignment === "misaligned"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`}>
+                            {acc.charter_alignment === "aligned" ? "Charter Aligned" : acc.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-foreground">
+                        ${(Number(acc.current_value) || 0).toLocaleString()}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground">{name}</h3>
-                      <p className="text-xs text-muted-foreground">{subtitle}</p>
+                  ))
+                ) : privateAccounts.length > 0 ? (
+                  <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-4 py-2.5 border border-border text-xs text-muted-foreground">
+                    <Lock className="h-3.5 w-3.5" />
+                    <span>Value Protected by Governance Protocol</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground pl-6">No accounts configured</p>
+                )}
+                {targetTotal > 0 && accounts.length > 0 && (
+                  <div className="pl-6 space-y-1">
+                    <Progress value={pct} className="h-1.5 bg-muted [&>div]:bg-accent" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{Math.round(pct)}% funded</span>
+                      <span>Target: ${targetTotal.toLocaleString()}</span>
                     </div>
                   </div>
-
-                  {isPrivate && !sh ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Lock className="h-3.5 w-3.5" />
-                      <span>Value Protected by Governance Protocol</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Current</span>
-                        <span className="font-semibold text-foreground">
-                          ${current.toLocaleString()}
-                        </span>
-                      </div>
-                      {target > 0 && (
-                        <>
-                          <Progress
-                            value={pct}
-                            className="h-2 bg-muted [&>div]:bg-accent"
-                          />
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>{Math.round(pct)}% funded</span>
-                            <span>Target: ${target.toLocaleString()}</span>
-                          </div>
-                        </>
-                      )}
-
-                      {sh?.charter_alignment && (
-                        <div className={`text-xs rounded-full px-2 py-0.5 w-fit ${
-                          sh.charter_alignment === "aligned"
-                            ? "bg-primary/10 text-primary"
-                            : sh.charter_alignment === "misaligned"
-                            ? "bg-destructive/10 text-destructive"
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                          {sh.charter_alignment === "aligned" ? "Charter Aligned" : sh.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                )}
+              </div>
             );
           })}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
