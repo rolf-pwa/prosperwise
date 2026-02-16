@@ -544,35 +544,78 @@ const ContactDetail = () => {
                 {/* Storehouses */}
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Storehouses</h4>
-                  {storehouses.length > 0 ? (
-                    <ul className="space-y-1 text-sm">
-                      {storehouses.map((sh) => {
-                        const current = Number(sh.current_value) || 0;
-                        const target = Number(sh.target_value) || 0;
-                        const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-                        return (
-                          <li key={sh.id} className="flex items-center gap-1">
-                            <div className="flex flex-1 flex-col gap-1 rounded-md bg-muted/50 px-3 py-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                                    {sh.storehouse_number}
-                                  </span>
-                                  <span className="font-medium">{sh.label || STOREHOUSE_LABELS[sh.storehouse_number - 1]}</span>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  ${current.toLocaleString()}
+                  <ul className="space-y-1 text-sm">
+                    {[1, 2, 3, 4].map((num) => {
+                      const sh = storehouses.find((s) => s.storehouse_number === num);
+                      const defaultLabel = STOREHOUSE_LABELS[num - 1];
+                      const current = sh ? Number(sh.current_value) || 0 : 0;
+                      const target = sh ? Number(sh.target_value) || 0 : 0;
+                      const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+                      const isPlaceholder = !sh;
+
+                      return (
+                        <li key={num} className="flex items-center gap-1">
+                          <div className={`flex flex-1 flex-col gap-1 rounded-md px-3 py-2 ${isPlaceholder ? "bg-muted/30 border border-dashed border-muted-foreground/20" : "bg-muted/50"}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${isPlaceholder ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                                  {num}
+                                </span>
+                                <span className={`font-medium ${isPlaceholder ? "text-muted-foreground" : ""}`}>
+                                  {sh?.label || defaultLabel}
                                 </span>
                               </div>
-                              {target > 0 && (
-                                <div className="space-y-1 mt-1">
-                                  <Progress value={pct} className="h-1.5" />
-                                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                                    <span>{Math.round(pct)}% funded</span>
-                                    <span>Target: ${target.toLocaleString()}</span>
-                                  </div>
+                              <span className="text-xs text-muted-foreground">
+                                ${current.toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Asset type & risk cap details */}
+                            {sh && (sh.asset_type || sh.risk_cap || sh.notes) && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-0.5">
+                                {sh.asset_type && <span>Type: {sh.asset_type}</span>}
+                                {sh.risk_cap && <span>Risk Cap: {sh.risk_cap}</span>}
+                                {sh.notes && <span className="italic">{sh.notes}</span>}
+                              </div>
+                            )}
+
+                            {target > 0 && (
+                              <div className="space-y-1 mt-1">
+                                <Progress value={pct} className="h-1.5" />
+                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                  <span>{Math.round(pct)}% funded</span>
+                                  <span>Target: ${target.toLocaleString()}</span>
                                 </div>
-                              )}
+                              </div>
+                            )}
+
+                            {isPlaceholder ? (
+                              <div className="flex items-center justify-between mt-0.5">
+                                <Badge variant="outline" className="text-[9px] border-muted-foreground/20 text-muted-foreground/60">
+                                  not configured
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 px-2 text-[10px] text-muted-foreground"
+                                  onClick={async () => {
+                                    const { error } = await supabase.from("storehouses").insert({
+                                      contact_id: id,
+                                      storehouse_number: num,
+                                      label: defaultLabel,
+                                    } as any);
+                                    if (error) {
+                                      toast.error("Failed to create storehouse.");
+                                    } else {
+                                      toast.success("Storehouse created.");
+                                      fetchData();
+                                    }
+                                  }}
+                                >
+                                  <Plus className="mr-0.5 h-2.5 w-2.5" /> Configure
+                                </Button>
+                              </div>
+                            ) : (
                               <div className="flex items-center justify-between mt-0.5">
                                 <Badge
                                   variant="outline"
@@ -602,7 +645,9 @@ const ContactDetail = () => {
                                   ))}
                                 </div>
                               </div>
-                            </div>
+                            )}
+                          </div>
+                          {!isPlaceholder && (
                             <button
                               onClick={async () => {
                                 await supabase.from("storehouses").delete().eq("id", sh.id);
@@ -613,13 +658,11 @@ const ContactDetail = () => {
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No storehouses configured yet.</p>
-                  )}
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               </CardContent>
             </Card>
