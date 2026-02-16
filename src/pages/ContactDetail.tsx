@@ -63,9 +63,9 @@ interface Storehouse {
 
 interface HouseholdMember {
   id: string;
-  member_contact_id: string;
-  relationship_label: string | null;
-  contact: { id: string; first_name: string; last_name: string | null } | null;
+  first_name: string;
+  last_name: string | null;
+  family_role: string;
 }
 
 const STOREHOUSE_LABELS = [
@@ -118,10 +118,8 @@ const ContactDetail = () => {
         .select("*")
         .eq("contact_id", id)
         .order("storehouse_number"),
-      supabase
-        .from("household_relationships")
-        .select("id, member_contact_id, relationship_label, contact:contacts!household_relationships_member_contact_id_fkey(id, first_name, last_name)")
-        .eq("contact_id", id),
+      // Household members will be fetched after we know the household_id
+      Promise.resolve({ data: [] }),
       supabase
         .from("family_relationships")
         .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)")
@@ -134,8 +132,20 @@ const ContactDetail = () => {
     ]);
     setContact(contactRes.data);
     setStorehouses(storehouseRes.data || []);
-    setHouseholdMembers((householdRes.data as any) || []);
-    setFamilyMembers((familyRes.data as any) || []);
+    setVineyardAccounts((accountsRes.data as any) || []);
+
+    // Fetch household members (contacts sharing the same household_id)
+    if (contactRes.data?.household_id) {
+      const { data: hhMembers } = await supabase
+        .from("contacts")
+        .select("id, first_name, last_name, family_role")
+        .eq("household_id", contactRes.data.household_id)
+        .neq("id", id)
+        .order("first_name");
+      setHouseholdMembers((hhMembers as any) || []);
+    } else {
+      setHouseholdMembers([]);
+    }
     setVineyardAccounts((accountsRes.data as any) || []);
 
     // Fetch family & household names for breadcrumbs
@@ -429,35 +439,22 @@ const ContactDetail = () => {
                 {householdMembers.length > 0 ? (
                   <ul className="space-y-1 text-sm">
                     {householdMembers.map((hm) => (
-                      <li key={hm.id} className="flex items-center gap-1">
+                      <li key={hm.id}>
                         <Link
-                          to={`/contacts/${hm.member_contact_id}`}
-                          className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                          to={`/contacts/${hm.id}`}
+                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
                         >
-                          <span className="font-medium">{hm.contact ? `${(hm.contact as any).first_name} ${(hm.contact as any).last_name || ""}`.trim() : "Unknown"}</span>
-                          {hm.relationship_label && (
-                            <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
-                          )}
+                          <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
                         </Link>
-                        <button
-                          onClick={async () => {
-                            await supabase.from("household_relationships").delete().eq("id", hm.id);
-                            toast.success("Removed.");
-                            fetchData();
-                          }}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No household members linked.
+                    No household members.
                   </p>
                 )}
-                <ContactLinker contactId={id!} excludeContactId={id} type="household" onLinked={fetchData} />
               </CardContent>
             </Card>
             {/* Vineyard & Storehouses */}
