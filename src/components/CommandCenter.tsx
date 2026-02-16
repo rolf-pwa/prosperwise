@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail, Plus, Send, Loader2, Link2Off } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Calendar, Mail, Plus, Send, Loader2, Link2Off, CheckSquare, ExternalLink } from "lucide-react";
+import { format, parseISO, isToday } from "date-fns";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useGoogleStatus,
   useConnectGoogle,
@@ -88,6 +89,7 @@ export function CommandCenter() {
           Disconnect
         </Button>
       </div>
+      <AsanaTodayWidget />
       <div className="grid gap-6 lg:grid-cols-2">
         <CalendarWidget />
         <GmailWidget />
@@ -226,6 +228,105 @@ function GmailWidget() {
                      {msg.snippet}
                    </p>
                  </a>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface AsanaTask {
+  gid: string;
+  name: string;
+  completed: boolean;
+  due_on: string | null;
+  memberships?: { section?: { name?: string } }[];
+}
+
+function getTaskStatusLabel(task: AsanaTask): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } {
+  if (task.completed) return { label: "Completed", variant: "secondary" };
+  const section = task.memberships?.[0]?.section?.name?.toLowerCase() || "";
+  if (section.includes("review") || section.includes("awaiting"))
+    return { label: "Awaiting Review", variant: "outline" };
+  if (section.includes("progress") || section.includes("doing"))
+    return { label: "In Progress", variant: "default" };
+  if (task.due_on && new Date(task.due_on) < new Date())
+    return { label: "Overdue", variant: "destructive" };
+  return { label: "Open", variant: "outline" };
+}
+
+function AsanaTodayWidget() {
+  const [tasks, setTasks] = useState<AsanaTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const res = await supabase.functions.invoke("asana-service", {
+          body: { action: "getDashboardTasks" },
+        });
+
+        if (res.data?.data) {
+          // Filter tasks due today or overdue, that are not completed
+          const todayTasks = (res.data.data as AsanaTask[]).filter((t) => {
+            if (t.completed) return false;
+            if (!t.due_on) return false;
+            return isToday(new Date(t.due_on)) || new Date(t.due_on) < new Date();
+          });
+          setTasks(todayTasks);
+        }
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CheckSquare className="h-4 w-4 text-sanctuary-bronze" />
+          Today's Tasks
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <p className="text-sm text-destructive">Failed to load tasks</p>
+        ) : tasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No tasks due today. All clear!</p>
+        ) : (
+          <div className="space-y-2">
+            {tasks.slice(0, 10).map((task) => {
+              const status = getTaskStatusLabel(task);
+              return (
+                <div
+                  key={task.gid}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{task.name}</p>
+                    {task.due_on && (
+                      <p className="text-xs text-muted-foreground">
+                        Due: {format(new Date(task.due_on), "MMM d")}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant={status.variant} className="text-[10px] shrink-0 whitespace-nowrap">
+                    {status.label}
+                  </Badge>
+                </div>
               );
             })}
           </div>
