@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail, Plus, Send, Loader2, Link2Off, CheckSquare, ExternalLink } from "lucide-react";
+import { Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink } from "lucide-react";
 import { format, parseISO, isToday } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +89,7 @@ export function CommandCenter() {
           Disconnect
         </Button>
       </div>
-      <AsanaTodayWidget />
+      <AsanaInboxWidget />
       <div className="grid gap-6 lg:grid-cols-2">
         <CalendarWidget />
         <GmailWidget />
@@ -245,25 +245,13 @@ interface AsanaTask {
   memberships?: { section?: { name?: string }; project?: { gid?: string } }[];
 }
 
-function getTaskStatusLabel(task: AsanaTask): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } {
-  if (task.completed) return { label: "Completed", variant: "secondary" };
-  const section = task.memberships?.[0]?.section?.name?.toLowerCase() || "";
-  if (section.includes("review") || section.includes("awaiting"))
-    return { label: "Awaiting Review", variant: "outline" };
-  if (section.includes("progress") || section.includes("doing"))
-    return { label: "In Progress", variant: "default" };
-  if (task.due_on && new Date(task.due_on) < new Date())
-    return { label: "Overdue", variant: "destructive" };
-  return { label: "Open", variant: "outline" };
-}
-
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
   const match = asanaUrl.match(/app\.asana\.com\/0\/(\d+)/);
   return match ? match[1] : null;
 }
 
-function AsanaTodayWidget() {
+function AsanaInboxWidget() {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -275,15 +263,13 @@ function AsanaTodayWidget() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        // Fetch tasks and contacts in parallel
         const [taskRes, contactRes] = await Promise.all([
           supabase.functions.invoke("asana-service", {
-            body: { action: "getDashboardTasks" },
+            body: { action: "getInbox" },
           }),
           supabase.from("contacts").select("id, full_name, asana_url").not("asana_url", "is", null),
         ]);
 
-        // Build project GID → contact map
         const map: Record<string, { id: string; name: string }> = {};
         if (contactRes.data) {
           for (const c of contactRes.data) {
@@ -294,12 +280,7 @@ function AsanaTodayWidget() {
         setContactMap(map);
 
         if (taskRes.data?.data) {
-          const todayTasks = (taskRes.data.data as AsanaTask[]).filter((t) => {
-            if (t.completed) return false;
-            if (!t.due_on) return false;
-            return isToday(new Date(t.due_on)) || new Date(t.due_on) < new Date();
-          });
-          setTasks(todayTasks);
+          setTasks(taskRes.data.data as AsanaTask[]);
         }
       } catch {
         setError(true);
@@ -317,12 +298,17 @@ function AsanaTodayWidget() {
     return null;
   }
 
+  function getSectionLabel(task: AsanaTask): string | null {
+    const section = task.memberships?.[0]?.section?.name;
+    return section || null;
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <CheckSquare className="h-4 w-4 text-sanctuary-bronze" />
-          Today's Tasks
+          <Inbox className="h-4 w-4 text-sanctuary-bronze" />
+          My Inbox
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -331,14 +317,14 @@ function AsanaTodayWidget() {
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
-          <p className="text-sm text-destructive">Failed to load tasks</p>
+          <p className="text-sm text-destructive">Failed to load inbox</p>
         ) : tasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No tasks due today. All clear!</p>
+          <p className="text-sm text-muted-foreground">Your inbox is clear!</p>
         ) : (
           <div className="space-y-2">
-            {tasks.slice(0, 10).map((task) => {
-              const status = getTaskStatusLabel(task);
+            {tasks.slice(0, 12).map((task) => {
               const linked = getLinkedContact(task);
+              const section = getSectionLabel(task);
               return (
                 <a
                   key={task.gid}
@@ -360,9 +346,11 @@ function AsanaTodayWidget() {
                       )}
                     </div>
                   </div>
-                  <Badge variant={status.variant} className="text-[10px] shrink-0 whitespace-nowrap">
-                    {status.label}
-                  </Badge>
+                  {section && (
+                    <Badge variant="outline" className="text-[10px] shrink-0 whitespace-nowrap">
+                      {section}
+                    </Badge>
+                  )}
                 </a>
               );
             })}

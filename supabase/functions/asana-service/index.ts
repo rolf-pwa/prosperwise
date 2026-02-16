@@ -190,6 +190,39 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // getInbox – LIVE: Fetch the authenticated user's My Tasks (Inbox)
+  // First gets the user_task_list GID, then fetches incomplete tasks
+  // -------------------------------------------------------------------------
+  async getInbox() {
+    return withFailSafe("getInbox", async () => {
+      // Step 1: Get the user task list GID for "me" in this workspace
+      const utlUrl = `${ASANA_BASE_URL}/users/me/user_task_list?workspace=${this.workspaceId}`;
+      console.log("[AsanaService] GET user_task_list");
+
+      const utlRes = await fetch(utlUrl, { headers: this.headers() });
+      if (!utlRes.ok) {
+        const body = await utlRes.text();
+        throw new Error(`Asana API error ${utlRes.status}: ${body}`);
+      }
+      const utlJson = await utlRes.json();
+      const userTaskListGid = utlJson.data?.gid;
+      if (!userTaskListGid) throw new Error("Could not find user task list");
+
+      // Step 2: Get tasks from the user task list
+      const tasksUrl = `${ASANA_BASE_URL}/user_task_lists/${userTaskListGid}/tasks?completed_since=now&opt_fields=name,completed,due_on,memberships.section.name,memberships.project.gid,notes&limit=50`;
+      console.log("[AsanaService] GET inbox tasks");
+
+      const tasksRes = await fetch(tasksUrl, { headers: this.headers() });
+      if (!tasksRes.ok) {
+        const body = await tasksRes.text();
+        throw new Error(`Asana API error ${tasksRes.status}: ${body}`);
+      }
+      const tasksJson = await tasksRes.json();
+      return tasksJson.data || [];
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // verifyTaskBelongsToProject – Privacy guardrail
   // -------------------------------------------------------------------------
   async verifyTaskBelongsToProject(taskGid: string, projectGid: string): Promise<boolean> {
@@ -366,6 +399,11 @@ serve(async (req) => {
 
       case "getDashboardTasks": {
         result = await service.getDashboardTasks();
+        break;
+      }
+
+      case "getInbox": {
+        result = await service.getInbox();
         break;
       }
 
