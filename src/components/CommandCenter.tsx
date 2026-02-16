@@ -242,7 +242,7 @@ interface AsanaTask {
   name: string;
   completed: boolean;
   due_on: string | null;
-  memberships?: { section?: { name?: string } }[];
+  memberships?: { section?: { name?: string }; project?: { gid?: string } }[];
 }
 
 function getTaskStatusLabel(task: AsanaTask): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } {
@@ -257,10 +257,17 @@ function getTaskStatusLabel(task: AsanaTask): { label: string; variant: "default
   return { label: "Open", variant: "outline" };
 }
 
+function extractProjectGid(asanaUrl: string | null): string | null {
+  if (!asanaUrl) return null;
+  const match = asanaUrl.match(/app\.asana\.com\/0\/(\d+)/);
+  return match ? match[1] : null;
+}
+
 function AsanaTodayWidget() {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [contactMap, setContactMap] = useState<Record<string, { id: string; name: string }>>({});
 
   useEffect(() => {
     (async () => {
@@ -268,13 +275,26 @@ function AsanaTodayWidget() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const res = await supabase.functions.invoke("asana-service", {
-          body: { action: "getDashboardTasks" },
-        });
+        // Fetch tasks and contacts in parallel
+        const [taskRes, contactRes] = await Promise.all([
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getDashboardTasks" },
+          }),
+          supabase.from("contacts").select("id, full_name, asana_url").not("asana_url", "is", null),
+        ]);
 
-        if (res.data?.data) {
-          // Filter tasks due today or overdue, that are not completed
-          const todayTasks = (res.data.data as AsanaTask[]).filter((t) => {
+        // Build project GID → contact map
+        const map: Record<string, { id: string; name: string }> = {};
+        if (contactRes.data) {
+          for (const c of contactRes.data) {
+            const gid = extractProjectGid(c.asana_url);
+            if (gid) map[gid] = { id: c.id, name: c.full_name };
+          }
+        }
+        setContactMap(map);
+
+        if (taskRes.data?.data) {
+          const todayTasks = (taskRes.data.data as AsanaTask[]).filter((t) => {
             if (t.completed) return false;
             if (!t.due_on) return false;
             return isToday(new Date(t.due_on)) || new Date(t.due_on) < new Date();
@@ -288,6 +308,14 @@ function AsanaTodayWidget() {
       }
     })();
   }, []);
+
+  function getLinkedContact(task: AsanaTask) {
+    for (const m of task.memberships || []) {
+      const gid = m.project?.gid;
+      if (gid && contactMap[gid]) return contactMap[gid];
+    }
+    return null;
+  }
 
   return (
     <Card>
@@ -310,6 +338,7 @@ function AsanaTodayWidget() {
           <div className="space-y-2">
             {tasks.slice(0, 10).map((task) => {
               const status = getTaskStatusLabel(task);
+              const linked = getLinkedContact(task);
               return (
                 <a
                   key={task.gid}
@@ -320,11 +349,16 @@ function AsanaTodayWidget() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{task.name}</p>
-                    {task.due_on && (
-                      <p className="text-xs text-muted-foreground">
-                        Due: {format(new Date(task.due_on), "MMM d")}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {linked && (
+                        <span className="text-xs text-accent font-medium truncate">{linked.name}</span>
+                      )}
+                      {task.due_on && (
+                        <span className="text-xs text-muted-foreground">
+                          Due: {format(new Date(task.due_on), "MMM d")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <Badge variant={status.variant} className="text-[10px] shrink-0 whitespace-nowrap">
                     {status.label}
