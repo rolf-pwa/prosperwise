@@ -126,11 +126,49 @@ serve(async (req) => {
 
     // Fetch all portal data in parallel
     const [contactRes, accountsRes, storehousesRes, auditRes] = await Promise.all([
-      supabase.from("contacts").select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary").eq("id", contactId).maybeSingle(),
+      supabase.from("contacts").select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor").eq("id", contactId).maybeSingle(),
       supabase.from("vineyard_accounts").select("*").eq("contact_id", contactId).order("created_at"),
       supabase.from("storehouses").select("*").eq("contact_id", contactId).order("storehouse_number"),
       supabase.from("sovereignty_audit_trail").select("*").eq("contact_id", contactId).order("created_at", { ascending: false }).limit(50),
     ]);
+
+    // Fetch family, household, and household members if available
+    let family = null;
+    let household = null;
+    let householdMembers: any[] = [];
+
+    const familyId = contactRes.data?.family_id;
+    const householdId = contactRes.data?.household_id;
+
+    if (familyId || householdId) {
+      const extraQueries: Promise<any>[] = [];
+      
+      if (familyId) {
+        extraQueries.push(
+          supabase.from("families").select("id, name, charter_document_url, fee_tier, total_family_assets").eq("id", familyId).maybeSingle()
+        );
+      } else {
+        extraQueries.push(Promise.resolve({ data: null }));
+      }
+
+      if (householdId) {
+        extraQueries.push(
+          supabase.from("households").select("id, label, address").eq("id", householdId).maybeSingle()
+        );
+        // Get other members in the same household
+        extraQueries.push(
+          supabase.from("contacts").select("id, first_name, last_name, family_role, is_minor").eq("household_id", householdId).neq("id", contactId)
+        );
+      } else {
+        extraQueries.push(Promise.resolve({ data: null }));
+        extraQueries.push(Promise.resolve({ data: [] }));
+      }
+
+      const [familyRes, householdRes, membersRes] = await Promise.all(extraQueries);
+      family = familyRes.data;
+      household = householdRes.data;
+      householdMembers = membersRes.data || [];
+    }
 
     // Fetch calendar events if contact has an email
     let meetings: any[] = [];
@@ -148,6 +186,9 @@ serve(async (req) => {
       storehouses: storehousesRes.data || [],
       audit_trail: auditRes.data || [],
       meetings,
+      family,
+      household,
+      household_members: householdMembers,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
