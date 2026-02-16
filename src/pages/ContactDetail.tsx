@@ -20,6 +20,7 @@ import {
   Plus,
   Trash2,
   X,
+  Users,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 import { toast } from "sonner";
@@ -408,6 +409,17 @@ const ContactDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-4">
+            {/* Family Link */}
+            {familyName && contact.family_id && (
+              <Link
+                to="/families"
+                className="flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50"
+              >
+                <Users className="h-4 w-4 text-sanctuary-bronze" />
+                <span>{familyName}</span>
+                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+              </Link>
+            )}
             {/* Household Members */}
             <Card>
               <CardHeader>
@@ -651,47 +663,6 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Family Members</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {familyMembers.length > 0 ? (
-                  <ul className="space-y-1 text-sm">
-                    {familyMembers.map((fm) => (
-                      <li key={fm.id} className="flex items-center gap-1">
-                        <Link
-                          to={`/contacts/${fm.member_contact_id}`}
-                          className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
-                        >
-                          <span className="font-medium">{fm.contact ? `${(fm.contact as any).first_name} ${(fm.contact as any).last_name || ""}`.trim() : "Unknown"}</span>
-                          {fm.relationship_label && (
-                            <span className="text-xs text-muted-foreground">{fm.relationship_label}</span>
-                          )}
-                        </Link>
-                        <button
-                          onClick={async () => {
-                            await supabase.from("family_relationships").delete().eq("id", fm.id);
-                            toast.success("Removed.");
-                            fetchData();
-                          }}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No family members linked.
-                  </p>
-                )}
-                <ContactLinker contactId={id!} excludeContactId={id} type="family" onLinked={fetchData} labelPlaceholder="Relationship (e.g. Uncle)" />
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader>
