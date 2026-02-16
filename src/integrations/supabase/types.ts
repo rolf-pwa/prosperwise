@@ -221,6 +221,44 @@ export type Database = {
           },
         ]
       }
+      portal_tokens: {
+        Row: {
+          contact_id: string
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          revoked: boolean
+          token: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          id?: string
+          revoked?: boolean
+          token?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          revoked?: boolean
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_tokens_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -298,11 +336,13 @@ export type Database = {
           charter_alignment: Database["public"]["Enums"]["charter_alignment"]
           contact_id: string
           created_at: string
+          current_value: number | null
           id: string
           label: string
           notes: string | null
           risk_cap: string | null
           storehouse_number: number
+          target_value: number | null
           updated_at: string
         }
         Insert: {
@@ -310,11 +350,13 @@ export type Database = {
           charter_alignment?: Database["public"]["Enums"]["charter_alignment"]
           contact_id: string
           created_at?: string
+          current_value?: number | null
           id?: string
           label?: string
           notes?: string | null
           risk_cap?: string | null
           storehouse_number: number
+          target_value?: number | null
           updated_at?: string
         }
         Update: {
@@ -322,11 +364,13 @@ export type Database = {
           charter_alignment?: Database["public"]["Enums"]["charter_alignment"]
           contact_id?: string
           created_at?: string
+          current_value?: number | null
           id?: string
           label?: string
           notes?: string | null
           risk_cap?: string | null
           storehouse_number?: number
+          target_value?: number | null
           updated_at?: string
         }
         Relationships: [

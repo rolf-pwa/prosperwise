@@ -14,6 +14,7 @@ import ContactDetail from "./pages/ContactDetail";
 import ContactForm from "./pages/ContactForm";
 import NotFound from "./pages/NotFound";
 import GoogleCallback from "./pages/GoogleCallback";
+import Portal from "./pages/Portal";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/" element={<AuthCallback />} />
             <Route path="/login" element={<Login />} />
             <Route path="/access-denied" element={<AccessDenied />} />
+            <Route path="/portal/:token" element={<Portal />} />
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />

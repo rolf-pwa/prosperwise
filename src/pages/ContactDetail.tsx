@@ -48,6 +48,7 @@ import { SovereigntyAssistant } from "@/components/SovereigntyAssistant";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot } from "lucide-react";
+import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
 
 interface Storehouse {
   id: string;
@@ -211,6 +212,7 @@ const ContactDetail = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <PortalMagicLinkButton contactId={id!} />
             <Button
               variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}
