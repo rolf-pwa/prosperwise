@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export const FamilyRollup = ({
   const [householdBreakdown, setHouseholdBreakdown] = useState<HouseholdAssets[]>([]);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     loadBreakdown();
@@ -181,17 +183,30 @@ export const FamilyRollup = ({
   }
 
   return (
-    <div className="px-4 py-4 space-y-4 border-t border-border bg-muted/10">
-      {/* Summary Row */}
-      <div className="flex items-center justify-between">
+    <div className="border-t border-border bg-muted/10">
+      {/* Collapsible Header */}
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted/20"
+      >
         <div className="flex items-center gap-2">
+          {expanded ? (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
           <BarChart3 className="h-4 w-4 text-accent" />
           <span className="text-sm font-semibold">Financial Rollup</span>
+          {!expanded && totalAssets > 0 && (
+            <span className="text-xs text-muted-foreground ml-2">
+              {formatCurrency(totalAssets)}
+            </span>
+          )}
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={recalculateFeeTier}
+          onClick={(e) => { e.stopPropagation(); recalculateFeeTier(); }}
           disabled={recalculating}
           className="text-xs"
         >
@@ -202,7 +217,10 @@ export const FamilyRollup = ({
           )}
           Recalculate Tier
         </Button>
-      </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4">
 
       {/* Key Metrics */}
       <div className="grid grid-cols-3 gap-3">
@@ -281,6 +299,8 @@ export const FamilyRollup = ({
           </div>
         ))}
       </div>
+      </div>
+      )}
     </div>
   );
 };
