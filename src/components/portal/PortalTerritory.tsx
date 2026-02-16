@@ -194,46 +194,46 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
                   </span>
                 </div>
                 {accounts.length > 0 ? (
-                  accounts.map((acc: any) => {
-                    const accCurrent = Number(acc.current_value) || 0;
-                    const accTarget = Number(acc.target_value) || 0;
-                    const accPct = accTarget > 0 ? Math.min((accCurrent / accTarget) * 100, 100) : 0;
-                    return (
-                      <div
-                        key={acc.id}
-                        className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-sm text-foreground/80">{acc.label || name}</span>
-                            {acc.charter_alignment && (
-                              <span className={`text-xs mt-0.5 ${
-                                acc.charter_alignment === "aligned"
-                                  ? "text-primary"
-                                  : acc.charter_alignment === "misaligned"
-                                  ? "text-destructive"
-                                  : "text-muted-foreground"
-                              }`}>
-                                {acc.charter_alignment === "aligned" ? "Charter Aligned" : acc.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-sm font-medium text-foreground">
-                            ${accCurrent.toLocaleString()}
-                          </span>
+                  <>
+                    {targetTotal > 0 && (
+                      <div className="space-y-1">
+                        <Progress value={pct} className="h-1.5 bg-muted [&>div]:bg-accent" />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{Math.round(pct)}% funded</span>
+                          <span>Target: ${targetTotal.toLocaleString()}</span>
                         </div>
-                        {accTarget > 0 && (
-                          <>
-                            <Progress value={accPct} className="h-1.5 bg-muted [&>div]:bg-accent" />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>{Math.round(accPct)}% funded</span>
-                              <span>Target: ${accTarget.toLocaleString()}</span>
-                            </div>
-                          </>
-                        )}
                       </div>
-                    );
-                  })
+                    )}
+                    {accounts.map((acc: any) => {
+                      const accCurrent = Number(acc.current_value) || 0;
+                      return (
+                        <div
+                          key={acc.id}
+                          className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-foreground/80">{acc.asset_type || acc.notes || "Account"}</span>
+                              {acc.charter_alignment && (
+                                <span className={`text-xs mt-0.5 ${
+                                  acc.charter_alignment === "aligned"
+                                    ? "text-primary"
+                                    : acc.charter_alignment === "misaligned"
+                                    ? "text-destructive"
+                                    : "text-muted-foreground"
+                                }`}>
+                                  {acc.charter_alignment === "aligned" ? "Charter Aligned" : acc.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-sm font-medium text-foreground">
+                              ${accCurrent.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
                 ) : privateAccounts.length > 0 ? (
                   <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-4 py-2.5 border border-border text-xs text-muted-foreground">
                     <Lock className="h-3.5 w-3.5" />
