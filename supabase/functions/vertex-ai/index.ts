@@ -108,7 +108,15 @@ When appropriate, use these tools to propose structured actions:
 - When you don't have enough context, ask clarifying questions before proposing actions.
 - For emails, always use the draft_stabilization_email tool so the email is saved as a Gmail draft.
 - For meetings, collect date, time, duration, attendees, and purpose before proposing.
-- When creating or updating contacts, confirm the details with the CFO before proposing.`;
+- When creating or updating contacts, confirm the details with the CFO before proposing.
+
+## Charter Ingestion Capabilities
+When the Personal CFO uploads a Sovereignty Charter PDF:
+1. **Vineyard Extraction**: Scan for asset/account tables. Extract Account Names, Account Numbers, Account Types (Portfolio, Business Venture, Real Estate, Insurance, Other), and Current Values. Use the **ingest_vineyard_accounts** tool to propose them as a batch.
+2. **Storehouse Rule Generation**: Look for "Storehouse Funding Goals" or similar sections. Extract funding floors (e.g. The Keep's $48,000 floor), funding ceilings, governance clauses (e.g. Secondary Quiet Period for inflows >$50,000), and quiet period rules. Use the **ingest_storehouse_rules** tool.
+3. **Sovereign Waterfall**: Look for priority allocation order (e.g. 1. Replenish Keep, 2. Debt Reduction, 3. Replanting). Use the **ingest_waterfall_priorities** tool.
+4. Always extract ALL three categories from a charter document in a single response.
+5. Map storehouse labels to standard numbers: The Keep=1, The Armoury=2, The Granary=3, The Vault=4.`;
 
 // ---------- Tool Definitions ----------
 
@@ -242,6 +250,86 @@ const TOOLS = [
             rationale: { type: "STRING", description: "Purpose/context for this meeting" },
           },
           required: ["summary", "start_datetime", "end_datetime", "rationale"],
+        },
+      },
+      {
+        name: "ingest_vineyard_accounts",
+        description: "Batch-create Vineyard account records extracted from a Sovereignty Charter document. Each account includes name, type, number, and value.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            family_name: { type: "STRING", description: "The family name from the charter" },
+            contact_name: { type: "STRING", description: "The individual whose accounts are being populated" },
+            accounts: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  account_name: { type: "STRING", description: "Account description/name" },
+                  account_number: { type: "STRING", description: "Account number if available" },
+                  account_type: { type: "STRING", description: "Portfolio, Business Venture, Real Estate, Insurance, Other" },
+                  current_value: { type: "NUMBER", description: "Current market value" },
+                },
+                required: ["account_name", "account_type"],
+              },
+              description: "Array of Vineyard accounts extracted from the charter",
+            },
+            rationale: { type: "STRING", description: "Source section and extraction notes" },
+          },
+          required: ["family_name", "contact_name", "accounts", "rationale"],
+        },
+      },
+      {
+        name: "ingest_storehouse_rules",
+        description: "Extract and create Storehouse funding rules and governance clauses from a Sovereignty Charter. Rules include funding floors, ceilings, quiet period triggers, and governance clauses.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            family_name: { type: "STRING", description: "The family name from the charter" },
+            rules: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  storehouse_label: { type: "STRING", description: "e.g. The Keep, The Armoury, The Granary, The Vault" },
+                  storehouse_number: { type: "INTEGER", description: "1=Keep, 2=Armoury, 3=Granary, 4=Vault" },
+                  rule_type: { type: "STRING", description: "funding_floor, funding_ceiling, governance_clause, quiet_period" },
+                  rule_description: { type: "STRING", description: "Human-readable rule text" },
+                  rule_value: { type: "NUMBER", description: "Numeric threshold if applicable (e.g. $48000 floor)" },
+                },
+                required: ["storehouse_label", "storehouse_number", "rule_type", "rule_description"],
+              },
+              description: "Array of storehouse rules extracted from the charter",
+            },
+            rationale: { type: "STRING", description: "Source section and extraction notes" },
+          },
+          required: ["family_name", "rules", "rationale"],
+        },
+      },
+      {
+        name: "ingest_waterfall_priorities",
+        description: "Extract the Sovereign Waterfall priority allocation order from a Sovereignty Charter. This defines how surplus cash flows through the family's allocation engine.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            family_name: { type: "STRING", description: "The family name from the charter" },
+            priorities: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  priority_order: { type: "INTEGER", description: "Priority sequence number (1 = highest)" },
+                  priority_label: { type: "STRING", description: "e.g. Replenish The Keep, Debt Reduction, Replanting" },
+                  priority_description: { type: "STRING", description: "Details of the allocation rule" },
+                  target_amount: { type: "NUMBER", description: "Target amount if specified" },
+                },
+                required: ["priority_order", "priority_label"],
+              },
+              description: "Ordered array of waterfall priorities",
+            },
+            rationale: { type: "STRING", description: "Source section and extraction notes" },
+          },
+          required: ["family_name", "priorities", "rationale"],
         },
       },
     ],

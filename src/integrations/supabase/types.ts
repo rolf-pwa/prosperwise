@@ -431,6 +431,53 @@ export type Database = {
           },
         ]
       }
+      storehouse_rules: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          rule_description: string
+          rule_metadata: Json | null
+          rule_type: string
+          rule_value: number | null
+          storehouse_label: string
+          storehouse_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          rule_description: string
+          rule_metadata?: Json | null
+          rule_type: string
+          rule_value?: number | null
+          storehouse_label: string
+          storehouse_number: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          rule_description?: string
+          rule_metadata?: Json | null
+          rule_type?: string
+          rule_value?: number | null
+          storehouse_label?: string
+          storehouse_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storehouse_rules_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storehouses: {
         Row: {
           asset_type: string | null
@@ -490,6 +537,7 @@ export type Database = {
       vineyard_accounts: {
         Row: {
           account_name: string
+          account_number: string | null
           account_type: string
           contact_id: string
           created_at: string
@@ -501,6 +549,7 @@ export type Database = {
         }
         Insert: {
           account_name: string
+          account_number?: string | null
           account_type?: string
           contact_id: string
           created_at?: string
@@ -512,6 +561,7 @@ export type Database = {
         }
         Update: {
           account_name?: string
+          account_number?: string | null
           account_type?: string
           contact_id?: string
           created_at?: string
@@ -527,6 +577,50 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waterfall_priorities: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          is_active: boolean
+          priority_description: string | null
+          priority_label: string
+          priority_order: number
+          target_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          is_active?: boolean
+          priority_description?: string | null
+          priority_label: string
+          priority_order: number
+          target_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          is_active?: boolean
+          priority_description?: string | null
+          priority_label?: string
+          priority_order?: number
+          target_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waterfall_priorities_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
