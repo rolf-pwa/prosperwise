@@ -322,6 +322,44 @@ export type Database = {
           },
         ]
       }
+      portal_otps: {
+        Row: {
+          code: string
+          contact_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          verified: boolean
+        }
+        Insert: {
+          code: string
+          contact_id: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          verified?: boolean
+        }
+        Update: {
+          code?: string
+          contact_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_otps_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_tokens: {
         Row: {
           contact_id: string

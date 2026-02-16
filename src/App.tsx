@@ -30,6 +30,7 @@ const App = () => (
             <Route path="/" element={<AuthCallback />} />
             <Route path="/login" element={<Login />} />
             <Route path="/access-denied" element={<AccessDenied />} />
+            <Route path="/portal" element={<Portal />} />
             <Route path="/portal/:token" element={<Portal />} />
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
