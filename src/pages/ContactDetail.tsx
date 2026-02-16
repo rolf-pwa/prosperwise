@@ -48,6 +48,7 @@ import { SovereigntyAssistant } from "@/components/SovereigntyAssistant";
 import { AuditTrail } from "@/components/AuditTrail";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot } from "lucide-react";
+import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
 
 interface Storehouse {
@@ -220,6 +221,11 @@ const ContactDetail = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
+        <PageBreadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Contacts", href: "/contacts" },
+          { label: `${contact.first_name} ${contact.last_name || ""}`.trim() },
+        ]} />
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
