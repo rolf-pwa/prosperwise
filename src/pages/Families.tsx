@@ -284,7 +284,7 @@ const Families = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Sovereignty Tree</h1>
+            <h1 className="text-3xl font-bold">Family Tree</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Family → Household → Individual Hierarchy — {families.length} families
             </p>
