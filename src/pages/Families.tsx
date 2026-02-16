@@ -151,7 +151,14 @@ const Families = () => {
           individuals: ((contactData as any[]) || []).filter(
             (c: any) => c.household_id === h.id
           ),
-        }));
+        }))
+        .sort((a: any, b: any) => {
+          const aHasHead = a.individuals.some((i: any) => i.family_role === "head_of_family");
+          const bHasHead = b.individuals.some((i: any) => i.family_role === "head_of_family");
+          if (aHasHead && !bHasHead) return -1;
+          if (!aHasHead && bHasHead) return 1;
+          return a.label.localeCompare(b.label);
+        });
 
       return {
         ...f,
