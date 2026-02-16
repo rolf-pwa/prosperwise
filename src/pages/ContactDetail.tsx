@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Accordion,
@@ -66,11 +67,19 @@ interface HouseholdMember {
 }
 
 const STOREHOUSE_LABELS = [
-  "Storehouse I — Foundation",
-  "Storehouse II — Growth",
-  "Storehouse III — Legacy",
-  "Storehouse IV — Reserve",
+  "The Keep — Liquidity Reserve",
+  "The Armoury — Strategic Reserve",
+  "The Granary — Philanthropic Trust",
+  "The Vault — Legacy Trust",
 ];
+
+interface VineyardAccount {
+  id: string;
+  account_name: string;
+  account_type: string;
+  current_value: number | null;
+  notes: string | null;
+}
 
 const ContactDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,12 +88,17 @@ const ContactDetail = () => {
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
   const [familyMembers, setFamilyMembers] = useState<HouseholdMember[]>([]);
+  const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
   const [professionalContacts, setProfessionalContacts] = useState<Record<string, { id: string; full_name: string } | null>>({});
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountType, setNewAccountType] = useState("Portfolio");
+  const [newAccountValue, setNewAccountValue] = useState("");
+  const [showAddAccount, setShowAddAccount] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [contactRes, storehouseRes, householdRes, familyRes] = await Promise.all([
+    const [contactRes, storehouseRes, householdRes, familyRes, accountsRes] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
       supabase
         .from("storehouses")
@@ -99,11 +113,17 @@ const ContactDetail = () => {
         .from("family_relationships")
         .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)")
         .eq("contact_id", id),
+      supabase
+        .from("vineyard_accounts" as any)
+        .select("*")
+        .eq("contact_id", id)
+        .order("created_at"),
     ]);
     setContact(contactRes.data);
     setStorehouses(storehouseRes.data || []);
     setHouseholdMembers((householdRes.data as any) || []);
     setFamilyMembers((familyRes.data as any) || []);
+    setVineyardAccounts((accountsRes.data as any) || []);
 
     // Look up professional team contacts by name
     const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
@@ -342,38 +362,114 @@ const ContactDetail = () => {
                 <CardTitle className="text-base">The Vineyard & Storehouses</CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
-                {/* Vineyard metrics */}
+                {/* Vineyard Accounts */}
                 <div>
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entity Data</h4>
-                  <dl className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">EBITDA</dt>
-                      <dd className="font-semibold">
-                        {contact.vineyard_ebitda != null
-                          ? `$${Number(contact.vineyard_ebitda).toLocaleString()}`
-                          : "—"}
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Operating Income</dt>
-                      <dd className="font-semibold">
-                        {contact.vineyard_operating_income != null
-                          ? `$${Number(contact.vineyard_operating_income).toLocaleString()}`
-                          : "—"}
-                      </dd>
-                    </div>
-                    {contact.vineyard_balance_sheet_summary && (
-                      <div>
-                        <dt className="text-muted-foreground">Balance Sheet</dt>
-                        <dd className="mt-0.5 font-medium">{contact.vineyard_balance_sheet_summary}</dd>
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Asset Accounts</h4>
+                  {vineyardAccounts.length > 0 ? (
+                    <ul className="space-y-1 text-sm">
+                      {vineyardAccounts.map((acc) => (
+                        <li key={acc.id} className="flex items-center gap-1">
+                          <div className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2">
+                            <div>
+                              <span className="font-medium">{acc.account_name}</span>
+                              {acc.current_value != null && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  ${Number(acc.current_value).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{acc.account_type}</span>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              await supabase.from("vineyard_accounts" as any).delete().eq("id", acc.id);
+                              toast.success("Account removed.");
+                              fetchData();
+                            }}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No accounts added yet.</p>
+                  )}
+
+                  {showAddAccount ? (
+                    <div className="mt-2 space-y-2 rounded-md border p-3">
+                      <Input
+                        placeholder="Account name (e.g. Fidelity Portfolio)"
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={newAccountType}
+                          onChange={(e) => setNewAccountType(e.target.value)}
+                          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="Portfolio">Portfolio</option>
+                          <option value="Business Venture">Business Venture</option>
+                          <option value="Real Estate">Real Estate</option>
+                          <option value="Insurance">Insurance</option>
+                          <option value="Retirement">Retirement</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <Input
+                          type="number"
+                          placeholder="Value ($)"
+                          value={newAccountValue}
+                          onChange={(e) => setNewAccountValue(e.target.value)}
+                          className="w-28"
+                        />
                       </div>
-                    )}
-                  </dl>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          disabled={!newAccountName.trim()}
+                          onClick={async () => {
+                            const { error } = await supabase.from("vineyard_accounts" as any).insert({
+                              contact_id: id,
+                              account_name: newAccountName.trim(),
+                              account_type: newAccountType,
+                              current_value: newAccountValue ? Number(newAccountValue) : null,
+                            } as any);
+                            if (error) {
+                              toast.error("Failed to add account.");
+                            } else {
+                              toast.success("Account added.");
+                              setNewAccountName("");
+                              setNewAccountType("Portfolio");
+                              setNewAccountValue("");
+                              setShowAddAccount(false);
+                              fetchData();
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setShowAddAccount(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 w-full text-muted-foreground"
+                      onClick={() => setShowAddAccount(true)}
+                    >
+                      <Plus className="mr-1 h-3 w-3" /> Add Account
+                    </Button>
+                  )}
                 </div>
 
                 {/* Storehouses */}
                 <div>
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Liquidity Vessels</h4>
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Storehouses</h4>
                   <Accordion type="multiple" className="w-full">
                     {[1, 2, 3, 4].map((num) => {
                       const sh = storehouses.find(
