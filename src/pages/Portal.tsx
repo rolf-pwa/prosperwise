@@ -7,7 +7,7 @@ import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { PortalTasks } from "@/components/portal/PortalTasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink } from "lucide-react";
+import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink, FileBarChart } from "lucide-react";
 
 interface PortalData {
   contact: any;
@@ -169,6 +169,10 @@ const Portal = () => {
               <Clock className="mr-1.5 h-4 w-4" />
               Timeline
             </TabsTrigger>
+            <TabsTrigger value="reviews" className="flex-1">
+              <FileBarChart className="mr-1.5 h-4 w-4" />
+              Reviews
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="territory" className="mt-6">
@@ -196,6 +200,21 @@ const Portal = () => {
 
           <TabsContent value="timeline" className="mt-6">
             <PortalTimeline auditTrail={audit_trail} />
+          </TabsContent>
+
+          <TabsContent value="reviews" className="mt-6">
+            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
+                <FileBarChart className="h-7 w-7 text-accent" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
+              <p className="text-sm text-muted-foreground max-w-md mb-1">
+                Comprehensive AI-powered reviews of your financial territory — account statements, governance alignment, and strategic recommendations.
+              </p>
+              <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
+                Coming Soon
+              </span>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
