@@ -45,6 +45,7 @@ import {
   Unlink,
   ArrowRightLeft,
   Scissors,
+  Cross,
 } from "lucide-react";
 import {
   Select,
@@ -299,6 +300,20 @@ const Families = () => {
       toast.error("Failed to unlink individual.");
     } else {
       toast.success("Individual removed from household.");
+      fetchFamilies();
+    }
+  };
+
+  const markDeceased = async (contactId: string, firstName: string, lastName: string | null) => {
+    const estateName = `The Estate of — ${firstName} ${lastName || ""}`.trim();
+    const { error } = await supabase
+      .from("contacts")
+      .update({ first_name: estateName, last_name: null, full_name: estateName } as any)
+      .eq("id", contactId);
+    if (error) {
+      toast.error("Failed to update contact record.");
+    } else {
+      toast.success("Contact updated to estate record.");
       fetchFamilies();
     }
   };
@@ -578,6 +593,32 @@ const Families = () => {
                                           >
                                             <Scissors className="h-3.5 w-3.5" />
                                           </button>
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <button
+                                                title="Mark as deceased (Estate)"
+                                                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                              >
+                                                <Cross className="h-3.5 w-3.5" />
+                                              </button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Mark as Deceased</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  This will rename the contact record to "The Estate of — {individual.first_name} {individual.last_name}". The individual will remain in their household. This cannot be undone.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                  onClick={() => markDeceased(individual.id, individual.first_name, individual.last_name)}
+                                                >
+                                                  Confirm
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
                                           <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                               <button
