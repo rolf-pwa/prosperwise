@@ -273,6 +273,18 @@ const Families = () => {
     );
   };
 
+  const recalcTier = async (familyId: string) => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      await fetch(`${supabaseUrl}/functions/v1/calculate-family-fee-tier`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}`, apikey: anonKey },
+        body: JSON.stringify({ familyId }),
+      });
+    } catch { /* silent */ }
+  };
+
   const linkIndividual = async (contactId: string) => {
     if (!addIndividualTarget) return;
     const { error } = await supabase
@@ -288,11 +300,12 @@ const Families = () => {
     } else {
       toast.success("Individual added to household.");
       setAddIndividualTarget(null);
+      await recalcTier(addIndividualTarget.familyId);
       fetchFamilies();
     }
   };
 
-  const unlinkIndividual = async (contactId: string) => {
+  const unlinkIndividual = async (contactId: string, familyId: string) => {
     const { error } = await supabase
       .from("contacts")
       .update({ family_id: null, household_id: null, family_role: "head_of_family" } as any)
@@ -301,6 +314,7 @@ const Families = () => {
       toast.error("Failed to unlink individual.");
     } else {
       toast.success("Individual removed from household.");
+      await recalcTier(familyId);
       fetchFamilies();
     }
   };
@@ -361,6 +375,8 @@ const Families = () => {
       toast.error("Failed to reassign individual.");
     } else {
       toast.success("Individual reassigned.");
+      const affectedFamilies = new Set([reassignTarget.currentFamilyId, reassignFamilyId]);
+      await Promise.all(Array.from(affectedFamilies).map(recalcTier));
       setReassignTarget(null);
       fetchFamilies();
     }
@@ -640,7 +656,7 @@ const Families = () => {
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                 <AlertDialogAction
                                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                                  onClick={() => unlinkIndividual(individual.id)}
+                                                  onClick={() => unlinkIndividual(individual.id, family.id)}
                                                 >
                                                   Remove
                                                 </AlertDialogAction>
