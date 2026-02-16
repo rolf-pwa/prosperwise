@@ -42,7 +42,16 @@ import {
   Shield,
   Baby,
   Trash2,
+  Unlink,
+  ArrowRightLeft,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -115,6 +124,10 @@ const Families = () => {
   const [unlinkedContacts, setUnlinkedContacts] = useState<{ id: string; first_name: string; last_name: string | null; email: string | null }[]>([]);
   const [individualSearch, setIndividualSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("beneficiary");
+  const [reassignTarget, setReassignTarget] = useState<{ contactId: string; contactName: string; currentFamilyId: string; currentHouseholdId: string } | null>(null);
+  const [reassignFamilyId, setReassignFamilyId] = useState<string>("");
+  const [reassignHouseholdId, setReassignHouseholdId] = useState<string>("");
+  const [availableHouseholds, setAvailableHouseholds] = useState<{ id: string; label: string }[]>([]);
 
   const fetchFamilies = useCallback(async () => {
     // Fetch families
@@ -270,6 +283,66 @@ const Families = () => {
     } else {
       toast.success("Individual added to household.");
       setAddIndividualTarget(null);
+      fetchFamilies();
+    }
+  };
+
+  const unlinkIndividual = async (contactId: string) => {
+    const { error } = await supabase
+      .from("contacts")
+      .update({ family_id: null, household_id: null, family_role: "head_of_family" } as any)
+      .eq("id", contactId);
+    if (error) {
+      toast.error("Failed to unlink individual.");
+    } else {
+      toast.success("Individual removed from household.");
+      fetchFamilies();
+    }
+  };
+
+  const openReassign = async (individual: Individual, currentFamilyId: string, currentHouseholdId: string) => {
+    setReassignTarget({
+      contactId: individual.id,
+      contactName: `${individual.first_name} ${individual.last_name || ""}`.trim(),
+      currentFamilyId,
+      currentHouseholdId,
+    });
+    setReassignFamilyId(currentFamilyId);
+    // Load households for the current family
+    const { data } = await supabase
+      .from("households" as any)
+      .select("id, label")
+      .eq("family_id", currentFamilyId)
+      .order("label");
+    setAvailableHouseholds((data as any[]) || []);
+    setReassignHouseholdId("");
+  };
+
+  const handleReassignFamilyChange = async (familyId: string) => {
+    setReassignFamilyId(familyId);
+    setReassignHouseholdId("");
+    const { data } = await supabase
+      .from("households" as any)
+      .select("id, label")
+      .eq("family_id", familyId)
+      .order("label");
+    setAvailableHouseholds((data as any[]) || []);
+  };
+
+  const reassignIndividual = async () => {
+    if (!reassignTarget || !reassignFamilyId || !reassignHouseholdId) return;
+    const { error } = await supabase
+      .from("contacts")
+      .update({
+        family_id: reassignFamilyId,
+        household_id: reassignHouseholdId,
+      } as any)
+      .eq("id", reassignTarget.contactId);
+    if (error) {
+      toast.error("Failed to reassign individual.");
+    } else {
+      toast.success("Individual reassigned.");
+      setReassignTarget(null);
       fetchFamilies();
     }
   };
@@ -456,21 +529,23 @@ const Families = () => {
                                   {household.individuals.map((individual) => {
                                     const RoleIcon = ROLE_ICONS[individual.family_role] || User;
                                     return (
-                                      <Link
+                                      <div
                                         key={individual.id}
-                                        to={`/contacts/${individual.id}`}
                                         className="flex items-center gap-3 py-2.5 pl-20 pr-4 transition-colors hover:bg-muted/30"
                                       >
                                         <RoleIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm">
+                                        <Link
+                                          to={`/contacts/${individual.id}`}
+                                          className="flex-1 min-w-0"
+                                        >
+                                          <p className="text-sm hover:underline">
                                             {individual.first_name} {individual.last_name}
                                           </p>
                                           {individual.email && (
                                             <p className="text-xs text-muted-foreground truncate">{individual.email}</p>
                                           )}
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
+                                        </Link>
+                                        <div className="flex items-center gap-1.5 shrink-0">
                                           <Badge variant="outline" className="text-[10px]">
                                             {ROLE_LABELS[individual.family_role] || individual.family_role}
                                           </Badge>
@@ -479,8 +554,42 @@ const Families = () => {
                                               Minor
                                             </Badge>
                                           )}
+                                          <button
+                                            onClick={() => openReassign(individual, family.id, household.id)}
+                                            title="Reassign to another household"
+                                            className="p-1 rounded-md text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+                                          >
+                                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                                          </button>
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <button
+                                                title="Remove from household"
+                                                className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                              >
+                                                <Unlink className="h-3.5 w-3.5" />
+                                              </button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>Remove Individual</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  This will remove {individual.first_name} {individual.last_name} from this household and family. The contact record will not be deleted.
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                  onClick={() => unlinkIndividual(individual.id)}
+                                                >
+                                                  Remove
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
                                         </div>
-                                      </Link>
+                                      </div>
                                     );
                                   })}
                                   {household.individuals.length === 0 && (
@@ -631,6 +740,62 @@ const Families = () => {
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign Individual Dialog */}
+      <Dialog open={!!reassignTarget} onOpenChange={() => setReassignTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reassign {reassignTarget?.contactName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Family</label>
+              <Select value={reassignFamilyId} onValueChange={handleReassignFamilyChange}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select family" />
+                </SelectTrigger>
+                <SelectContent>
+                  {families.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Household</label>
+              <Select value={reassignHouseholdId} onValueChange={setReassignHouseholdId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select household" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableHouseholds.map((h) => (
+                    <SelectItem key={h.id} value={h.id}>
+                      {h.label} Household
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {reassignFamilyId && availableHouseholds.length === 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">No households in this family.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={reassignIndividual}
+              disabled={!reassignHouseholdId || (reassignHouseholdId === reassignTarget?.currentHouseholdId && reassignFamilyId === reassignTarget?.currentFamilyId)}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              Reassign
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>
