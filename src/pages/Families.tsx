@@ -19,6 +19,17 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   TreesIcon,
   ChevronRight,
   ChevronDown,
@@ -30,6 +41,7 @@ import {
   TrendingDown,
   Shield,
   Baby,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -197,6 +209,27 @@ const Families = () => {
     }
   };
 
+  const deleteFamily = async (familyId: string) => {
+    // Unlink contacts first (SET NULL via FK), then delete cascades households
+    const { error } = await supabase.from("families" as any).delete().eq("id", familyId);
+    if (error) {
+      toast.error("Failed to delete family.");
+    } else {
+      toast.success("Family deleted.");
+      fetchFamilies();
+    }
+  };
+
+  const deleteHousehold = async (householdId: string) => {
+    const { error } = await supabase.from("households" as any).delete().eq("id", householdId);
+    if (error) {
+      toast.error("Failed to delete household.");
+    } else {
+      toast.success("Household deleted.");
+      fetchFamilies();
+    }
+  };
+
   const filtered = families.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -284,6 +317,33 @@ const Families = () => {
                               ${Number(family.annual_savings).toLocaleString()} saved
                             </Badge>
                           )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Family</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete "{family.name}" and all its households. Individuals will be unlinked but not deleted. This cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => deleteFamily(family.id)}
+                                >
+                                  Delete Family
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </button>
                     </CollapsibleTrigger>
@@ -316,6 +376,33 @@ const Families = () => {
                                   <span className="text-xs text-muted-foreground">
                                     {household.individuals.length} member{household.individuals.length !== 1 ? "s" : ""}
                                   </span>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Household</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently delete the "{household.label}" household. Individuals will be unlinked but not deleted.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          onClick={() => deleteHousehold(household.id)}
+                                        >
+                                          Delete Household
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </button>
                               </CollapsibleTrigger>
 
