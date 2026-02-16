@@ -1,0 +1,1 @@
+ALTER TABLE public.storehouses DROP CONSTRAINT storehouses_contact_id_storehouse_number_key;
