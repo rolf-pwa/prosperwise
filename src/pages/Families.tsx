@@ -57,6 +57,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { DecouplerWizard } from "@/components/DecouplerWizard";
+import { FamilyRollup } from "@/components/FamilyRollup";
 
 interface Individual {
   id: string;
@@ -680,6 +681,17 @@ const Families = () => {
                           <Plus className="h-3.5 w-3.5" />
                           Add Household
                         </button>
+
+                        {/* Financial Rollup */}
+                        <FamilyRollup
+                          familyId={family.id}
+                          familyName={family.name}
+                          feeTier={family.fee_tier}
+                          totalAssets={family.total_family_assets}
+                          annualSavings={family.annual_savings}
+                          discountPct={family.fee_tier_discount_pct}
+                          onRecalculated={fetchFamilies}
+                        />
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
