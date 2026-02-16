@@ -111,6 +111,10 @@ const Families = () => {
   const [newFamilyName, setNewFamilyName] = useState("");
   const [showNewHousehold, setShowNewHousehold] = useState<string | null>(null);
   const [newHouseholdLabel, setNewHouseholdLabel] = useState("");
+  const [addIndividualTarget, setAddIndividualTarget] = useState<{ familyId: string; householdId: string } | null>(null);
+  const [unlinkedContacts, setUnlinkedContacts] = useState<{ id: string; first_name: string; last_name: string | null; email: string | null }[]>([]);
+  const [individualSearch, setIndividualSearch] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("beneficiary");
 
   const fetchFamilies = useCallback(async () => {
     // Fetch families
@@ -226,6 +230,39 @@ const Families = () => {
       toast.error("Failed to delete household.");
     } else {
       toast.success("Household deleted.");
+      fetchFamilies();
+    }
+  };
+
+  const openAddIndividual = async (familyId: string, householdId: string) => {
+    setAddIndividualTarget({ familyId, householdId });
+    setIndividualSearch("");
+    setSelectedRole("beneficiary");
+    // Fetch contacts not already in this family
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, email, family_id")
+      .order("first_name");
+    setUnlinkedContacts(
+      (data || []).filter((c: any) => !c.family_id || c.family_id !== familyId)
+    );
+  };
+
+  const linkIndividual = async (contactId: string) => {
+    if (!addIndividualTarget) return;
+    const { error } = await supabase
+      .from("contacts")
+      .update({
+        family_id: addIndividualTarget.familyId,
+        household_id: addIndividualTarget.householdId,
+        family_role: selectedRole,
+      } as any)
+      .eq("id", contactId);
+    if (error) {
+      toast.error("Failed to add individual.");
+    } else {
+      toast.success("Individual added to household.");
+      setAddIndividualTarget(null);
       fetchFamilies();
     }
   };
@@ -444,6 +481,14 @@ const Families = () => {
                                       No members in this household.
                                     </p>
                                   )}
+                                  {/* Add Individual Button */}
+                                  <button
+                                    onClick={() => openAddIndividual(family.id, household.id)}
+                                    className="flex w-full items-center gap-2 py-2 pl-20 pr-4 text-xs text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/20"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    Add Individual
+                                  </button>
                                 </div>
                               </CollapsibleContent>
                             </Collapsible>
@@ -517,6 +562,68 @@ const Families = () => {
               Add Household
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Individual Dialog */}
+      <Dialog open={!!addIndividualTarget} onOpenChange={() => setAddIndividualTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Individual to Household</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search existing contacts..."
+                value={individualSearch}
+                onChange={(e) => setIndividualSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Role</label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="head_of_family">Head of Family</option>
+                <option value="spouse">Spouse</option>
+                <option value="beneficiary">Beneficiary</option>
+                <option value="minor">Minor</option>
+              </select>
+            </div>
+            <div className="max-h-[240px] overflow-y-auto rounded-md border">
+              {unlinkedContacts
+                .filter((c) => {
+                  const name = `${c.first_name} ${c.last_name || ""}`.toLowerCase();
+                  return name.includes(individualSearch.toLowerCase());
+                })
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => linkIndividual(c.id)}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 border-b last:border-b-0"
+                  >
+                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{c.first_name} {c.last_name}</p>
+                      {c.email && (
+                        <p className="text-xs text-muted-foreground truncate">{c.email}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              {unlinkedContacts.filter((c) =>
+                `${c.first_name} ${c.last_name || ""}`.toLowerCase().includes(individualSearch.toLowerCase())
+              ).length === 0 && (
+                <p className="p-3 text-center text-xs text-muted-foreground">
+                  No matching contacts found.
+                </p>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </AppLayout>
