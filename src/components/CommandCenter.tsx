@@ -89,8 +89,8 @@ export function CommandCenter() {
           Disconnect
         </Button>
       </div>
-      <AsanaInboxWidget />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <AsanaInboxWidget />
         <CalendarWidget />
         <GmailWidget />
       </div>
