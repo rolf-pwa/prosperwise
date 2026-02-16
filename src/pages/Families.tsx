@@ -44,6 +44,7 @@ import {
   Trash2,
   Unlink,
   ArrowRightLeft,
+  Scissors,
 } from "lucide-react";
 import {
   Select,
@@ -54,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { DecouplerWizard } from "@/components/DecouplerWizard";
 
 interface Individual {
   id: string;
@@ -128,6 +130,7 @@ const Families = () => {
   const [reassignFamilyId, setReassignFamilyId] = useState<string>("");
   const [reassignHouseholdId, setReassignHouseholdId] = useState<string>("");
   const [availableHouseholds, setAvailableHouseholds] = useState<{ id: string; label: string }[]>([]);
+  const [decouplerTarget, setDecouplerTarget] = useState<{ contactId: string; contactName: string; familyId: string; familyName: string } | null>(null);
 
   const fetchFamilies = useCallback(async () => {
     // Fetch families
@@ -561,6 +564,20 @@ const Families = () => {
                                           >
                                             <ArrowRightLeft className="h-3.5 w-3.5" />
                                           </button>
+                                          <button
+                                            onClick={() =>
+                                              setDecouplerTarget({
+                                                contactId: individual.id,
+                                                contactName: `${individual.first_name} ${individual.last_name || ""}`.trim(),
+                                                familyId: family.id,
+                                                familyName: family.name,
+                                              })
+                                            }
+                                            title="Decoupler Protocol"
+                                            className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                          >
+                                            <Scissors className="h-3.5 w-3.5" />
+                                          </button>
                                           <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                               <button
@@ -798,6 +815,20 @@ const Families = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Decoupler Protocol Wizard */}
+      {user && (
+        <DecouplerWizard
+          target={decouplerTarget}
+          families={families.map((f) => ({ id: f.id, name: f.name }))}
+          userId={user.id}
+          onClose={() => setDecouplerTarget(null)}
+          onComplete={() => {
+            setDecouplerTarget(null);
+            fetchFamilies();
+          }}
+        />
+      )}
     </AppLayout>
   );
 };
