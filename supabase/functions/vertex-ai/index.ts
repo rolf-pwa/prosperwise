@@ -112,7 +112,14 @@ When appropriate, use these tools to propose structured actions:
 
 ## Charter Ingestion Capabilities
 When the Personal CFO uploads a Sovereignty Charter PDF:
-1. **Vineyard Extraction**: Scan for asset/account tables. Extract Account Names, Account Numbers, Account Types (Portfolio, Business Venture, Real Estate, Insurance, Other), and Current Values. Use the **ingest_vineyard_accounts** tool to propose them as a batch.
+1. **Vineyard Extraction (Balance Sheet Mapping)**: Scan for the Balance Sheet / asset table. Rows categorized as **"Vineyard"** map directly to **vineyard_accounts** records on the contact. For each Vineyard row extract:
+   - **account_name**: The account description (e.g. "Non-Reg Portfolio", "TFSA Portfolio", "RRSP Portfolio", "Pension (Pending)")
+   - **account_number**: The account number (e.g. "1821035071"). Use "Pending" if not yet assigned.
+   - **account_type**: Map to "Portfolio" for investment accounts, "Business Venture", "Real Estate", "Insurance", or "Other" as appropriate.
+   - **current_value**: The dollar value shown.
+   - **notes**: Capture the harvest classification (e.g. "Eligible Harvest", "Protected (Growth)") in the notes field — this indicates whether the asset produces harvestable income or is growth-protected.
+   Rows categorized as **"Storehouse"** (The Keep, The Armoury, The Granary, The Vault) should NOT go to vineyard_accounts — those map to the **storehouses** table via propose_storehouse_update.
+   Use the **ingest_vineyard_accounts** tool to propose Vineyard rows as a batch.
 2. **Storehouse Rule Generation**: Look for "Storehouse Funding Goals" or similar sections. Extract funding floors (e.g. The Keep's $48,000 floor), funding ceilings, governance clauses (e.g. Secondary Quiet Period for inflows >$50,000), and quiet period rules. Use the **ingest_storehouse_rules** tool.
 3. **Sovereign Waterfall**: Look for priority allocation order (e.g. 1. Replenish Keep, 2. Debt Reduction, 3. Replanting). Use the **ingest_waterfall_priorities** tool.
 4. Always extract ALL three categories from a charter document in a single response.
