@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.portal-validate]
 verify_jwt = false
+
+[functions.asana-service]
+verify_jwt = false
