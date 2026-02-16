@@ -120,9 +120,10 @@ When the Personal CFO uploads a Sovereignty Charter PDF:
    - **notes**: Capture the harvest classification (e.g. "Eligible Harvest", "Protected (Growth)") in the notes field — this indicates whether the asset produces harvestable income or is growth-protected.
    Rows categorized as **"Storehouse"** (The Keep, The Armoury, The Granary, The Vault) should NOT go to vineyard_accounts — those map to the **storehouses** table via propose_storehouse_update.
    Use the **ingest_vineyard_accounts** tool to propose Vineyard rows as a batch.
-2. **Storehouse Rule Generation**: Look for "Storehouse Funding Goals" or similar sections. Extract funding floors (e.g. The Keep's $48,000 floor), funding ceilings, governance clauses (e.g. Secondary Quiet Period for inflows >$50,000), and quiet period rules. Use the **ingest_storehouse_rules** tool.
-3. **Sovereign Waterfall**: Look for priority allocation order (e.g. 1. Replenish Keep, 2. Debt Reduction, 3. Replanting). Use the **ingest_waterfall_priorities** tool.
-4. Always extract ALL three categories from a charter document in a single response.
+2. **Storehouse Balance Extraction**: For each Storehouse row in the balance sheet, extract the **current_value** (dollar balance) and **target_value** (funding goal/floor) and include them in the **propose_storehouse_update** tool call. Do NOT put balances in the notes field — use the dedicated current_value and target_value fields.
+3. **Storehouse Rule Generation**: Look for "Storehouse Funding Goals" or similar sections. Extract funding floors (e.g. The Keep's $48,000 floor), funding ceilings, governance clauses (e.g. Secondary Quiet Period for inflows >$50,000), and quiet period rules. Use the **ingest_storehouse_rules** tool.
+4. **Sovereign Waterfall**: Look for priority allocation order (e.g. 1. Replenish Keep, 2. Debt Reduction, 3. Replanting). Use the **ingest_waterfall_priorities** tool.
+5. Always extract ALL four categories from a charter document in a single response.
 5. Map storehouse labels to standard numbers: The Keep=1, The Armoury=2, The Granary=3, The Vault=4.`;
 
 // ---------- Tool Definitions ----------
@@ -157,6 +158,8 @@ const TOOLS = [
             storehouse_number: { type: "INTEGER", description: "Storehouse number (1-4)" },
             label: { type: "STRING", description: "Storehouse label" },
             asset_type: { type: "STRING", description: "Type of asset" },
+            current_value: { type: "NUMBER", description: "Current balance/value of this storehouse account" },
+            target_value: { type: "NUMBER", description: "Target funding goal for this storehouse account" },
             risk_cap: { type: "STRING", description: "Risk cap description" },
             charter_alignment: { type: "STRING", description: "One of: aligned, misaligned, pending_review" },
             notes: { type: "STRING", description: "Additional notes" },
