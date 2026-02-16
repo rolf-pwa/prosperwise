@@ -59,6 +59,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { DecouplerWizard } from "@/components/DecouplerWizard";
 import { FamilyRollup } from "@/components/FamilyRollup";
+import { InlineEdit } from "@/components/InlineEdit";
 
 interface Individual {
   id: string;
@@ -383,6 +384,18 @@ const Families = () => {
     }
   };
 
+  const updateFamilyName = async (familyId: string, newName: string) => {
+    const { error } = await supabase.from("families" as any).update({ name: newName } as any).eq("id", familyId);
+    if (error) { toast.error("Failed to update family name."); }
+    else { toast.success("Family name updated."); fetchFamilies(); }
+  };
+
+  const updateHouseholdField = async (householdId: string, field: "label" | "address", value: string) => {
+    const { error } = await supabase.from("households" as any).update({ [field]: value } as any).eq("id", householdId);
+    if (error) { toast.error(`Failed to update household ${field}.`); }
+    else { toast.success(`Household ${field} updated.`); fetchFamilies(); }
+  };
+
   const filtered = families.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -453,7 +466,11 @@ const Families = () => {
                           <TreesIcon className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{family.name}</p>
+                          <InlineEdit
+                            value={family.name}
+                            onSave={(v) => updateFamilyName(family.id, v)}
+                            className="font-semibold"
+                          />
                           <p className="text-xs text-muted-foreground">
                             {family.households.length} household{family.households.length !== 1 ? "s" : ""} ·{" "}
                             {family.households.reduce((sum, h) => sum + h.individuals.length, 0)} individuals
@@ -525,10 +542,18 @@ const Families = () => {
                                   )}
                                   <Home className="h-4 w-4 text-accent shrink-0" />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium">{household.label} Household</p>
-                                    {household.address && (
-                                      <p className="text-xs text-muted-foreground truncate">{household.address}</p>
-                                    )}
+                                    <InlineEdit
+                                      value={household.label}
+                                      onSave={(v) => updateHouseholdField(household.id, "label", v)}
+                                      className="text-sm font-medium"
+                                      suffix=" Household"
+                                    />
+                                    <InlineEdit
+                                      value={household.address || ""}
+                                      onSave={(v) => updateHouseholdField(household.id, "address", v)}
+                                      className="text-xs text-muted-foreground"
+                                      placeholder="Add address..."
+                                    />
                                   </div>
                                   <span className="text-xs text-muted-foreground">
                                     {household.individuals.length} member{household.individuals.length !== 1 ? "s" : ""}
