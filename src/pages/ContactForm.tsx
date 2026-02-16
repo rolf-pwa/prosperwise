@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft, X, Plus, Search } from "lucide-react";
+import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 
 interface LinkedMember {
   relationship_id?: string;
@@ -271,6 +272,12 @@ const ContactForm = () => {
   return (
     <AppLayout>
       <form onSubmit={handleSubmit} className="space-y-6">
+        <PageBreadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Contacts", href: "/contacts" },
+          ...(isEdit && id ? [{ label: form.first_name || "Contact", href: `/contacts/${id}` }] : []),
+          { label: isEdit ? "Edit" : "New Contact" },
+        ]} />
         <div className="flex items-center gap-4">
           <Button
             type="button"

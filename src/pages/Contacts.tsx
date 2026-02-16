@@ -12,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import {
   Plus,
   Search,
@@ -74,6 +75,10 @@ const Contacts = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
+        <PageBreadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Contacts" },
+        ]} />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Contacts</h1>

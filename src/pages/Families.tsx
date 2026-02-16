@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import {
   Collapsible,
   CollapsibleContent,
@@ -389,6 +390,10 @@ const Families = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
+        <PageBreadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Family Tree" },
+        ]} />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
