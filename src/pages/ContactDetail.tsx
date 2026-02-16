@@ -341,7 +341,28 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Email, Calendar, AI Assistant */}
+            {/* Resources */}
+            <div className="flex flex-wrap gap-2">
+              {resourceLinks.map(({ label, url, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
+                    url
+                      ? "hover:bg-muted/50"
+                      : "cursor-not-allowed opacity-50"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{label}</span>
+                  {url && (
+                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </a>
+              ))}
+            </div>
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
@@ -590,32 +611,6 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Resources</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {resourceLinks.map(({ label, url, icon: Icon }) => (
-                  <a
-                    key={label}
-                    href={url || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-3 rounded-md border p-3 text-sm transition-colors ${
-                      url
-                        ? "hover:bg-muted/50"
-                        : "cursor-not-allowed opacity-50"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 font-medium">{label}</span>
-                    {url && (
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    )}
-                  </a>
-                ))}
-              </CardContent>
-            </Card>
 
             {/* Household Members */}
             <Card>
