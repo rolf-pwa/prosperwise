@@ -338,43 +338,6 @@ const ContactDetail = () => {
                     <dd className="font-medium">{contact.address || "—"}</dd>
                   </div>
                 </dl>
-
-                {/* Household Members */}
-                <div className="mt-4 border-t pt-4">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Household Members</h4>
-                  {householdMembers.length > 0 ? (
-                    <ul className="space-y-1 text-sm">
-                      {householdMembers.map((hm) => (
-                        <li key={hm.id} className="flex items-center gap-1">
-                          <Link
-                            to={`/contacts/${hm.member_contact_id}`}
-                            className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
-                          >
-                            <span className="font-medium">{hm.contact ? `${(hm.contact as any).first_name} ${(hm.contact as any).last_name || ""}`.trim() : "Unknown"}</span>
-                            {hm.relationship_label && (
-                              <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
-                            )}
-                          </Link>
-                          <button
-                            onClick={async () => {
-                              await supabase.from("household_relationships").delete().eq("id", hm.id);
-                              toast.success("Removed.");
-                              fetchData();
-                            }}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No household members linked.
-                    </p>
-                  )}
-                  <ContactLinker contactId={id!} excludeContactId={id} type="household" onLinked={fetchData} />
-                </div>
               </CardContent>
             </Card>
 
@@ -445,6 +408,46 @@ const ContactDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-4">
+            {/* Household Members */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Household Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {householdMembers.length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {householdMembers.map((hm) => (
+                      <li key={hm.id} className="flex items-center gap-1">
+                        <Link
+                          to={`/contacts/${hm.member_contact_id}`}
+                          className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="font-medium">{hm.contact ? `${(hm.contact as any).first_name} ${(hm.contact as any).last_name || ""}`.trim() : "Unknown"}</span>
+                          {hm.relationship_label && (
+                            <span className="text-xs text-muted-foreground">{hm.relationship_label}</span>
+                          )}
+                        </Link>
+                        <button
+                          onClick={async () => {
+                            await supabase.from("household_relationships").delete().eq("id", hm.id);
+                            toast.success("Removed.");
+                            fetchData();
+                          }}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No household members linked.
+                  </p>
+                )}
+                <ContactLinker contactId={id!} excludeContactId={id} type="household" onLinked={fetchData} />
+              </CardContent>
+            </Card>
             {/* Vineyard & Storehouses */}
             <Card>
               <CardHeader>
