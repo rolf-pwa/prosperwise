@@ -58,6 +58,7 @@ interface Storehouse {
   risk_cap: string | null;
   charter_alignment: string;
   notes: string | null;
+  visibility_scope: string;
 }
 
 interface HouseholdMember {
@@ -80,7 +81,22 @@ interface VineyardAccount {
   account_type: string;
   current_value: number | null;
   notes: string | null;
+  visibility_scope: string;
 }
+
+const SCOPE_LABELS: Record<string, string> = {
+  private: "Private",
+  household_shared: "Household",
+  family_shared: "Family",
+};
+
+const SCOPE_COLORS: Record<string, string> = {
+  private: "border-muted-foreground/30 text-muted-foreground",
+  household_shared: "border-accent/30 text-accent",
+  family_shared: "border-primary/30 text-primary",
+};
+
+const SCOPE_OPTIONS = ["private", "household_shared", "family_shared"] as const;
 
 const ContactDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -147,6 +163,23 @@ const ContactDetail = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const updateVisibilityScope = async (
+    table: "vineyard_accounts" | "storehouses",
+    recordId: string,
+    newScope: string
+  ) => {
+    const { error } = await supabase
+      .from(table as any)
+      .update({ visibility_scope: newScope } as any)
+      .eq("id", recordId);
+    if (error) {
+      toast.error("Failed to update visibility.");
+    } else {
+      toast.success(`Visibility set to ${SCOPE_LABELS[newScope]}.`);
+      fetchData();
+    }
+  };
 
   if (loading) {
     return (
@@ -371,16 +404,33 @@ const ContactDetail = () => {
                     <ul className="space-y-1 text-sm">
                       {vineyardAccounts.map((acc) => (
                         <li key={acc.id} className="flex items-center gap-1">
-                          <div className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2">
-                            <div>
-                              <span className="font-medium">{acc.account_name}</span>
-                              {acc.current_value != null && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  ${Number(acc.current_value).toLocaleString()}
-                                </span>
-                              )}
+                          <div className="flex flex-1 flex-col gap-1 rounded-md bg-muted/50 px-3 py-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-medium">{acc.account_name}</span>
+                                {acc.current_value != null && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ${Number(acc.current_value).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">{acc.account_type}</span>
                             </div>
-                            <span className="text-xs text-muted-foreground">{acc.account_type}</span>
+                            <div className="flex items-center gap-1">
+                              {SCOPE_OPTIONS.map((scope) => (
+                                <button
+                                  key={scope}
+                                  onClick={() => updateVisibilityScope("vineyard_accounts", acc.id, scope)}
+                                  className={`rounded-full px-2 py-0.5 text-[9px] font-medium border transition-colors ${
+                                    acc.visibility_scope === scope
+                                      ? SCOPE_COLORS[scope] + " bg-background"
+                                      : "border-transparent text-muted-foreground/50 hover:text-muted-foreground"
+                                  }`}
+                                >
+                                  {SCOPE_LABELS[scope]}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <button
                             onClick={async () => {
@@ -503,22 +553,40 @@ const ContactDetail = () => {
                           </AccordionTrigger>
                           <AccordionContent>
                             {sh ? (
-                              <dl className="space-y-1 text-sm pl-8">
-                                <div>
-                                  <dt className="text-muted-foreground text-xs">Asset Type</dt>
-                                  <dd className="font-medium">{sh.asset_type || "—"}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-muted-foreground text-xs">Risk Cap</dt>
-                                  <dd className="font-medium">{sh.risk_cap || "—"}</dd>
-                                </div>
-                                {sh.notes && (
+                              <div className="space-y-2 pl-8">
+                                <dl className="space-y-1 text-sm">
                                   <div>
-                                    <dt className="text-muted-foreground text-xs">Notes</dt>
-                                    <dd>{sh.notes}</dd>
+                                    <dt className="text-muted-foreground text-xs">Asset Type</dt>
+                                    <dd className="font-medium">{sh.asset_type || "—"}</dd>
                                   </div>
-                                )}
-                              </dl>
+                                  <div>
+                                    <dt className="text-muted-foreground text-xs">Risk Cap</dt>
+                                    <dd className="font-medium">{sh.risk_cap || "—"}</dd>
+                                  </div>
+                                  {sh.notes && (
+                                    <div>
+                                      <dt className="text-muted-foreground text-xs">Notes</dt>
+                                      <dd>{sh.notes}</dd>
+                                    </div>
+                                  )}
+                                </dl>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] text-muted-foreground mr-1">Visibility:</span>
+                                  {SCOPE_OPTIONS.map((scope) => (
+                                    <button
+                                      key={scope}
+                                      onClick={() => updateVisibilityScope("storehouses", sh.id, scope)}
+                                      className={`rounded-full px-2 py-0.5 text-[9px] font-medium border transition-colors ${
+                                        sh.visibility_scope === scope
+                                          ? SCOPE_COLORS[scope] + " bg-background"
+                                          : "border-transparent text-muted-foreground/50 hover:text-muted-foreground"
+                                      }`}
+                                    >
+                                      {SCOPE_LABELS[scope]}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
                             ) : (
                               <p className="pl-8 text-sm text-muted-foreground">
                                 Not configured yet.
