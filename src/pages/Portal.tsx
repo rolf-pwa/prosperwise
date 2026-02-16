@@ -5,6 +5,7 @@ import { PortalTerritory } from "@/components/portal/PortalTerritory";
 import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
+import { PortalTasks } from "@/components/portal/PortalTasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink } from "lucide-react";
 
@@ -112,7 +113,6 @@ const Portal = () => {
             </button>
             {[
               { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
-              { href: contact.asana_url, label: "Tasks", icon: CheckSquare },
               { href: contact.ia_financial_url, label: "Accounts", icon: ShieldCheck },
             ].map(({ href, label, icon: Icon }) => (
               <a
@@ -131,6 +131,13 @@ const Portal = () => {
                 {href && <ExternalLink className="h-3 w-3 opacity-40" />}
               </a>
             ))}
+            <button
+              onClick={() => setActiveTab("tasks")}
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              Tasks
+            </button>
             <span className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground/40 cursor-default">
               <MessageCircle className="h-3.5 w-3.5" />
               Support
@@ -168,6 +175,10 @@ const Portal = () => {
 
           <TabsContent value="meetings" className="mt-6">
             <PortalMeetings meetings={meetings} />
+          </TabsContent>
+
+          <TabsContent value="tasks" className="mt-6">
+            <PortalTasks portalToken={token!} />
           </TabsContent>
 
           <TabsContent value="charter" className="mt-6">
