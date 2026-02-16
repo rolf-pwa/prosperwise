@@ -200,13 +200,9 @@ export function AssetContainer({
                     )}
 
                     {target > 0 && (
-                      <div className="space-y-0.5 mt-0.5">
-                        <Progress value={pct} className="h-1" />
-                        <div className="flex justify-between text-[10px] text-muted-foreground">
-                          <span>{Math.round(pct)}% funded</span>
-                          <span>Target: ${target.toLocaleString()}</span>
-                        </div>
-                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        Target: ${target.toLocaleString()}
+                      </span>
                     )}
 
                     <div className="flex items-center justify-between mt-0.5">

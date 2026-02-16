@@ -521,8 +521,8 @@ const ContactDetail = () => {
                       isPlaceholder={isPlaceholder}
                       accounts={accounts.map((sh) => ({
                         id: sh.id,
-                        name: sh.label || storehouseName,
-                        type: sh.asset_type || "",
+                        name: sh.asset_type || sh.label || "Account",
+                        type: "",
                         currentValue: sh.current_value,
                         targetValue: sh.target_value,
                         notes: sh.notes,
