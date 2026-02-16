@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink } from "lucide-react";
-import { format, parseISO, isToday } from "date-fns";
+import { format, parseISO, isToday, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -242,6 +242,7 @@ interface AsanaTask {
   name: string;
   completed: boolean;
   due_on: string | null;
+  modified_at?: string | null;
   memberships?: { section?: { name?: string }; project?: { gid?: string } }[];
 }
 
@@ -335,13 +336,18 @@ function AsanaInboxWidget() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{task.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {linked && (
                         <span className="text-xs text-accent font-medium truncate">{linked.name}</span>
                       )}
                       {task.due_on && (
                         <span className="text-xs text-muted-foreground">
                           Due: {format(new Date(task.due_on), "MMM d")}
+                        </span>
+                      )}
+                      {task.modified_at && (
+                        <span className="text-xs text-muted-foreground">
+                          · {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}
                         </span>
                       )}
                     </div>
