@@ -106,6 +106,8 @@ const ContactDetail = () => {
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
   const [familyMembers, setFamilyMembers] = useState<HouseholdMember[]>([]);
+  const [familyName, setFamilyName] = useState<string | null>(null);
+  const [householdLabel, setHouseholdLabel] = useState<string | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
   const [professionalContacts, setProfessionalContacts] = useState<Record<string, { id: string; full_name: string } | null>>({});
   const [newAccountName, setNewAccountName] = useState("");
@@ -142,6 +144,16 @@ const ContactDetail = () => {
     setHouseholdMembers((householdRes.data as any) || []);
     setFamilyMembers((familyRes.data as any) || []);
     setVineyardAccounts((accountsRes.data as any) || []);
+
+    // Fetch family & household names for breadcrumbs
+    if (contactRes.data?.family_id) {
+      const { data: fam } = await supabase.from("families").select("name").eq("id", contactRes.data.family_id).maybeSingle();
+      setFamilyName(fam?.name || null);
+    }
+    if (contactRes.data?.household_id) {
+      const { data: hh } = await supabase.from("households").select("label").eq("id", contactRes.data.household_id).maybeSingle();
+      setHouseholdLabel(hh?.label || null);
+    }
 
     // Look up professional team contacts by name
     const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
@@ -223,6 +235,8 @@ const ContactDetail = () => {
       <div className="space-y-6">
         <PageBreadcrumbs items={[
           { label: "Dashboard", href: "/dashboard" },
+          ...(familyName ? [{ label: familyName, href: "/families" }] : []),
+          ...(householdLabel ? [{ label: householdLabel, href: "/families" }] : []),
           { label: "Contacts", href: "/contacts" },
           { label: `${contact.first_name} ${contact.last_name || ""}`.trim() },
         ]} />
