@@ -7,7 +7,10 @@ import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { PortalTasks } from "@/components/portal/PortalTasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink, FileBarChart } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink, FileBarChart, Mail, Loader2 } from "lucide-react";
 
 interface PortalData {
   contact: any;
@@ -24,9 +27,17 @@ const Portal = () => {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!token);
   const [activeTab, setActiveTab] = useState("territory");
 
+  // OTP login state
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  // Legacy token-based access (for advisor "View Portal" bypass)
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -47,6 +58,128 @@ const Portal = () => {
     })();
   }, [token]);
 
+  const handleSendOtp = async () => {
+    if (!email.trim()) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const resp = await supabase.functions.invoke("portal-otp", {
+        body: { action: "send", email: email.trim() },
+      });
+      if (resp.error) throw resp.error;
+      setOtpSent(true);
+    } catch {
+      setOtpError("Something went wrong. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const resp = await supabase.functions.invoke("portal-otp", {
+        body: { action: "verify", email: email.trim(), code: otp },
+      });
+      if (resp.error || resp.data?.error) {
+        setOtpError(resp.data?.error || "Invalid code. Please try again.");
+      } else {
+        setData(resp.data);
+      }
+    } catch {
+      setOtpError("Something went wrong. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // --- OTP Login Screen ---
+  if (!token && !data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="mx-4 w-full max-w-md space-y-8 text-center">
+          <div className="space-y-3">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
+              <Shield className="h-8 w-8 text-accent" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground font-serif">
+              Sovereign Portal
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              ProsperWise Advisors — Secure Client Access
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-8 text-left space-y-5">
+            {!otpSent ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Email Address</label>
+                  <p className="text-xs text-muted-foreground">
+                    Enter the email on file with your Personal CFO.
+                  </p>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
+                    disabled={otpLoading}
+                  />
+                </div>
+                {otpError && <p className="text-xs text-destructive">{otpError}</p>}
+                <Button onClick={handleSendOtp} disabled={otpLoading || !email.trim()} className="w-full" size="lg">
+                  {otpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                  Send Access Code
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 text-center">
+                  <Mail className="h-8 w-8 text-accent mx-auto" />
+                  <p className="text-sm text-foreground font-medium">Check your email</p>
+                  <p className="text-xs text-muted-foreground">
+                    We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                {otpError && <p className="text-xs text-destructive text-center">{otpError}</p>}
+                <Button onClick={handleVerifyOtp} disabled={otpLoading || otp.length !== 6} className="w-full" size="lg">
+                  {otpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Verify & Enter Portal
+                </Button>
+                <button
+                  onClick={() => { setOtpSent(false); setOtp(""); setOtpError(null); }}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Use a different email
+                </button>
+              </>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Code expires in 10 minutes · Max 3 requests per hour
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Loading ---
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">

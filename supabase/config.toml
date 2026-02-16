@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.calculate-family-fee-tier]
 verify_jwt = false
+
+[functions.portal-otp]
+verify_jwt = false
