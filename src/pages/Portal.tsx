@@ -21,6 +21,7 @@ const Portal = () => {
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("territory");
 
   useEffect(() => {
     if (!token) return;
@@ -68,7 +69,6 @@ const Portal = () => {
   }
 
   const { contact, vineyard_accounts, storehouses, audit_trail, meetings } = data;
-  const [activeTab, setActiveTab] = useState("territory");
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
