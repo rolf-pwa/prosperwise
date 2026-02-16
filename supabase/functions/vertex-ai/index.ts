@@ -124,7 +124,15 @@ When the Personal CFO uploads a Sovereignty Charter PDF:
 3. **Storehouse Rule Generation**: Look for "Storehouse Funding Goals" or similar sections. Extract funding floors (e.g. The Keep's $48,000 floor), funding ceilings, governance clauses (e.g. Secondary Quiet Period for inflows >$50,000), and quiet period rules. Use the **ingest_storehouse_rules** tool.
 4. **Sovereign Waterfall**: Look for priority allocation order (e.g. 1. Replenish Keep, 2. Debt Reduction, 3. Replanting). Use the **ingest_waterfall_priorities** tool.
 5. Always extract ALL four categories from a charter document in a single response.
-5. Map storehouse labels to standard numbers: The Keep=1, The Armoury=2, The Granary=3, The Vault=4.`;
+5. Map storehouse labels to standard numbers: The Keep=1, The Armoury=2, The Granary=3, The Vault=4.
+
+## Audit / Info Request Ingestion
+When the Personal CFO uploads a "Sovereignty Audit", "Info Request", or "Sovereignty Vault" PDF:
+1. **Family Identification**: Extract the family name from the document header (e.g. "Nieswandt - Sovereignty Vault" → family "Nieswandt").
+2. **Individual Extraction**: Extract all individual names mentioned (often in parentheses next to institution names, e.g. "IA Financial (Dana)" → individual "Dana"). Group accounts by individual.
+3. **Vineyard Account Extraction**: For each individual, extract institution names, account types (RRSP, TFSA, RRIF, Non-Reg, etc.), and current balances.
+4. Use the **ingest_audit_territory** tool to propose creating the full territory: family, household(s), contacts, and their vineyard accounts — all in one batch for CFO review.
+5. If the document mentions an existing family or contact that you recognize from the contact context, note this and propose linking rather than creating duplicates.`;
 
 // ---------- Tool Definitions ----------
 
@@ -340,6 +348,59 @@ const TOOLS = [
             rationale: { type: "STRING", description: "Source section and extraction notes" },
           },
           required: ["family_name", "priorities", "rationale"],
+        },
+      },
+      {
+        name: "ingest_audit_territory",
+        description: "Process a Sovereignty Audit or Info Request PDF to create a full Draft Territory: family, households, contacts, and Vineyard accounts. Everything is presented for CFO approval before any database writes.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            family_name: { type: "STRING", description: "The family surname extracted from the document header" },
+            households: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  label: { type: "STRING", description: "Household label, e.g. 'Primary'" },
+                  address: { type: "STRING", description: "Household address if found" },
+                  members: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        first_name: { type: "STRING", description: "Individual's first name" },
+                        last_name: { type: "STRING", description: "Individual's last name (usually the family name)" },
+                        family_role: { type: "STRING", description: "head_of_family, spouse, beneficiary, or minor" },
+                        email: { type: "STRING", description: "Email if found" },
+                        phone: { type: "STRING", description: "Phone if found" },
+                        vineyard_accounts: {
+                          type: "ARRAY",
+                          items: {
+                            type: "OBJECT",
+                            properties: {
+                              account_name: { type: "STRING", description: "Institution/account description" },
+                              account_type: { type: "STRING", description: "RRSP, TFSA, RRIF, Non-Reg, Portfolio, etc." },
+                              account_number: { type: "STRING", description: "Account number if available" },
+                              current_value: { type: "NUMBER", description: "Current balance" },
+                            },
+                            required: ["account_name", "account_type"],
+                          },
+                          description: "Vineyard accounts for this individual",
+                        },
+                      },
+                      required: ["first_name"],
+                    },
+                    description: "Individuals in this household",
+                  },
+                },
+                required: ["label", "members"],
+              },
+              description: "Households extracted from the document",
+            },
+            rationale: { type: "STRING", description: "Extraction summary and source notes" },
+          },
+          required: ["family_name", "households", "rationale"],
         },
       },
     ],

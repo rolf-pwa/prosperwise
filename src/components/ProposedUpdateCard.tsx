@@ -14,6 +14,7 @@ import {
   Grape,
   Shield,
   ArrowDownUp,
+  MapPin,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditAction, type FunctionCall } from "@/lib/vertex-ai";
@@ -39,6 +40,7 @@ const CARD_CONFIG: Record<string, { icon: typeof Database; label: string; color:
   ingest_vineyard_accounts: { icon: Grape, label: "Charter → Vineyard Accounts", color: "text-sanctuary-green" },
   ingest_storehouse_rules: { icon: Shield, label: "Charter → Storehouse Rules", color: "text-sanctuary-bronze" },
   ingest_waterfall_priorities: { icon: ArrowDownUp, label: "Charter → Waterfall Priorities", color: "text-indigo-500" },
+  ingest_audit_territory: { icon: MapPin, label: "Draft Territory — Audit Ingestion", color: "text-emerald-600" },
 };
 
 export function ProposedUpdateCard({ functionCall, contactId, isApproved, onApproved }: ProposedUpdateCardProps) {
@@ -333,6 +335,86 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           toast.success(`${priorities.length} Waterfall priorities ingested from charter.`);
           break;
         }
+
+        case "ingest_audit_territory": {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error("Not authenticated");
+
+          // 1. Create or find family
+          let familyId: string;
+          const { data: existingFamily } = await supabase
+            .from("families")
+            .select("id")
+            .ilike("name", `%${args.family_name}%`)
+            .limit(1);
+
+          if (existingFamily?.[0]) {
+            familyId = existingFamily[0].id;
+          } else {
+            const { data: newFamily, error: famErr } = await supabase
+              .from("families")
+              .insert({ name: args.family_name, created_by: user.id } as any)
+              .select("id")
+              .single();
+            if (famErr) throw famErr;
+            familyId = newFamily.id;
+          }
+
+          // 2. Process each household
+          for (const hh of (args.households || [])) {
+            // Create household
+            const { data: newHousehold, error: hhErr } = await supabase
+              .from("households")
+              .insert({ family_id: familyId, label: hh.label || "Primary", address: hh.address || null } as any)
+              .select("id")
+              .single();
+            if (hhErr) throw hhErr;
+
+            // 3. Create each member contact and their vineyard accounts
+            for (const member of (hh.members || [])) {
+              const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
+              const { data: newContact, error: contactErr } = await supabase
+                .from("contacts")
+                .insert({
+                  first_name: member.first_name,
+                  last_name: member.last_name || args.family_name,
+                  full_name: fullName || member.first_name,
+                  family_id: familyId,
+                  household_id: newHousehold.id,
+                  family_role: member.family_role || "beneficiary",
+                  email: member.email || null,
+                  phone: member.phone || null,
+                  created_by: user.id,
+                } as any)
+                .select("id")
+                .single();
+              if (contactErr) throw contactErr;
+
+              // 4. Create vineyard accounts for this contact
+              for (const acct of (member.vineyard_accounts || [])) {
+                await supabase.from("vineyard_accounts").insert({
+                  contact_id: newContact.id,
+                  account_name: acct.account_name,
+                  account_type: acct.account_type || "Portfolio",
+                  account_number: acct.account_number || null,
+                  current_value: acct.current_value || null,
+                } as any);
+              }
+
+              // Audit trail per contact
+              await logAuditAction(
+                newContact.id,
+                "audit_territory_ingestion",
+                `Audit ingestion: created "${fullName}" under ${args.family_name} with ${(member.vineyard_accounts || []).length} Vineyard accounts.`,
+                { family_name: args.family_name, member, rationale: args.rationale }
+              );
+            }
+          }
+
+          const totalMembers = (args.households || []).reduce((sum: number, hh: any) => sum + (hh.members?.length || 0), 0);
+          toast.success(`Territory created: ${args.family_name} family with ${totalMembers} contact(s).`);
+          break;
+        }
       }
 
       onApproved();
@@ -344,8 +426,9 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
   };
 
   // Fields to hide from display
-  const hiddenFields = ["contact_id", "accounts", "rules", "priorities"];
+  const hiddenFields = ["contact_id", "accounts", "rules", "priorities", "households"];
   const isCharterIngestion = ["ingest_vineyard_accounts", "ingest_storehouse_rules", "ingest_waterfall_priorities"].includes(functionCall.name);
+  const isAuditIngestion = functionCall.name === "ingest_audit_territory";
 
   return (
     <Card className="border-sanctuary-bronze/30 bg-accent/5">
@@ -399,8 +482,39 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           </div>
         )}
 
+        {/* Audit territory ingestion: show full territory summary */}
+        {isAuditIngestion && (
+          <div className="space-y-2 text-xs">
+            <p className="font-medium text-sm">Family: {args.family_name}</p>
+            {(args.households || []).map((hh: any, hi: number) => (
+              <div key={hi} className="space-y-1 border-l-2 border-emerald-500/50 pl-2">
+                <p className="font-medium">🏠 {hh.label || "Primary"} Household{hh.address ? ` — ${hh.address}` : ""}</p>
+                {(hh.members || []).map((m: any, mi: number) => (
+                  <div key={mi} className="space-y-0.5 pl-2 border-l border-muted">
+                    <p className="font-medium">
+                      👤 {m.first_name} {m.last_name || args.family_name}
+                      <span className="text-muted-foreground ml-1 capitalize">({(m.family_role || "beneficiary").replace(/_/g, " ")})</span>
+                    </p>
+                    {(m.vineyard_accounts || []).length > 0 && (
+                      <div className="space-y-0.5 pl-2">
+                        {m.vineyard_accounts.map((a: any, ai: number) => (
+                          <div key={ai} className="flex justify-between">
+                            <span>{a.account_name} <span className="text-muted-foreground">({a.account_type})</span></span>
+                            {a.current_value != null && <span className="font-medium">${Number(a.current_value).toLocaleString()}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+            <p className="text-muted-foreground italic">{args.rationale}</p>
+          </div>
+        )}
+
         {/* Standard: Render args as key-value pairs */}
-        {!isCharterIngestion && (
+        {!isCharterIngestion && !isAuditIngestion && (
           <dl className="space-y-1 text-xs">
             {Object.entries(args)
               .filter(([key]) => !hiddenFields.includes(key))
