@@ -342,14 +342,14 @@ const ContactDetail = () => {
             </Card>
 
             {/* Resources */}
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {resourceLinks.map(({ label, url, icon: Icon }) => (
                 <a
                   key={label}
                   href={url || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
+                  className={`flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
                     url
                       ? "hover:bg-muted/50"
                       : "cursor-not-allowed opacity-50"
