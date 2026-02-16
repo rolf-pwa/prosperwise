@@ -339,6 +339,47 @@ export type Database = {
           },
         ]
       }
+      vineyard_accounts: {
+        Row: {
+          account_name: string
+          account_type: string
+          contact_id: string
+          created_at: string
+          current_value: number | null
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_type?: string
+          contact_id: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_type?: string
+          contact_id?: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vineyard_accounts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
