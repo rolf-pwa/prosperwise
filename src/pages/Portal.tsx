@@ -15,6 +15,9 @@ interface PortalData {
   storehouses: any[];
   audit_trail: any[];
   meetings: any[];
+  family: any | null;
+  household: any | null;
+  household_members: any[];
 }
 
 const Portal = () => {
@@ -69,7 +72,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, audit_trail, meetings } = data;
+  const { contact, vineyard_accounts, storehouses, audit_trail, meetings, family, household, household_members } = data;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -85,7 +88,10 @@ const Portal = () => {
                 <h1 className="text-lg font-semibold text-foreground font-serif">
                   {contact.first_name} {contact.last_name || ""}
                 </h1>
-                <p className="text-xs text-muted-foreground">Sovereign Financial Territory</p>
+                <p className="text-xs text-muted-foreground">
+                  {family?.name ? `${family.name} — ` : ""}
+                  {household?.label ? `${household.label} Household` : "Sovereign Financial Territory"}
+                </p>
               </div>
             </div>
             <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent border border-accent/20">
@@ -170,6 +176,9 @@ const Portal = () => {
               vineyardAccounts={vineyard_accounts}
               storehouses={storehouses}
               contact={contact}
+              family={family}
+              household={household}
+              householdMembers={household_members}
             />
           </TabsContent>
 
