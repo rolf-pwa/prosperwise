@@ -190,35 +190,56 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
-  // getInbox – LIVE: Fetch the authenticated user's My Tasks (Inbox)
-  // First gets the user_task_list GID, then fetches incomplete tasks
+  // getInbox – LIVE: Fetch all tasks assigned to OR followed by the user
+  // Merges both sets, deduplicates, and sorts by modified_at descending
   // -------------------------------------------------------------------------
   async getInbox() {
     return withFailSafe("getInbox", async () => {
-      // Step 1: Get the user task list GID for "me" in this workspace
-      const utlUrl = `${ASANA_BASE_URL}/users/me/user_task_list?workspace=${this.workspaceId}`;
-      console.log("[AsanaService] GET user_task_list");
+      const fields = "name,completed,due_on,modified_at,memberships.section.name,memberships.project.gid,notes,num_subtasks";
 
-      const utlRes = await fetch(utlUrl, { headers: this.headers() });
-      if (!utlRes.ok) {
-        const body = await utlRes.text();
-        throw new Error(`Asana API error ${utlRes.status}: ${body}`);
+      // Two parallel searches: assigned to me + followed by me
+      const assignedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&assignee.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
+      const followedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&followers.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
+
+      console.log("[AsanaService] GET inbox (assigned + followed)");
+
+      const [assignedRes, followedRes] = await Promise.all([
+        fetch(assignedUrl, { headers: this.headers() }),
+        fetch(followedUrl, { headers: this.headers() }),
+      ]);
+
+      if (!assignedRes.ok) {
+        const body = await assignedRes.text();
+        throw new Error(`Asana API error (assigned) ${assignedRes.status}: ${body}`);
       }
-      const utlJson = await utlRes.json();
-      const userTaskListGid = utlJson.data?.gid;
-      if (!userTaskListGid) throw new Error("Could not find user task list");
-
-      // Step 2: Get tasks from the user task list
-      const tasksUrl = `${ASANA_BASE_URL}/user_task_lists/${userTaskListGid}/tasks?completed_since=now&opt_fields=name,completed,due_on,memberships.section.name,memberships.project.gid,notes&limit=50`;
-      console.log("[AsanaService] GET inbox tasks");
-
-      const tasksRes = await fetch(tasksUrl, { headers: this.headers() });
-      if (!tasksRes.ok) {
-        const body = await tasksRes.text();
-        throw new Error(`Asana API error ${tasksRes.status}: ${body}`);
+      if (!followedRes.ok) {
+        const body = await followedRes.text();
+        throw new Error(`Asana API error (followed) ${followedRes.status}: ${body}`);
       }
-      const tasksJson = await tasksRes.json();
-      return tasksJson.data || [];
+
+      const [assignedJson, followedJson] = await Promise.all([
+        assignedRes.json(),
+        followedRes.json(),
+      ]);
+
+      // Merge & deduplicate by GID
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const task of [...(assignedJson.data || []), ...(followedJson.data || [])]) {
+        if (!seen.has(task.gid)) {
+          seen.add(task.gid);
+          merged.push(task);
+        }
+      }
+
+      // Sort by modified_at descending
+      merged.sort((a, b) => {
+        const da = a.modified_at ? new Date(a.modified_at).getTime() : 0;
+        const db = b.modified_at ? new Date(b.modified_at).getTime() : 0;
+        return db - da;
+      });
+
+      return merged.slice(0, 50);
     });
   }
 
