@@ -72,6 +72,18 @@ const Contacts = () => {
     return name.includes(search.toLowerCase());
   });
 
+  // Group by first letter of last name
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const grouped = filtered.reduce<Record<string, Contact[]>>((acc, c) => {
+    const letter = (c.last_name || c.first_name).charAt(0).toUpperCase();
+    const key = alphabet.includes(letter) ? letter : "#";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(c);
+    return acc;
+  }, {});
+
+  const activeLetters = new Set(Object.keys(grouped));
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -107,6 +119,28 @@ const Contacts = () => {
           />
         </div>
 
+        {/* Alphabet nav */}
+        {!loading && filtered.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {alphabet.map((letter) => (
+              <button
+                key={letter}
+                disabled={!activeLetters.has(letter)}
+                onClick={() => {
+                  document.getElementById(`letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={
+                  activeLetters.has(letter)
+                    ? "h-8 w-8 rounded-md text-xs font-semibold transition-colors bg-muted hover:bg-primary hover:text-primary-foreground"
+                    : "h-8 w-8 rounded-md text-xs text-muted-foreground/30 cursor-default"
+                }
+              >
+                {letter}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading contacts...</p>
         ) : filtered.length === 0 ? (
@@ -123,8 +157,14 @@ const Contacts = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
-            {filtered.map((c) => (
+          <div className="space-y-4">
+            {[...alphabet, "#"].filter((l) => grouped[l]).map((letter) => (
+              <div key={letter} id={`letter-${letter}`} className="scroll-mt-4">
+                <p className="sticky top-0 z-10 bg-background px-1 py-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground border-b mb-2">
+                  {letter}
+                </p>
+                <div className="space-y-1">
+                  {grouped[letter].map((c) => (
               <Card key={c.id} className="transition-colors hover:bg-muted/30">
                 <CardContent className="flex items-center gap-4 p-4">
                   {/* Name & Info */}
@@ -197,6 +237,9 @@ const Contacts = () => {
                   </div>
                 </CardContent>
               </Card>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
