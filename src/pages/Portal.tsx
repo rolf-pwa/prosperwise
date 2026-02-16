@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalTerritory } from "@/components/portal/PortalTerritory";
+import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +13,7 @@ interface PortalData {
   vineyard_accounts: any[];
   storehouses: any[];
   audit_trail: any[];
+  meetings: any[];
 }
 
 const Portal = () => {
@@ -65,7 +67,8 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, audit_trail } = data;
+  const { contact, vineyard_accounts, storehouses, audit_trail, meetings } = data;
+  const [activeTab, setActiveTab] = useState("territory");
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -95,8 +98,19 @@ const Portal = () => {
       <nav className="border-b border-slate-800 bg-slate-900/50">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="flex items-center gap-1 overflow-x-auto py-2">
+            <button
+              onClick={() => setActiveTab("meetings")}
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition-colors"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              Meetings
+              {meetings.length > 0 && (
+                <span className="rounded-full bg-sanctuary-bronze/20 px-1.5 text-[10px] font-semibold text-sanctuary-bronze">
+                  {meetings.length}
+                </span>
+              )}
+            </button>
             {[
-              { href: "https://calendar.google.com", label: "Meetings", icon: Calendar },
               { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
               { href: contact.asana_url, label: "Tasks", icon: CheckSquare },
               { href: contact.ia_financial_url, label: "Accounts", icon: ShieldCheck },
@@ -128,11 +142,15 @@ const Portal = () => {
 
       {/* Content */}
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <Tabs defaultValue="territory" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full bg-slate-900 border border-slate-800">
             <TabsTrigger value="territory" className="flex-1 data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
               <Grape className="mr-1.5 h-4 w-4" />
               Territory
+            </TabsTrigger>
+            <TabsTrigger value="meetings" className="flex-1 data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+              <Calendar className="mr-1.5 h-4 w-4" />
+              Meetings
             </TabsTrigger>
             <TabsTrigger value="charter" className="flex-1 data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
               <ScrollText className="mr-1.5 h-4 w-4" />
@@ -150,6 +168,10 @@ const Portal = () => {
               storehouses={storehouses}
               contact={contact}
             />
+          </TabsContent>
+
+          <TabsContent value="meetings" className="mt-6">
+            <PortalMeetings meetings={meetings} />
           </TabsContent>
 
           <TabsContent value="charter" className="mt-6">
