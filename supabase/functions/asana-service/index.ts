@@ -170,6 +170,26 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // getDashboardTasks – LIVE: Fetch tasks from workspace where user is assignee/follower
+  // Uses workspace-level task search with due_on = today
+  // -------------------------------------------------------------------------
+  async getDashboardTasks() {
+    return withFailSafe("getDashboardTasks", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=name,completed,due_on,memberships.section.name,followers,notes&due_on.before=${today}&due_on.after=2000-01-01&is_subtask=false&completed=false&limit=50`;
+      console.log("[AsanaService] GET dashboard tasks");
+
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data || [];
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // verifyTaskBelongsToProject – Privacy guardrail
   // -------------------------------------------------------------------------
   async verifyTaskBelongsToProject(taskGid: string, projectGid: string): Promise<boolean> {
@@ -341,6 +361,11 @@ serve(async (req) => {
           }
         }
         result = await service.postTaskComment(tGid, text);
+        break;
+      }
+
+      case "getDashboardTasks": {
+        result = await service.getDashboardTasks();
         break;
       }
 
