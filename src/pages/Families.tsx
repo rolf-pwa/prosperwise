@@ -307,6 +307,34 @@ const Families = () => {
     }
   };
 
+  const createAndLinkIndividual = async (name: string) => {
+    if (!addIndividualTarget || !user) return;
+    const parts = name.trim().split(" ");
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ") || "";
+    const { data, error: createErr } = await supabase
+      .from("contacts")
+      .insert({
+        full_name: name.trim(),
+        first_name: firstName,
+        last_name: lastName,
+        created_by: user.id,
+        family_id: addIndividualTarget.familyId,
+        household_id: addIndividualTarget.householdId,
+        family_role: selectedRole,
+      } as any)
+      .select("id")
+      .single();
+    if (createErr || !data) {
+      toast.error("Failed to create contact.");
+    } else {
+      toast.success(`${name.trim()} created and added.`);
+      setAddIndividualTarget(null);
+      await recalcTier(addIndividualTarget.familyId);
+      fetchFamilies();
+    }
+  };
+
   const unlinkIndividual = async (contactId: string, familyId: string) => {
     const { error } = await supabase
       .from("contacts")
@@ -847,11 +875,20 @@ const Families = () => {
                     </div>
                   </button>
                 ))}
+              {individualSearch.trim().length >= 2 && (
+                <button
+                  onClick={() => createAndLinkIndividual(individualSearch)}
+                  className="flex w-full items-center gap-2 border-t px-3 py-2.5 text-sm text-primary transition-colors hover:bg-muted/50"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create "{individualSearch.trim()}"
+                </button>
+              )}
               {unlinkedContacts.filter((c) =>
                 `${c.first_name} ${c.last_name || ""}`.toLowerCase().includes(individualSearch.toLowerCase())
-              ).length === 0 && (
+              ).length === 0 && !individualSearch.trim() && (
                 <p className="p-3 text-center text-xs text-muted-foreground">
-                  No matching contacts found.
+                  No unlinked contacts found. Type a name to create one.
                 </p>
               )}
             </div>
