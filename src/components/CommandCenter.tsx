@@ -176,7 +176,7 @@ function CalendarWidget() {
 }
 
 function GmailWidget() {
-  const { data, isLoading, error } = useGmailMessages();
+  const { data, isLoading, error } = useGmailMessages("is:unread");
 
   return (
     <Card>
