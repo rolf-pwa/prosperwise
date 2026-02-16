@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/families", label: "Sovereignty Tree", icon: TreesIcon },
+  { to: "/families", label: "Family Tree", icon: TreesIcon },
   { to: "/contacts", label: "Contacts", icon: Users },
 ];
 
