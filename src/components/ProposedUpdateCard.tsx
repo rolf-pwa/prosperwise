@@ -11,6 +11,9 @@ import {
   UserPlus,
   UserCog,
   CalendarPlus,
+  Grape,
+  Shield,
+  ArrowDownUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditAction, type FunctionCall } from "@/lib/vertex-ai";
@@ -33,6 +36,9 @@ const CARD_CONFIG: Record<string, { icon: typeof Database; label: string; color:
   create_contact: { icon: UserPlus, label: "New Contact", color: "text-emerald-500" },
   update_contact: { icon: UserCog, label: "Update Contact", color: "text-amber-500" },
   schedule_meeting: { icon: CalendarPlus, label: "Schedule Meeting", color: "text-indigo-500" },
+  ingest_vineyard_accounts: { icon: Grape, label: "Charter → Vineyard Accounts", color: "text-sanctuary-green" },
+  ingest_storehouse_rules: { icon: Shield, label: "Charter → Storehouse Rules", color: "text-sanctuary-bronze" },
+  ingest_waterfall_priorities: { icon: ArrowDownUp, label: "Charter → Waterfall Priorities", color: "text-indigo-500" },
 };
 
 export function ProposedUpdateCard({ functionCall, contactId, isApproved, onApproved }: ProposedUpdateCardProps) {
@@ -233,6 +239,98 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           toast.success(`Meeting "${args.summary}" scheduled on Google Calendar.`);
           break;
         }
+
+        case "ingest_vineyard_accounts": {
+          if (!cid) throw new Error("No contact ID for Vineyard ingestion");
+          const accounts = args.accounts || [];
+          for (const acct of accounts) {
+            const { error } = await supabase.from("vineyard_accounts").insert({
+              contact_id: cid,
+              account_name: acct.account_name,
+              account_type: acct.account_type || "Portfolio",
+              account_number: acct.account_number || null,
+              current_value: acct.current_value || null,
+            } as any);
+            if (error) console.error("Vineyard insert error:", error);
+          }
+          await logAuditAction(
+            cid,
+            "charter_vineyard_ingestion",
+            `Charter ingestion: ${accounts.length} Vineyard accounts extracted for ${args.contact_name} (${args.family_name}). ${args.rationale}`,
+            args
+          );
+          toast.success(`${accounts.length} Vineyard accounts ingested from charter.`);
+          break;
+        }
+
+        case "ingest_storehouse_rules": {
+          // Find family by name to get family_id
+          const { data: families } = await supabase
+            .from("families")
+            .select("id")
+            .ilike("name", `%${args.family_name}%`)
+            .limit(1);
+          const familyId = families?.[0]?.id;
+          if (!familyId) throw new Error(`Family "${args.family_name}" not found`);
+
+          const rules = args.rules || [];
+          for (const rule of rules) {
+            const { error } = await supabase.from("storehouse_rules" as any).insert({
+              family_id: familyId,
+              storehouse_label: rule.storehouse_label,
+              storehouse_number: rule.storehouse_number,
+              rule_type: rule.rule_type,
+              rule_description: rule.rule_description,
+              rule_value: rule.rule_value || null,
+            } as any);
+            if (error) console.error("Storehouse rule insert error:", error);
+          }
+
+          const auditContactId = cid || "00000000-0000-0000-0000-000000000000";
+          if (cid) {
+            await logAuditAction(
+              cid,
+              "charter_storehouse_rules",
+              `Charter ingestion: ${rules.length} Storehouse rules extracted for ${args.family_name}. ${args.rationale}`,
+              args
+            );
+          }
+          toast.success(`${rules.length} Storehouse rules ingested from charter.`);
+          break;
+        }
+
+        case "ingest_waterfall_priorities": {
+          const { data: families } = await supabase
+            .from("families")
+            .select("id")
+            .ilike("name", `%${args.family_name}%`)
+            .limit(1);
+          const familyId = families?.[0]?.id;
+          if (!familyId) throw new Error(`Family "${args.family_name}" not found`);
+
+          const priorities = args.priorities || [];
+          for (const p of priorities) {
+            const { error } = await supabase.from("waterfall_priorities" as any).insert({
+              family_id: familyId,
+              priority_order: p.priority_order,
+              priority_label: p.priority_label,
+              priority_description: p.priority_description || null,
+              target_amount: p.target_amount || null,
+            } as any);
+            if (error) console.error("Waterfall insert error:", error);
+          }
+
+          if (cid) {
+            await logAuditAction(
+              cid,
+              "charter_waterfall",
+              `Charter ingestion: ${priorities.length} Waterfall priorities extracted for ${args.family_name}. ${args.rationale}`,
+              args
+            );
+          }
+          toast.success(`${priorities.length} Waterfall priorities ingested from charter.`);
+          break;
+        }
       }
 
       onApproved();
@@ -244,7 +342,8 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
   };
 
   // Fields to hide from display
-  const hiddenFields = ["contact_id"];
+  const hiddenFields = ["contact_id", "accounts", "rules", "priorities"];
+  const isCharterIngestion = ["ingest_vineyard_accounts", "ingest_storehouse_rules", "ingest_waterfall_priorities"].includes(functionCall.name);
 
   return (
     <Card className="border-sanctuary-bronze/30 bg-accent/5">
@@ -257,23 +356,66 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
           </Badge>
         </div>
 
-        {/* Render args as key-value pairs */}
-        <dl className="space-y-1 text-xs">
-          {Object.entries(args)
-            .filter(([key]) => !hiddenFields.includes(key))
-            .map(([key, value]) => (
-              <div key={key} className="flex gap-2">
-                <dt className="text-muted-foreground capitalize min-w-[100px]">
-                  {key.replace(/_/g, " ")}:
-                </dt>
-                <dd className="font-medium flex-1">
-                  {typeof value === "number"
-                    ? `$${value.toLocaleString()}`
-                    : String(value)}
-                </dd>
+        {/* Charter ingestion: show summary of extracted items */}
+        {isCharterIngestion && (
+          <div className="space-y-1 text-xs">
+            <p className="font-medium">{args.family_name}{args.contact_name ? ` — ${args.contact_name}` : ""}</p>
+            {args.accounts && (
+              <div className="space-y-0.5 mt-1">
+                <p className="text-muted-foreground">{args.accounts.length} accounts:</p>
+                {args.accounts.map((a: any, i: number) => (
+                  <div key={i} className="flex justify-between pl-2 border-l-2 border-muted">
+                    <span>{a.account_name} <span className="text-muted-foreground">({a.account_type})</span></span>
+                    {a.current_value != null && <span className="font-medium">${Number(a.current_value).toLocaleString()}</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-        </dl>
+            )}
+            {args.rules && (
+              <div className="space-y-0.5 mt-1">
+                <p className="text-muted-foreground">{args.rules.length} rules:</p>
+                {args.rules.map((r: any, i: number) => (
+                  <div key={i} className="pl-2 border-l-2 border-muted">
+                    <span className="font-medium">{r.storehouse_label}</span> — {r.rule_description}
+                    {r.rule_value != null && <span className="text-muted-foreground"> (${Number(r.rule_value).toLocaleString()})</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {args.priorities && (
+              <div className="space-y-0.5 mt-1">
+                <p className="text-muted-foreground">{args.priorities.length} priorities:</p>
+                {args.priorities.map((p: any, i: number) => (
+                  <div key={i} className="pl-2 border-l-2 border-muted">
+                    <span className="font-medium">{p.priority_order}.</span> {p.priority_label}
+                    {p.priority_description && <span className="text-muted-foreground"> — {p.priority_description}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-muted-foreground italic mt-1">{args.rationale}</p>
+          </div>
+        )}
+
+        {/* Standard: Render args as key-value pairs */}
+        {!isCharterIngestion && (
+          <dl className="space-y-1 text-xs">
+            {Object.entries(args)
+              .filter(([key]) => !hiddenFields.includes(key))
+              .map(([key, value]) => (
+                <div key={key} className="flex gap-2">
+                  <dt className="text-muted-foreground capitalize min-w-[100px]">
+                    {key.replace(/_/g, " ")}:
+                  </dt>
+                  <dd className="font-medium flex-1">
+                    {typeof value === "number"
+                      ? `$${value.toLocaleString()}`
+                      : String(value)}
+                  </dd>
+                </div>
+              ))}
+          </dl>
+        )}
 
         {isApproved ? (
           <div className="flex items-center gap-1.5 text-xs text-sanctuary-green">
