@@ -6,6 +6,82 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
+
+async function getValidGoogleToken(supabase: any, userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("google_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  if (new Date(data.token_expiry) <= new Date()) {
+    try {
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          refresh_token: data.refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+      const tokens = await res.json();
+      if (tokens.error) return null;
+
+      const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+      await supabase
+        .from("google_tokens")
+        .update({ access_token: tokens.access_token, token_expiry: newExpiry })
+        .eq("user_id", userId);
+
+      return tokens.access_token;
+    } catch {
+      return null;
+    }
+  }
+
+  return data.access_token;
+}
+
+async function fetchCalendarEvents(accessToken: string, contactEmail: string): Promise<any[]> {
+  try {
+    const timeMin = new Date().toISOString();
+    const timeMax = new Date(Date.now() + 30 * 86400000).toISOString();
+
+    const calRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+      new URLSearchParams({
+        timeMin,
+        timeMax,
+        maxResults: "20",
+        singleEvents: "true",
+        orderBy: "startTime",
+        q: contactEmail,
+      }),
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (!calRes.ok) return [];
+
+    const data = await calRes.json();
+    // Filter to only events where the contact is an attendee
+    return (data.items || []).filter((event: any) =>
+      event.attendees?.some((a: any) =>
+        a.email?.toLowerCase() === contactEmail.toLowerCase()
+      ) ||
+      event.organizer?.email?.toLowerCase() === contactEmail.toLowerCase() ||
+      event.creator?.email?.toLowerCase() === contactEmail.toLowerCase()
+    );
+  } catch {
+    return [];
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -46,20 +122,32 @@ serve(async (req) => {
     }
 
     const contactId = portalToken.contact_id;
+    const advisorUserId = portalToken.created_by;
 
     // Fetch all portal data in parallel
     const [contactRes, accountsRes, storehousesRes, auditRes] = await Promise.all([
-      supabase.from("contacts").select("id, first_name, last_name, full_name, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary").eq("id", contactId).maybeSingle(),
+      supabase.from("contacts").select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary").eq("id", contactId).maybeSingle(),
       supabase.from("vineyard_accounts").select("*").eq("contact_id", contactId).order("created_at"),
       supabase.from("storehouses").select("*").eq("contact_id", contactId).order("storehouse_number"),
       supabase.from("sovereignty_audit_trail").select("*").eq("contact_id", contactId).order("created_at", { ascending: false }).limit(50),
     ]);
+
+    // Fetch calendar events if contact has an email
+    let meetings: any[] = [];
+    const contactEmail = contactRes.data?.email;
+    if (contactEmail) {
+      const googleToken = await getValidGoogleToken(supabase, advisorUserId);
+      if (googleToken) {
+        meetings = await fetchCalendarEvents(googleToken, contactEmail);
+      }
+    }
 
     return new Response(JSON.stringify({
       contact: contactRes.data,
       vineyard_accounts: accountsRes.data || [],
       storehouses: storehousesRes.data || [],
       audit_trail: auditRes.data || [],
+      meetings,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
