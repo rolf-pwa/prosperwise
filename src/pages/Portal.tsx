@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalTerritory } from "@/components/portal/PortalTerritory";
-import { PortalMeetings } from "@/components/portal/PortalMeetings";
+
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink } from "lucide-react";
+import { Grape, ScrollText, Clock, Shield, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink } from "lucide-react";
 
 interface PortalData {
   contact: any;
@@ -98,18 +98,6 @@ const Portal = () => {
       <nav className="border-b border-border bg-muted/30">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="flex items-center gap-1 overflow-x-auto py-2">
-            <button
-              onClick={() => setActiveTab("meetings")}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              Meetings
-              {meetings.length > 0 && (
-                <span className="rounded-full bg-accent/20 px-1.5 text-[10px] font-semibold text-accent">
-                  {meetings.length}
-                </span>
-              )}
-            </button>
             {[
               { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
               { href: contact.asana_url, label: "Tasks", icon: CheckSquare },
@@ -148,10 +136,6 @@ const Portal = () => {
               <Grape className="mr-1.5 h-4 w-4" />
               Territory
             </TabsTrigger>
-            <TabsTrigger value="meetings" className="flex-1">
-              <Calendar className="mr-1.5 h-4 w-4" />
-              Meetings
-            </TabsTrigger>
             <TabsTrigger value="charter" className="flex-1">
               <ScrollText className="mr-1.5 h-4 w-4" />
               Charter
@@ -170,9 +154,6 @@ const Portal = () => {
             />
           </TabsContent>
 
-          <TabsContent value="meetings" className="mt-6">
-            <PortalMeetings meetings={meetings} />
-          </TabsContent>
 
           <TabsContent value="charter" className="mt-6">
             <PortalCharter googleDriveUrl={contact.google_drive_url} />
