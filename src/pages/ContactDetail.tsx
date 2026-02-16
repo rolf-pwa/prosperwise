@@ -8,12 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   ArrowLeft,
   Clock,
   Shield,
@@ -50,6 +44,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot } from "lucide-react";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
+import { AssetContainer, type AssetAccount, type MoveTarget } from "@/components/AssetContainer";
+import { Grape } from "lucide-react";
 
 interface Storehouse {
   id: string;
@@ -78,6 +74,13 @@ const STOREHOUSE_LABELS = [
   "The Vault — Legacy Trust",
 ];
 
+const STOREHOUSE_NAMES = [
+  "The Keep",
+  "The Armoury",
+  "The Granary",
+  "The Vault",
+];
+
 interface VineyardAccount {
   id: string;
   account_name: string;
@@ -87,19 +90,6 @@ interface VineyardAccount {
   visibility_scope: string;
 }
 
-const SCOPE_LABELS: Record<string, string> = {
-  private: "Private",
-  household_shared: "Household",
-  family_shared: "Family",
-};
-
-const SCOPE_COLORS: Record<string, string> = {
-  private: "border-muted-foreground/30 text-muted-foreground",
-  household_shared: "border-accent/30 text-accent",
-  family_shared: "border-primary/30 text-primary",
-};
-
-const SCOPE_OPTIONS = ["private", "household_shared", "family_shared"] as const;
 
 const ContactDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -179,22 +169,6 @@ const ContactDetail = () => {
     fetchData();
   }, [fetchData]);
 
-  const updateVisibilityScope = async (
-    table: "vineyard_accounts" | "storehouses",
-    recordId: string,
-    newScope: string
-  ) => {
-    const { error } = await supabase
-      .from(table as any)
-      .update({ visibility_scope: newScope } as any)
-      .eq("id", recordId);
-    if (error) {
-      toast.error("Failed to update visibility.");
-    } else {
-      toast.success(`Visibility set to ${SCOPE_LABELS[newScope]}.`);
-      fetchData();
-    }
-  };
 
   if (loading) {
     return (
@@ -418,60 +392,48 @@ const ContactDetail = () => {
               <CardHeader>
                 <CardTitle className="text-base">The Vineyard & Storehouses</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
-                {/* Vineyard Accounts */}
-                <div>
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Asset Accounts</h4>
-                  {vineyardAccounts.length > 0 ? (
-                    <ul className="space-y-1 text-sm">
-                      {vineyardAccounts.map((acc) => (
-                        <li key={acc.id} className="flex items-center gap-1">
-                          <div className="flex flex-1 flex-col gap-1 rounded-md bg-muted/50 px-3 py-2">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="font-medium">{acc.account_name}</span>
-                                {acc.current_value != null && (
-                                  <span className="ml-2 text-xs text-muted-foreground">
-                                    ${Number(acc.current_value).toLocaleString()}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground">{acc.account_type}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {SCOPE_OPTIONS.map((scope) => (
-                                <button
-                                  key={scope}
-                                  onClick={() => updateVisibilityScope("vineyard_accounts", acc.id, scope)}
-                                  className={`rounded-full px-2 py-0.5 text-[9px] font-medium border transition-colors ${
-                                    acc.visibility_scope === scope
-                                      ? SCOPE_COLORS[scope] + " bg-background"
-                                      : "border-transparent text-muted-foreground/50 hover:text-muted-foreground"
-                                  }`}
-                                >
-                                  {SCOPE_LABELS[scope]}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <button
-                            onClick={async () => {
-                              await supabase.from("vineyard_accounts" as any).delete().eq("id", acc.id);
-                              toast.success("Account removed.");
-                              fetchData();
-                            }}
-                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No accounts added yet.</p>
-                  )}
-
-                  {showAddAccount ? (
+              <CardContent className="space-y-3">
+                {/* The Vineyard Container */}
+                <AssetContainer
+                  title="The Vineyard"
+                  icon={<Grape className="h-3.5 w-3.5 text-sanctuary-green" />}
+                  containerKey="vineyard"
+                  contactId={id!}
+                  accounts={vineyardAccounts.map((acc) => ({
+                    id: acc.id,
+                    name: acc.account_name,
+                    type: acc.account_type,
+                    currentValue: acc.current_value,
+                    notes: acc.notes,
+                    visibilityScope: acc.visibility_scope,
+                    sourceTable: "vineyard_accounts" as const,
+                  }))}
+                  moveTargets={[
+                    { label: "The Keep", key: "storehouse-1" },
+                    { label: "The Armoury", key: "storehouse-2" },
+                    { label: "The Granary", key: "storehouse-3" },
+                    { label: "The Vault", key: "storehouse-4" },
+                  ]}
+                  onMoveAccount={async (account, targetKey) => {
+                    const storehouseNum = parseInt(targetKey.split("-")[1]);
+                    // Move: create storehouse record, delete vineyard record
+                    const { error: insertErr } = await supabase.from("storehouses").insert({
+                      contact_id: id,
+                      storehouse_number: storehouseNum,
+                      label: account.name,
+                      current_value: account.currentValue,
+                      notes: account.notes,
+                      visibility_scope: account.visibilityScope,
+                    } as any);
+                    if (insertErr) { toast.error("Failed to move account."); return; }
+                    await supabase.from("vineyard_accounts" as any).delete().eq("id", account.id);
+                    toast.success(`Moved "${account.name}" to ${STOREHOUSE_NAMES[storehouseNum - 1]}.`);
+                    fetchData();
+                  }}
+                  onRefresh={fetchData}
+                  showAddForm={showAddAccount}
+                  onAddAccount={() => setShowAddAccount(true)}
+                  addFormContent={
                     <div className="mt-2 space-y-2 rounded-md border p-3">
                       <Input
                         placeholder="Account name (e.g. Fidelity Portfolio)"
@@ -529,141 +491,102 @@ const ContactDetail = () => {
                         </Button>
                       </div>
                     </div>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 w-full text-muted-foreground"
-                      onClick={() => setShowAddAccount(true)}
-                    >
-                      <Plus className="mr-1 h-3 w-3" /> Add Account
-                    </Button>
-                  )}
-                </div>
+                  }
+                />
 
-                {/* Storehouses */}
-                <div>
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Storehouses</h4>
-                  <ul className="space-y-1 text-sm">
-                    {[1, 2, 3, 4].map((num) => {
-                      const sh = storehouses.find((s) => s.storehouse_number === num);
-                      const defaultLabel = STOREHOUSE_LABELS[num - 1];
-                      const current = sh ? Number(sh.current_value) || 0 : 0;
-                      const target = sh ? Number(sh.target_value) || 0 : 0;
-                      const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-                      const isPlaceholder = !sh;
+                {/* Storehouse Containers */}
+                {[1, 2, 3, 4].map((num) => {
+                  const accounts = storehouses.filter((s) => s.storehouse_number === num);
+                  const isPlaceholder = accounts.length === 0;
+                  const storehouseName = STOREHOUSE_NAMES[num - 1];
 
-                      return (
-                        <li key={num} className="flex items-center gap-1">
-                          <div className={`flex flex-1 flex-col gap-1 rounded-md px-3 py-2 ${isPlaceholder ? "bg-muted/30 border border-dashed border-muted-foreground/20" : "bg-muted/50"}`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${isPlaceholder ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
-                                  {num}
-                                </span>
-                                <span className={`font-medium ${isPlaceholder ? "text-muted-foreground" : ""}`}>
-                                  {sh?.label || defaultLabel}
-                                </span>
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                ${current.toLocaleString()}
-                              </span>
-                            </div>
+                  const otherTargets: MoveTarget[] = [
+                    { label: "The Vineyard", key: "vineyard" },
+                    ...[1, 2, 3, 4]
+                      .filter((n) => n !== num)
+                      .map((n) => ({ label: STOREHOUSE_NAMES[n - 1], key: `storehouse-${n}` })),
+                  ];
 
-                            {/* Asset type & risk cap details */}
-                            {sh && (sh.asset_type || sh.risk_cap || sh.notes) && (
-                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-0.5">
-                                {sh.asset_type && <span>Type: {sh.asset_type}</span>}
-                                {sh.risk_cap && <span>Risk Cap: {sh.risk_cap}</span>}
-                                {sh.notes && <span className="italic">{sh.notes}</span>}
-                              </div>
-                            )}
-
-                            {target > 0 && (
-                              <div className="space-y-1 mt-1">
-                                <Progress value={pct} className="h-1.5" />
-                                <div className="flex justify-between text-[10px] text-muted-foreground">
-                                  <span>{Math.round(pct)}% funded</span>
-                                  <span>Target: ${target.toLocaleString()}</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {isPlaceholder ? (
-                              <div className="flex items-center justify-between mt-0.5">
-                                <Badge variant="outline" className="text-[9px] border-muted-foreground/20 text-muted-foreground/60">
-                                  not configured
-                                </Badge>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 px-2 text-[10px] text-muted-foreground"
-                                  onClick={async () => {
-                                    const { error } = await supabase.from("storehouses").insert({
-                                      contact_id: id,
-                                      storehouse_number: num,
-                                      label: defaultLabel,
-                                    } as any);
-                                    if (error) {
-                                      toast.error("Failed to create storehouse.");
-                                    } else {
-                                      toast.success("Storehouse created.");
-                                      fetchData();
-                                    }
-                                  }}
-                                >
-                                  <Plus className="mr-0.5 h-2.5 w-2.5" /> Configure
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-between mt-0.5">
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[9px] ${
-                                    sh.charter_alignment === "aligned"
-                                      ? "border-green-500/30 text-green-600"
-                                      : sh.charter_alignment === "misaligned"
-                                      ? "border-destructive/30 text-destructive"
-                                      : "border-muted-foreground/30 text-muted-foreground"
-                                  }`}
-                                >
-                                  {sh.charter_alignment.replace("_", " ")}
-                                </Badge>
-                                <div className="flex items-center gap-1">
-                                  {SCOPE_OPTIONS.map((scope) => (
-                                    <button
-                                      key={scope}
-                                      onClick={() => updateVisibilityScope("storehouses", sh.id, scope)}
-                                      className={`rounded-full px-2 py-0.5 text-[9px] font-medium border transition-colors ${
-                                        sh.visibility_scope === scope
-                                          ? SCOPE_COLORS[scope] + " bg-background"
-                                          : "border-transparent text-muted-foreground/50 hover:text-muted-foreground"
-                                      }`}
-                                    >
-                                      {SCOPE_LABELS[scope]}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          {!isPlaceholder && (
-                            <button
-                              onClick={async () => {
-                                await supabase.from("storehouses").delete().eq("id", sh.id);
-                                toast.success("Storehouse removed.");
-                                fetchData();
-                              }}
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                  return (
+                    <AssetContainer
+                      key={num}
+                      title={storehouseName}
+                      icon={
+                        <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${isPlaceholder ? "bg-muted text-muted-foreground" : "bg-sanctuary-bronze/20 text-sanctuary-bronze"}`}>
+                          {num}
+                        </span>
+                      }
+                      containerKey={`storehouse-${num}`}
+                      contactId={id!}
+                      isPlaceholder={isPlaceholder}
+                      accounts={accounts.map((sh) => ({
+                        id: sh.id,
+                        name: sh.label || storehouseName,
+                        type: sh.asset_type || "",
+                        currentValue: sh.current_value,
+                        targetValue: sh.target_value,
+                        notes: sh.notes,
+                        visibilityScope: sh.visibility_scope,
+                        charterAlignment: sh.charter_alignment,
+                        sourceTable: "storehouses" as const,
+                      }))}
+                      moveTargets={otherTargets}
+                      onMoveAccount={async (account, targetKey) => {
+                        if (targetKey === "vineyard") {
+                          // Move to vineyard: create vineyard record, delete storehouse record
+                          const { error: insertErr } = await supabase.from("vineyard_accounts" as any).insert({
+                            contact_id: id,
+                            account_name: account.name,
+                            account_type: account.type || "Portfolio",
+                            current_value: account.currentValue,
+                            notes: account.notes,
+                            visibility_scope: account.visibilityScope,
+                          } as any);
+                          if (insertErr) { toast.error("Failed to move account."); return; }
+                          await supabase.from("storehouses").delete().eq("id", account.id);
+                          toast.success(`Moved "${account.name}" to The Vineyard.`);
+                        } else {
+                          // Move to another storehouse: update storehouse_number
+                          const targetNum = parseInt(targetKey.split("-")[1]);
+                          const { error } = await supabase
+                            .from("storehouses")
+                            .update({ storehouse_number: targetNum } as any)
+                            .eq("id", account.id);
+                          if (error) { toast.error("Failed to move account."); return; }
+                          toast.success(`Moved "${account.name}" to ${STOREHOUSE_NAMES[targetNum - 1]}.`);
+                        }
+                        fetchData();
+                      }}
+                      onRefresh={fetchData}
+                      onAddAccount={async () => {
+                        const { error } = await supabase.from("storehouses").insert({
+                          contact_id: id,
+                          storehouse_number: num,
+                          label: "",
+                        } as any);
+                        if (error) {
+                          toast.error("Failed to add account.");
+                        } else {
+                          toast.success("Account added.");
+                          fetchData();
+                        }
+                      }}
+                      onConfigurePlaceholder={async () => {
+                        const { error } = await supabase.from("storehouses").insert({
+                          contact_id: id,
+                          storehouse_number: num,
+                          label: storehouseName,
+                        } as any);
+                        if (error) {
+                          toast.error("Failed to create storehouse.");
+                        } else {
+                          toast.success("Storehouse created.");
+                          fetchData();
+                        }
+                      }}
+                    />
+                  );
+                })}
               </CardContent>
             </Card>
 
