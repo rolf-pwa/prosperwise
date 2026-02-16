@@ -311,9 +311,12 @@ function AsanaTodayWidget() {
             {tasks.slice(0, 10).map((task) => {
               const status = getTaskStatusLabel(task);
               return (
-                <div
+                <a
                   key={task.gid}
-                  className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
+                  href={`https://app.asana.com/0/0/${task.gid}/f`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{task.name}</p>
@@ -326,7 +329,7 @@ function AsanaTodayWidget() {
                   <Badge variant={status.variant} className="text-[10px] shrink-0 whitespace-nowrap">
                     {status.label}
                   </Badge>
-                </div>
+                </a>
               );
             })}
           </div>
