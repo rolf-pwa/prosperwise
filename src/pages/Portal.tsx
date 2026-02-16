@@ -5,7 +5,7 @@ import { PortalTerritory } from "@/components/portal/PortalTerritory";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grape, ScrollText, Clock, Shield } from "lucide-react";
+import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink } from "lucide-react";
 
 interface PortalData {
   contact: any;
@@ -90,6 +90,41 @@ const Portal = () => {
           </div>
         </div>
       </header>
+
+      {/* Quick Links */}
+      <nav className="border-b border-slate-800 bg-slate-900/50">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="flex items-center gap-1 overflow-x-auto py-2">
+            {[
+              { href: "https://calendar.google.com", label: "Meetings", icon: Calendar },
+              { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
+              { href: contact.asana_url, label: "Tasks", icon: CheckSquare },
+              { href: contact.ia_financial_url, label: "Accounts", icon: ShieldCheck },
+            ].map(({ href, label, icon: Icon }) => (
+              <a
+                key={label}
+                href={href || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                  href
+                    ? "text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+                    : "pointer-events-none text-slate-600"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+                {href && <ExternalLink className="h-3 w-3 opacity-40" />}
+              </a>
+            ))}
+            <span className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-slate-600 cursor-default">
+              <MessageCircle className="h-3.5 w-3.5" />
+              Support
+              <span className="text-[10px] text-slate-700">(coming soon)</span>
+            </span>
+          </div>
+        </div>
+      </nav>
 
       {/* Content */}
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
