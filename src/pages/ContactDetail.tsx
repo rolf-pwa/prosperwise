@@ -60,6 +60,8 @@ interface Storehouse {
   charter_alignment: string;
   notes: string | null;
   visibility_scope: string;
+  current_value: number | null;
+  target_value: number | null;
 }
 
 interface HouseholdMember {
@@ -542,23 +544,39 @@ const ContactDetail = () => {
                 {/* Storehouses */}
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Storehouses</h4>
-                  <Accordion type="multiple" className="w-full">
-                    {[1, 2, 3, 4].map((num) => {
-                      const sh = storehouses.find(
-                        (s) => s.storehouse_number === num
-                      );
-                      return (
-                        <AccordionItem key={num} value={`sh-${num}`}>
-                          <AccordionTrigger className="hover:no-underline py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                                {num}
-                              </span>
-                              <span className="text-sm">{STOREHOUSE_LABELS[num - 1]}</span>
-                              {sh && (
+                  {storehouses.length > 0 ? (
+                    <ul className="space-y-1 text-sm">
+                      {storehouses.map((sh) => {
+                        const current = Number(sh.current_value) || 0;
+                        const target = Number(sh.target_value) || 0;
+                        const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+                        return (
+                          <li key={sh.id} className="flex items-center gap-1">
+                            <div className="flex flex-1 flex-col gap-1 rounded-md bg-muted/50 px-3 py-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                                    {sh.storehouse_number}
+                                  </span>
+                                  <span className="font-medium">{sh.label || STOREHOUSE_LABELS[sh.storehouse_number - 1]}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  ${current.toLocaleString()}
+                                </span>
+                              </div>
+                              {target > 0 && (
+                                <div className="space-y-1 mt-1">
+                                  <Progress value={pct} className="h-1.5" />
+                                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                                    <span>{Math.round(pct)}% funded</span>
+                                    <span>Target: ${target.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between mt-0.5">
                                 <Badge
                                   variant="outline"
-                                  className={`text-[10px] ${
+                                  className={`text-[9px] ${
                                     sh.charter_alignment === "aligned"
                                       ? "border-green-500/30 text-green-600"
                                       : sh.charter_alignment === "misaligned"
@@ -568,30 +586,7 @@ const ContactDetail = () => {
                                 >
                                   {sh.charter_alignment.replace("_", " ")}
                                 </Badge>
-                              )}
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            {sh ? (
-                              <div className="space-y-2 pl-8">
-                                <dl className="space-y-1 text-sm">
-                                  <div>
-                                    <dt className="text-muted-foreground text-xs">Asset Type</dt>
-                                    <dd className="font-medium">{sh.asset_type || "—"}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-muted-foreground text-xs">Risk Cap</dt>
-                                    <dd className="font-medium">{sh.risk_cap || "—"}</dd>
-                                  </div>
-                                  {sh.notes && (
-                                    <div>
-                                      <dt className="text-muted-foreground text-xs">Notes</dt>
-                                      <dd>{sh.notes}</dd>
-                                    </div>
-                                  )}
-                                </dl>
                                 <div className="flex items-center gap-1">
-                                  <span className="text-[9px] text-muted-foreground mr-1">Visibility:</span>
                                   {SCOPE_OPTIONS.map((scope) => (
                                     <button
                                       key={scope}
@@ -607,16 +602,24 @@ const ContactDetail = () => {
                                   ))}
                                 </div>
                               </div>
-                            ) : (
-                              <p className="pl-8 text-sm text-muted-foreground">
-                                Not configured yet.
-                              </p>
-                            )}
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                await supabase.from("storehouses").delete().eq("id", sh.id);
+                                toast.success("Storehouse removed.");
+                                fetchData();
+                              }}
+                              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No storehouses configured yet.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
