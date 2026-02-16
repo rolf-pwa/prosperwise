@@ -16,18 +16,28 @@ interface Props {
 }
 
 export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Props) {
-  const totalVineyard = vineyardAccounts.reduce(
+  // Filter: show family_shared and household_shared to portal users; mask private
+  const visibleAccounts = vineyardAccounts.filter(
+    (a: any) => a.visibility_scope !== "private"
+  );
+  const privateAccountCount = vineyardAccounts.length - visibleAccounts.length;
+
+  const totalVineyard = visibleAccounts.reduce(
     (sum: number, a: any) => sum + (Number(a.current_value) || 0),
     0
   );
 
   const byType: Record<string, { accounts: any[]; total: number }> = {};
-  vineyardAccounts.forEach((a: any) => {
+  visibleAccounts.forEach((a: any) => {
     const t = a.account_type || "Other";
     if (!byType[t]) byType[t] = { accounts: [], total: 0 };
     byType[t].accounts.push(a);
     byType[t].total += Number(a.current_value) || 0;
   });
+
+  const visibleStorehouses = storehouses.filter(
+    (s: any) => s.visibility_scope !== "private"
+  );
 
   return (
     <div className="space-y-6">
@@ -76,6 +86,14 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
           ) : (
             <p className="text-sm text-muted-foreground">No accounts have been configured yet.</p>
           )}
+          {privateAccountCount > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-muted px-4 py-3 bg-muted/30">
+              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                {privateAccountCount} account{privateAccountCount !== 1 ? "s" : ""} protected by Governance Protocol
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -87,7 +105,8 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {STOREHOUSE_CONFIG.map(({ num, name, subtitle, icon: Icon }) => {
-            const sh = storehouses.find((s: any) => s.storehouse_number === num);
+            const sh = visibleStorehouses.find((s: any) => s.storehouse_number === num);
+            const isPrivate = storehouses.find((s: any) => s.storehouse_number === num && s.visibility_scope === "private");
             const current = Number(sh?.current_value) || 0;
             const target = Number(sh?.target_value) || 0;
             const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
@@ -105,38 +124,45 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact }: Prop
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Current</span>
-                      <span className="font-semibold text-foreground">
-                        ${current.toLocaleString()}
-                      </span>
+                  {isPrivate && !sh ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Lock className="h-3.5 w-3.5" />
+                      <span>Value Protected by Governance Protocol</span>
                     </div>
-                    {target > 0 && (
-                      <>
-                        <Progress
-                          value={pct}
-                          className="h-2 bg-muted [&>div]:bg-accent"
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{Math.round(pct)}% funded</span>
-                          <span>Target: ${target.toLocaleString()}</span>
-                        </div>
-                      </>
-                    )}
-
-                    {sh?.charter_alignment && (
-                      <div className={`text-xs rounded-full px-2 py-0.5 w-fit ${
-                        sh.charter_alignment === "aligned"
-                          ? "bg-primary/10 text-primary"
-                          : sh.charter_alignment === "misaligned"
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-muted text-muted-foreground"
-                      }`}>
-                        {sh.charter_alignment === "aligned" ? "Charter Aligned" : sh.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Current</span>
+                        <span className="font-semibold text-foreground">
+                          ${current.toLocaleString()}
+                        </span>
                       </div>
-                    )}
-                  </div>
+                      {target > 0 && (
+                        <>
+                          <Progress
+                            value={pct}
+                            className="h-2 bg-muted [&>div]:bg-accent"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{Math.round(pct)}% funded</span>
+                            <span>Target: ${target.toLocaleString()}</span>
+                          </div>
+                        </>
+                      )}
+
+                      {sh?.charter_alignment && (
+                        <div className={`text-xs rounded-full px-2 py-0.5 w-fit ${
+                          sh.charter_alignment === "aligned"
+                            ? "bg-primary/10 text-primary"
+                            : sh.charter_alignment === "misaligned"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          {sh.charter_alignment === "aligned" ? "Charter Aligned" : sh.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
