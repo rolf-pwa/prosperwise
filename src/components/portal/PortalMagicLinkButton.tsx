@@ -2,60 +2,89 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Link2, Check, Loader2 } from "lucide-react";
+import { Link2, Check, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
   contactId: string;
 }
 
+async function getOrCreateToken(contactId: string, userId: string): Promise<string> {
+  // Check for existing valid token
+  const { data: existing } = await supabase
+    .from("portal_tokens" as any)
+    .select("token, expires_at")
+    .eq("contact_id", contactId)
+    .eq("revoked", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing && new Date((existing as any).expires_at) > new Date()) {
+    return (existing as any).token;
+  }
+
+  const { data, error } = await supabase
+    .from("portal_tokens" as any)
+    .insert({ contact_id: contactId, created_by: userId } as any)
+    .select("token")
+    .single();
+
+  if (error) throw error;
+  return (data as any).token;
+}
+
 export function PortalMagicLinkButton({ contactId }: Props) {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const generateLink = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("portal_tokens" as any)
-        .insert({
-          contact_id: contactId,
-          created_by: user.id,
-        } as any)
-        .select("token")
-        .single();
-
-      if (error) throw error;
-
-      const url = `${window.location.origin}/portal/${(data as any).token}`;
+      const token = await getOrCreateToken(contactId, user.id);
+      const url = `${window.location.origin}/portal/${token}`;
       await navigator.clipboard.writeText(url);
       setCopied(true);
       toast.success("Portal link copied to clipboard — valid for 7 days.");
       setTimeout(() => setCopied(false), 3000);
-    } catch (e) {
+    } catch {
       toast.error("Failed to generate portal link.");
     } finally {
       setLoading(false);
     }
   };
 
+  const viewPortal = async () => {
+    if (!user) return;
+    setViewLoading(true);
+    try {
+      const token = await getOrCreateToken(contactId, user.id);
+      window.open(`/portal/${token}`, "_blank");
+    } catch {
+      toast.error("Failed to open portal.");
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={generateLink}
-      disabled={loading}
-    >
-      {loading ? (
-        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-      ) : copied ? (
-        <Check className="mr-1 h-3.5 w-3.5 text-emerald-500" />
-      ) : (
-        <Link2 className="mr-1 h-3.5 w-3.5" />
-      )}
-      {copied ? "Copied!" : "Share Portal Link"}
-    </Button>
+    <div className="flex items-center gap-1">
+      <Button variant="outline" size="sm" onClick={viewPortal} disabled={viewLoading}>
+        {viewLoading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Eye className="mr-1 h-3.5 w-3.5" />}
+        View Portal
+      </Button>
+      <Button variant="ghost" size="sm" onClick={generateLink} disabled={loading}>
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+        ) : (
+          <Link2 className="h-3.5 w-3.5" />
+        )}
+      </Button>
+    </div>
   );
 }
