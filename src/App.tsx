@@ -15,6 +15,7 @@ import ContactForm from "./pages/ContactForm";
 import NotFound from "./pages/NotFound";
 import GoogleCallback from "./pages/GoogleCallback";
 import Portal from "./pages/Portal";
+import Families from "./pages/Families";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/portal/:token" element={<Portal />} />
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/families" element={<ProtectedRoute><Families /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
             <Route path="/contacts/new" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />

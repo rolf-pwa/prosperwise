@@ -25,14 +25,18 @@ export type Database = {
           email: string | null
           executor_firm: string | null
           executor_name: string | null
+          family_id: string | null
+          family_role: Database["public"]["Enums"]["family_role"]
           fiduciary_entity: Database["public"]["Enums"]["fiduciary_entity"]
           first_name: string
           full_name: string
           google_drive_url: string | null
           governance_status: Database["public"]["Enums"]["governance_status"]
+          household_id: string | null
           household_members: Json | null
           ia_financial_url: string | null
           id: string
+          is_minor: boolean
           last_name: string | null
           lawyer_firm: string | null
           lawyer_name: string | null
@@ -56,14 +60,18 @@ export type Database = {
           email?: string | null
           executor_firm?: string | null
           executor_name?: string | null
+          family_id?: string | null
+          family_role?: Database["public"]["Enums"]["family_role"]
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
           first_name?: string
           full_name: string
           google_drive_url?: string | null
           governance_status?: Database["public"]["Enums"]["governance_status"]
+          household_id?: string | null
           household_members?: Json | null
           ia_financial_url?: string | null
           id?: string
+          is_minor?: boolean
           last_name?: string | null
           lawyer_firm?: string | null
           lawyer_name?: string | null
@@ -87,14 +95,18 @@ export type Database = {
           email?: string | null
           executor_firm?: string | null
           executor_name?: string | null
+          family_id?: string | null
+          family_role?: Database["public"]["Enums"]["family_role"]
           fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
           first_name?: string
           full_name?: string
           google_drive_url?: string | null
           governance_status?: Database["public"]["Enums"]["governance_status"]
+          household_id?: string | null
           household_members?: Json | null
           ia_financial_url?: string | null
           id?: string
+          is_minor?: boolean
           last_name?: string | null
           lawyer_firm?: string | null
           lawyer_name?: string | null
@@ -107,6 +119,60 @@ export type Database = {
           vineyard_balance_sheet_summary?: string | null
           vineyard_ebitda?: number | null
           vineyard_operating_income?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      families: {
+        Row: {
+          annual_savings: number
+          charter_document_url: string | null
+          created_at: string
+          created_by: string
+          fee_tier: Database["public"]["Enums"]["fee_tier"]
+          fee_tier_discount_pct: number
+          id: string
+          name: string
+          total_family_assets: number
+          updated_at: string
+        }
+        Insert: {
+          annual_savings?: number
+          charter_document_url?: string | null
+          created_at?: string
+          created_by: string
+          fee_tier?: Database["public"]["Enums"]["fee_tier"]
+          fee_tier_discount_pct?: number
+          id?: string
+          name: string
+          total_family_assets?: number
+          updated_at?: string
+        }
+        Update: {
+          annual_savings?: number
+          charter_document_url?: string | null
+          created_at?: string
+          created_by?: string
+          fee_tier?: Database["public"]["Enums"]["fee_tier"]
+          fee_tier_discount_pct?: number
+          id?: string
+          name?: string
+          total_family_assets?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -217,6 +283,41 @@ export type Database = {
             columns: ["member_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      households: {
+        Row: {
+          address: string | null
+          created_at: string
+          family_id: string
+          id: string
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          family_id: string
+          id?: string
+          label?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          family_id?: string
+          id?: string
+          label?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "households_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
@@ -344,6 +445,7 @@ export type Database = {
           storehouse_number: number
           target_value: number | null
           updated_at: string
+          visibility_scope: Database["public"]["Enums"]["visibility_scope"]
         }
         Insert: {
           asset_type?: string | null
@@ -358,6 +460,7 @@ export type Database = {
           storehouse_number: number
           target_value?: number | null
           updated_at?: string
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
         }
         Update: {
           asset_type?: string | null
@@ -372,6 +475,7 @@ export type Database = {
           storehouse_number?: number
           target_value?: number | null
           updated_at?: string
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
         }
         Relationships: [
           {
@@ -393,6 +497,7 @@ export type Database = {
           id: string
           notes: string | null
           updated_at: string
+          visibility_scope: Database["public"]["Enums"]["visibility_scope"]
         }
         Insert: {
           account_name: string
@@ -403,6 +508,7 @@ export type Database = {
           id?: string
           notes?: string | null
           updated_at?: string
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
         }
         Update: {
           account_name?: string
@@ -413,6 +519,7 @@ export type Database = {
           id?: string
           notes?: string | null
           updated_at?: string
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
         }
         Relationships: [
           {
@@ -433,8 +540,11 @@ export type Database = {
     }
     Enums: {
       charter_alignment: "aligned" | "misaligned" | "pending_review"
+      family_role: "head_of_family" | "spouse" | "beneficiary" | "minor"
+      fee_tier: "sovereign" | "legacy" | "dynasty"
       fiduciary_entity: "pws" | "pwa"
       governance_status: "stabilization" | "sovereign"
+      visibility_scope: "private" | "household_shared" | "family_shared"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -563,8 +673,11 @@ export const Constants = {
   public: {
     Enums: {
       charter_alignment: ["aligned", "misaligned", "pending_review"],
+      family_role: ["head_of_family", "spouse", "beneficiary", "minor"],
+      fee_tier: ["sovereign", "legacy", "dynasty"],
       fiduciary_entity: ["pws", "pwa"],
       governance_status: ["stabilization", "sovereign"],
+      visibility_scope: ["private", "household_shared", "family_shared"],
     },
   },
 } as const

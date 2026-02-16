@@ -1,0 +1,111 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface FeeTier {
+  tier: "sovereign" | "legacy" | "dynasty";
+  discount_pct: number;
+  annual_savings: number;
+}
+
+function calculateTier(totalAssets: number, baseFeeRate = 0.01): FeeTier {
+  if (totalAssets >= 5_000_000) {
+    const fullFee = totalAssets * baseFeeRate;
+    const discountedFee = totalAssets * baseFeeRate * 0.75;
+    return { tier: "dynasty", discount_pct: 25, annual_savings: fullFee - discountedFee };
+  }
+  if (totalAssets >= 1_000_000) {
+    const fullFee = totalAssets * baseFeeRate;
+    const discountedFee = totalAssets * baseFeeRate * 0.85;
+    return { tier: "legacy", discount_pct: 15, annual_savings: fullFee - discountedFee };
+  }
+  return { tier: "sovereign", discount_pct: 0, annual_savings: 0 };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const { familyId } = await req.json();
+
+    if (!familyId) {
+      return new Response(JSON.stringify({ error: "familyId required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get all contacts in this family
+    const { data: contacts } = await supabase
+      .from("contacts")
+      .select("id")
+      .eq("family_id", familyId);
+
+    if (!contacts || contacts.length === 0) {
+      // Update family with zero assets
+      await supabase
+        .from("families")
+        .update({
+          total_family_assets: 0,
+          fee_tier: "sovereign",
+          fee_tier_discount_pct: 0,
+          annual_savings: 0,
+        })
+        .eq("id", familyId);
+
+      return new Response(JSON.stringify({ total: 0, tier: "sovereign", discount: 0, savings: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const contactIds = contacts.map((c: any) => c.id);
+
+    // Sum all vineyard account values
+    const { data: accounts } = await supabase
+      .from("vineyard_accounts")
+      .select("current_value")
+      .in("contact_id", contactIds);
+
+    const totalAssets = (accounts || []).reduce(
+      (sum: number, acc: any) => sum + (Number(acc.current_value) || 0),
+      0
+    );
+
+    const { tier, discount_pct, annual_savings } = calculateTier(totalAssets);
+
+    // Update the family record
+    await supabase
+      .from("families")
+      .update({
+        total_family_assets: totalAssets,
+        fee_tier: tier,
+        fee_tier_discount_pct: discount_pct,
+        annual_savings: annual_savings,
+      })
+      .eq("id", familyId);
+
+    return new Response(
+      JSON.stringify({
+        total: totalAssets,
+        tier,
+        discount: discount_pct,
+        savings: annual_savings,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
