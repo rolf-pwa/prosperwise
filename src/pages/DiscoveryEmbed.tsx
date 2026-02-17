@@ -66,9 +66,7 @@ export default function DiscoveryEmbed() {
       }
 
       if (data.functionCalls?.length > 0) {
-        const leadCall = data.functionCalls.find(
-          (fc: FunctionCall) => fc.name === "register_discovery_lead"
-        );
+        const leadCall = data.functionCalls.find((fc: FunctionCall) => fc.name === "register_discovery_lead");
         if (leadCall) {
           setDiscoveryData(leadCall.args);
           setPhase("lead_capture");
@@ -155,7 +153,7 @@ export default function DiscoveryEmbed() {
           </div>
           <div>
             <h1 className="font-serif text-sm font-semibold text-foreground leading-tight">Georgia</h1>
-            <p className="text-[10px] text-muted-foreground">Discovery Assistant</p>
+            <p className="text-[10px] text-muted-foreground">Transition Assistant</p>
           </div>
         </div>
         <div className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5">
@@ -219,18 +217,12 @@ export default function DiscoveryEmbed() {
 
           {/* Lead Capture Form */}
           {phase === "lead_capture" && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <Card className="border-accent/20">
                 <CardContent className="p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-accent" />
-                    <h3 className="font-serif text-sm font-semibold text-foreground">
-                      Connect with Rolf
-                    </h3>
+                    <h3 className="font-serif text-sm font-semibold text-foreground">Connect with Rolf</h3>
                   </div>
                   <p className="mb-4 text-xs text-muted-foreground">
                     Provide your details to schedule your Stabilization Triage session.
@@ -280,9 +272,13 @@ export default function DiscoveryEmbed() {
                         onCheckedChange={(v) => setPipedaConsent(v === true)}
                         className="mt-0.5"
                       />
-                      <label htmlFor="pipeda-embed" className="text-[11px] leading-relaxed text-muted-foreground cursor-pointer">
+                      <label
+                        htmlFor="pipeda-embed"
+                        className="text-[11px] leading-relaxed text-muted-foreground cursor-pointer"
+                      >
                         I consent to ProsperWise collecting and processing my personal information under
-                        <span className="text-accent font-medium"> PIPEDA</span>. Data processed in Canadian data centres only.
+                        <span className="text-accent font-medium"> PIPEDA</span>. Data processed in Canadian data
+                        centres only.
                       </label>
                     </div>
 
@@ -311,9 +307,7 @@ export default function DiscoveryEmbed() {
               <Card className="border-primary/20 bg-primary/5 text-center">
                 <CardContent className="p-5">
                   <ShieldCheck className="mx-auto mb-2 h-7 w-7 text-primary" />
-                  <p className="font-serif text-sm text-foreground">
-                    Your Stabilization Triage has been requested.
-                  </p>
+                  <p className="font-serif text-sm text-foreground">Your Stabilization Triage has been requested.</p>
                   <p className="mt-1.5 text-xs text-muted-foreground">
                     Rolf Issler will reach out within 1–2 business days.
                   </p>
