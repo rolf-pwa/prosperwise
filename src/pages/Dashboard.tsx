@@ -1,10 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
 import { CommandCenter } from "@/components/CommandCenter";
+import { NewLeadsWidget } from "@/components/NewLeadsWidget";
 
 const Dashboard = () => {
-
-  
-
   return (
     <AppLayout>
       <div className="space-y-8">
@@ -14,6 +12,9 @@ const Dashboard = () => {
             Sovereignty CRM Overview
           </p>
         </div>
+
+        {/* New Leads */}
+        <NewLeadsWidget />
 
         {/* Command Center — Calendar & Gmail */}
         <CommandCenter />
