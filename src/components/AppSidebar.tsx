@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
-import { LayoutDashboard, Users, LogOut, Shield, Folder, CheckSquare, ShieldCheck, ExternalLink, Calendar, Mail, FolderOpen, TreesIcon } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Shield, Folder, CheckSquare, ShieldCheck, ExternalLink, Calendar, Mail, FolderOpen, TreesIcon, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/families", label: "Family Tree", icon: TreesIcon },
   { to: "/contacts", label: "Contacts", icon: Users },
+  { to: "/leads", label: "Discovery Leads", icon: UserPlus },
 ];
 
 const externalLinks = [

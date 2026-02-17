@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus } from "lucide-react";
@@ -24,7 +25,7 @@ export function NewLeadsWidget() {
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <UserPlus className="h-4 w-4 text-sanctuary-bronze" />
-          New Leads
+          <Link to="/leads" className="hover:underline">New Leads</Link>
         </CardTitle>
         {leads && leads.length > 0 && (
           <Badge variant="secondary" className="text-[10px]">
@@ -44,9 +45,10 @@ export function NewLeadsWidget() {
         ) : (
           <div className="space-y-2">
             {leads.map((lead) => (
-              <div
+              <Link
                 key={lead.id}
-                className="rounded-md border border-border p-3"
+                to="/leads"
+                className="block rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -76,7 +78,7 @@ export function NewLeadsWidget() {
                     addSuffix: true,
                   })}
                 </p>
-              </div>
+              </Link>
             ))}
           </div>
         )}
