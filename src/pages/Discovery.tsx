@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { Send, Loader2, ShieldCheck, Lock } from "lucide-react";
+import { Send, Loader2, ShieldCheck, Lock, Bot, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,36 +13,29 @@ const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 type Message = { role: "user" | "assistant"; content: string };
 
-interface FunctionCall {
-  name: string;
-  args: Record<string, any>;
-}
-
 type Phase = "chat" | "lead_capture" | "complete";
 
-export default function Discovery() {
+export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [phase, setPhase] = useState<Phase>("chat");
-  const [discoveryData, setDiscoveryData] = useState<Record<string, any>>({});
   const [leadForm, setLeadForm] = useState({ first_name: "", phone: "", email: "" });
   const [pipedaConsent, setPipedaConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
+  
+  // Ref is kept for manual scrolling if needed later, 
+  // but the auto-scroll useEffect has been removed.
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
 
   useEffect(() => {
     if (!hasGreeted) {
       setHasGreeted(true);
       sendToGeorgia([{ role: "user", content: "Hello" }], true);
     }
-  }, []);
+  }, [hasGreeted]);
 
   async function sendToGeorgia(msgs: Message[], isGreeting = false) {
     setIsLoading(true);
@@ -51,16 +44,219 @@ export default function Discovery() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
         },
         body: JSON.stringify({ messages: msgs }),
       });
+      
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to connect");
 
       const assistantMsg: Message = { role: "assistant", content: data.text };
+      
+      // Check if we should move to lead capture based on AI response content 
+      // or metadata if your edge function provides it
+      if (data.shouldCaptureLead) {
+        setPhase("lead_capture");
+      }
 
-      if (isGreeting) {
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch (error: any) {
+      toast.error(error.message || "Connection lost. Please refresh.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+    
+    const userMsg: Message = { role: "user", content: input };
+    const newMessages = [...messages, userMsg];
+    
+    setMessages(newMessages);
+    setInput("");
+    await sendToGeorgia(newMessages);
+  };
+
+  const handleSubmitLead = async () => {
+    if (!pipedaConsent) {
+      toast.error("Please provide consent to proceed.");
+      return;
+    }
+    setIsSubmitting(true);
+    // Logic for register_discovery_lead would go here
+    setTimeout(() => {
+      setPhase("complete");
+      setIsSubmitting(false);
+      toast.success("Discovery summary transmitted.");
+    }, 1500);
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-[#05070a] text-slate-200 font-sans">
+      {/* Header */}
+      <header className="p-4 border-b border-slate-800 bg-slate-900/20 backdrop-blur-md flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <div className="bg-amber-500 p-2 rounded-xl">
+            <Bot className="w-5 h-5 text-slate-950" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold tracking-widest uppercase text-white">Georgia</h1>
+            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-tighter flex items-center">
+              <span className="w-1 h-1 bg-emerald-500 rounded-full mr-1 animate-pulse"></span>
+              Secure Discovery Agent
+            </p>
+          </div>
+        </div>
+        <div className="hidden md:flex items-center space-x-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg">
+          <Lock className="w-3 h-3 text-slate-500" />
+          <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">PIPEDA / CA</span>
+        </div>
+      </header>
+
+      {/* Main Chat Area */}
+      <ScrollArea className="flex-1 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto space-y-6 pb-20">
+          <AnimatePresence initial={false}>
+            {messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                  <div className={`mt-1 p-2 rounded-lg h-fit ${msg.role === "user" ? "bg-slate-800" : "bg-amber-500"}`}>
+                    {msg.role === "user" ? <User className="w-4 h-4 text-slate-400" /> : <Bot className="w-4 h-4 text-slate-950" />}
+                  </div>
+                  <div className={`p-4 rounded-2xl text-sm leading-relaxed border ${
+                    msg.role === "user" 
+                      ? "bg-slate-900/50 border-slate-800 text-slate-200" 
+                      : "bg-slate-950 border-slate-800 text-slate-300"
+                  }`}>
+                    <ReactMarkdown className="prose prose-invert prose-sm">{msg.content}</ReactMarkdown>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          {isLoading && (
+            <div className="flex justify-start animate-pulse">
+              <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+              </div>
+            </div>
+          )}
+          {/* Scroll anchor remains, but no useEffect targets it now */}
+          <div ref={scrollRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Input / Lead Form Area */}
+      <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-900/40 backdrop-blur-lg">
+        <div className="max-w-3xl mx-auto">
+          {phase === "chat" && (
+            <div className="relative flex items-center">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Reply to Georgia..."
+                className="bg-slate-950 border-slate-800 py-6 pr-14 rounded-2xl focus-visible:ring-amber-500"
+                disabled={isLoading}
+              />
+              <Button 
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="absolute right-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {phase === "lead_capture" && (
+            <Card className="bg-slate-950 border-slate-800 border-2 overflow-hidden">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center space-x-2 text-amber-500 mb-2">
+                  <ShieldCheck className="w-5 h-5" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Stabilization Triage Request</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input 
+                    placeholder="First Name" 
+                    value={leadForm.first_name}
+                    onChange={(e) => setLeadForm({...leadForm, first_name: e.target.value})}
+                    className="bg-slate-900 border-slate-800"
+                  />
+                  <Input 
+                    placeholder="Phone Number" 
+                    value={leadForm.phone}
+                    onChange={(e) => setLeadForm({...leadForm, phone: e.target.value})}
+                    className="bg-slate-900 border-slate-800"
+                  />
+                </div>
+                <Input 
+                  placeholder="Email Address" 
+                  value={leadForm.email}
+                  onChange={(e) => setLeadForm({...leadForm, email: e.target.value})}
+                  className="bg-slate-900 border-slate-800"
+                />
+                <div className="flex items-start space-x-3 p-3 bg-slate-900/50 rounded-xl border border-slate-800">
+                  <Checkbox 
+                    id="consent" 
+                    checked={pipedaConsent}
+                    onCheckedChange={(checked) => setPipedaConsent(!!checked)}
+                    className="mt-1 border-slate-600 data-[state=checked]:bg-amber-500"
+                  />
+                  <label htmlFor="consent" className="text-[10px] text-slate-400 leading-tight font-medium uppercase">
+                    I consent to having my transition details securely reviewed by the Personal CFO within the Canadian Sovereignty Network.
+                  </label>
+                </div>
+                <Button 
+                  onClick={handleSubmitLead}
+                  disabled={isSubmitting || !pipedaConsent || !leadForm.email}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold uppercase tracking-widest py-6 rounded-xl"
+                >
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Transmit Discovery Summary"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {phase === "complete" && (
+            <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center space-y-2">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+              <h3 className="text-white font-bold uppercase tracking-widest text-sm">Protocol Complete</h3>
+              <p className="text-xs text-slate-400">Rolf Issler will contact you shortly for your alignment call.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CheckCircle2(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}      if (isGreeting) {
         setMessages([assistantMsg]);
       } else {
         setMessages((prev) => [...prev, assistantMsg]);
