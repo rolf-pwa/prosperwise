@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
 import { Send, Loader2, ShieldCheck, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
@@ -36,7 +37,6 @@ export default function Discovery() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Auto-greet on mount
   useEffect(() => {
     if (!hasGreeted) {
       setHasGreeted(true);
@@ -66,7 +66,6 @@ export default function Discovery() {
         setMessages((prev) => [...prev, assistantMsg]);
       }
 
-      // Check for function calls (register_discovery_lead)
       if (data.functionCalls?.length > 0) {
         const leadCall = data.functionCalls.find(
           (fc: FunctionCall) => fc.name === "register_discovery_lead"
@@ -148,21 +147,21 @@ export default function Discovery() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#05070a] text-white">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-[#1e293b] px-6 py-4">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 ring-1 ring-amber-500/30">
-            <span className="text-lg font-serif text-amber-400">G</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/30">
+            <span className="text-lg font-serif text-accent">G</span>
           </div>
           <div>
-            <h1 className="font-serif text-lg font-semibold text-amber-50">Georgia</h1>
-            <p className="text-[11px] text-slate-400">Discovery Assistant</p>
+            <h1 className="font-serif text-lg font-semibold text-foreground">Georgia</h1>
+            <p className="text-[11px] text-muted-foreground">Discovery Assistant</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-emerald-800/50 bg-emerald-950/30 px-3 py-1">
-          <Lock className="h-3 w-3 text-emerald-400" />
-          <span className="text-[11px] text-emerald-400">Secure Connection</span>
+        <div className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1">
+          <Lock className="h-3 w-3 text-primary" />
+          <span className="text-[11px] text-primary">Secure Connection</span>
         </div>
       </header>
 
@@ -179,19 +178,19 @@ export default function Discovery() {
                 className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.role === "assistant" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 ring-1 ring-amber-500/20">
-                    <span className="text-sm font-serif text-amber-400">G</span>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/20">
+                    <span className="text-sm font-serif text-accent">G</span>
                   </div>
                 )}
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-amber-500/10 text-amber-50 ring-1 ring-amber-500/20"
-                      : "bg-[#111318] text-slate-200 ring-1 ring-[#1e293b]"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground ring-1 ring-border"
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed">
+                    <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1.5 prose-p:leading-relaxed">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
@@ -209,13 +208,13 @@ export default function Discovery() {
               animate={{ opacity: 1, y: 0 }}
               className="flex items-center gap-3"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10 ring-1 ring-amber-500/20">
-                <span className="text-sm font-serif text-amber-400">G</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/20">
+                <span className="text-sm font-serif text-accent">G</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-2xl bg-[#111318] px-4 py-3 ring-1 ring-[#1e293b]">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400/60 [animation-delay:0ms]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400/60 [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400/60 [animation-delay:300ms]" />
+              <div className="flex items-center gap-1.5 rounded-2xl bg-muted px-4 py-3 ring-1 ring-border">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:300ms]" />
               </div>
             </motion.div>
           )}
@@ -226,86 +225,86 @@ export default function Discovery() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="rounded-2xl border border-amber-500/20 bg-[#111318] p-6 ring-1 ring-[#1e293b]"
             >
-              <div className="mb-4 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-amber-400" />
-                <h3 className="font-serif text-base font-semibold text-amber-50">
-                  Connect with Rolf
-                </h3>
-              </div>
-              <p className="mb-5 text-sm text-slate-400">
-                Please provide your details to schedule your Stabilization Triage session.
-              </p>
+              <Card className="border-accent/20">
+                <CardContent className="p-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-accent" />
+                    <h3 className="font-serif text-base font-semibold text-foreground">
+                      Connect with Rolf
+                    </h3>
+                  </div>
+                  <p className="mb-5 text-sm text-muted-foreground">
+                    Please provide your details to schedule your Stabilization Triage session.
+                  </p>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs text-slate-400">
-                    First Name <span className="text-amber-400">*</span>
-                  </label>
-                  <Input
-                    value={leadForm.first_name}
-                    onChange={(e) => setLeadForm((f) => ({ ...f, first_name: e.target.value }))}
-                    placeholder="Your first name"
-                    className="border-[#1e293b] bg-[#05070a] text-white placeholder:text-slate-600 focus-visible:ring-amber-500/40"
-                    maxLength={100}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-slate-400">Phone Number</label>
-                  <Input
-                    value={leadForm.phone}
-                    onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="(555) 555-5555"
-                    className="border-[#1e293b] bg-[#05070a] text-white placeholder:text-slate-600 focus-visible:ring-amber-500/40"
-                    maxLength={20}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-slate-400">
-                    Email <span className="text-amber-400">*</span>
-                  </label>
-                  <Input
-                    type="email"
-                    value={leadForm.email}
-                    onChange={(e) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="you@example.com"
-                    className="border-[#1e293b] bg-[#05070a] text-white placeholder:text-slate-600 focus-visible:ring-amber-500/40"
-                    maxLength={255}
-                  />
-                </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">
+                        First Name <span className="text-accent">*</span>
+                      </label>
+                      <Input
+                        value={leadForm.first_name}
+                        onChange={(e) => setLeadForm((f) => ({ ...f, first_name: e.target.value }))}
+                        placeholder="Your first name"
+                        maxLength={100}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Phone Number</label>
+                      <Input
+                        value={leadForm.phone}
+                        onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
+                        placeholder="(555) 555-5555"
+                        maxLength={20}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">
+                        Email <span className="text-accent">*</span>
+                      </label>
+                      <Input
+                        type="email"
+                        value={leadForm.email}
+                        onChange={(e) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
+                        placeholder="you@example.com"
+                        maxLength={255}
+                      />
+                    </div>
 
-                {/* PIPEDA Consent */}
-                <div className="flex items-start gap-3 rounded-lg border border-[#1e293b] bg-[#0a0c10] p-3">
-                  <Checkbox
-                    id="pipeda"
-                    checked={pipedaConsent}
-                    onCheckedChange={(v) => setPipedaConsent(v === true)}
-                    className="mt-0.5 border-slate-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
-                  />
-                  <label htmlFor="pipeda" className="text-xs leading-relaxed text-slate-400 cursor-pointer">
-                    I consent to ProsperWise collecting and processing my personal information in accordance
-                    with the <span className="text-amber-400">Personal Information Protection and Electronic
-                    Documents Act (PIPEDA)</span>. My data will be processed in Canadian data centres and
-                    will not be shared with third parties.
-                  </label>
-                </div>
+                    {/* PIPEDA Consent */}
+                    <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-3">
+                      <Checkbox
+                        id="pipeda"
+                        checked={pipedaConsent}
+                        onCheckedChange={(v) => setPipedaConsent(v === true)}
+                        className="mt-0.5"
+                      />
+                      <label htmlFor="pipeda" className="text-xs leading-relaxed text-muted-foreground cursor-pointer">
+                        I consent to ProsperWise collecting and processing my personal information in accordance
+                        with the <span className="text-accent font-medium">Personal Information Protection and Electronic
+                        Documents Act (PIPEDA)</span>. My data will be processed in Canadian data centres and
+                        will not be shared with third parties.
+                      </label>
+                    </div>
 
-                <Button
-                  onClick={submitLead}
-                  disabled={isSubmitting || !leadForm.first_name || !leadForm.email || !pipedaConsent}
-                  className="w-full bg-amber-500 text-[#05070a] hover:bg-amber-400 font-medium"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Request Stabilization Triage"
-                  )}
-                </Button>
-              </div>
+                    <Button
+                      onClick={submitLead}
+                      disabled={isSubmitting || !leadForm.first_name || !leadForm.email || !pipedaConsent}
+                      className="w-full"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Request Stabilization Triage"
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 
@@ -314,15 +313,18 @@ export default function Discovery() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-6 text-center"
             >
-              <ShieldCheck className="mx-auto mb-3 h-8 w-8 text-emerald-400" />
-              <p className="font-serif text-base text-emerald-50">
-                Your Stabilization Triage has been requested.
-              </p>
-              <p className="mt-2 text-sm text-slate-400">
-                Rolf Issler will reach out to you within 1–2 business days.
-              </p>
+              <Card className="border-primary/20 bg-primary/5 text-center">
+                <CardContent className="p-6">
+                  <ShieldCheck className="mx-auto mb-3 h-8 w-8 text-primary" />
+                  <p className="font-serif text-base text-foreground">
+                    Your Stabilization Triage has been requested.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Rolf Issler will reach out to you within 1–2 business days.
+                  </p>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
 
@@ -332,7 +334,7 @@ export default function Discovery() {
 
       {/* Input */}
       {phase === "chat" && (
-        <div className="border-t border-[#1e293b] p-4">
+        <div className="border-t border-border p-4">
           <div className="mx-auto flex max-w-2xl items-end gap-3">
             <textarea
               ref={inputRef}
@@ -342,18 +344,18 @@ export default function Discovery() {
               placeholder="Share what's on your mind..."
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-xl border border-[#1e293b] bg-[#111318] px-4 py-3 text-sm text-white placeholder:text-slate-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500/40"
+              className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
             <Button
               size="icon"
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="h-10 w-10 shrink-0 rounded-xl bg-amber-500 text-[#05070a] hover:bg-amber-400"
+              className="h-10 w-10 shrink-0 rounded-xl"
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-[10px] text-slate-600">
+          <p className="mx-auto mt-2 max-w-2xl text-center text-[10px] text-muted-foreground">
             Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
           </p>
         </div>
