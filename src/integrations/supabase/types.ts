@@ -137,6 +137,68 @@ export type Database = {
           },
         ]
       }
+      discovery_leads: {
+        Row: {
+          anxiety_anchor: string | null
+          created_at: string
+          discovery_notes: string | null
+          email: string | null
+          family_id: string | null
+          first_name: string
+          id: string
+          phone: string | null
+          pipeda_consent: boolean
+          pipeda_consented_at: string | null
+          sovereignty_status: string
+          transition_type: string | null
+          updated_at: string
+          vineyard_summary: string | null
+          vision_summary: string | null
+        }
+        Insert: {
+          anxiety_anchor?: string | null
+          created_at?: string
+          discovery_notes?: string | null
+          email?: string | null
+          family_id?: string | null
+          first_name: string
+          id?: string
+          phone?: string | null
+          pipeda_consent?: boolean
+          pipeda_consented_at?: string | null
+          sovereignty_status?: string
+          transition_type?: string | null
+          updated_at?: string
+          vineyard_summary?: string | null
+          vision_summary?: string | null
+        }
+        Update: {
+          anxiety_anchor?: string | null
+          created_at?: string
+          discovery_notes?: string | null
+          email?: string | null
+          family_id?: string | null
+          first_name?: string
+          id?: string
+          phone?: string | null
+          pipeda_consent?: boolean
+          pipeda_consented_at?: string | null
+          sovereignty_status?: string
+          transition_type?: string | null
+          updated_at?: string
+          vineyard_summary?: string | null
+          vision_summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_leads_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       families: {
         Row: {
           annual_savings: number

@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import GoogleCallback from "./pages/GoogleCallback";
 import Portal from "./pages/Portal";
 import Families from "./pages/Families";
+import Discovery from "./pages/Discovery";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/" element={<AuthCallback />} />
             <Route path="/login" element={<Login />} />
             <Route path="/access-denied" element={<AccessDenied />} />
+            <Route path="/discovery" element={<Discovery />} />
             <Route path="/portal" element={<Portal />} />
             <Route path="/portal/:token" element={<Portal />} />
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
