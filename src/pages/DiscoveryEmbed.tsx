@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
 import { Send, Loader2, ShieldCheck, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
@@ -24,7 +23,6 @@ const STORAGE_KEY = "georgia_embed_state_v2";
 
 function loadSavedState(): { messages: Message[]; phase: Phase } | null {
   try {
-    // Clear old cache key
     localStorage.removeItem("georgia_embed_state");
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -42,6 +40,21 @@ function saveState(messages: Message[], phase: Phase) {
   }
 }
 
+// Sanctuary palette — warm dark, not cold tech-dark
+const C = {
+  bg: "#1C2420",          // deep sovereign green, not pure black
+  surface: "#243028",     // slightly lighter panel
+  surfaceAlt: "#1E2822",  // message bg for assistant
+  border: "rgba(169,140,90,0.2)",   // bronze border
+  borderSubtle: "rgba(211,197,183,0.12)",
+  vellum: "#F8F6F2",      // text on dark
+  charcoal: "#C8CCCA",    // secondary text
+  muted: "#7A8C84",       // muted text
+  green: "#2A4034",       // sovereign green
+  bronze: "#A98C5A",      // ratified bronze
+  bronzeLight: "#C4A46A", // lighter bronze
+};
+
 export default function DiscoveryEmbed() {
   const saved = loadSavedState();
   const [messages, setMessages] = useState<Message[]>(saved?.messages || []);
@@ -55,7 +68,6 @@ export default function DiscoveryEmbed() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Persist state to localStorage
   useEffect(() => {
     saveState(messages, phase);
   }, [messages, phase]);
@@ -64,7 +76,6 @@ export default function DiscoveryEmbed() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Greet only if no saved messages
   useEffect(() => {
     if (messages.length === 0) {
       sendToGeorgia([{ role: "user", content: "Hello" }], true);
@@ -137,11 +148,7 @@ export default function DiscoveryEmbed() {
         },
         body: JSON.stringify({
           action: "register_lead",
-          leadData: {
-            ...leadForm,
-            ...discoveryData,
-            pipeda_consent: true,
-          },
+          leadData: { ...leadForm, ...discoveryData, pipeda_consent: true },
         }),
       });
       const data = await res.json();
@@ -153,7 +160,7 @@ export default function DiscoveryEmbed() {
         {
           role: "assistant",
           content:
-            "Thank you! Your information has been received. Rolf Issler will be in touch shortly to schedule your Transition Session. In the meantime, take a breath — you've taken an important first step toward sovereignty.",
+            "Thank you. Your information has been received. Rolf Issler will be in touch shortly to schedule your Transition Session. You have taken an important first step toward sovereignty.",
         },
       ]);
     } catch (err) {
@@ -173,35 +180,37 @@ export default function DiscoveryEmbed() {
   return (
     <div
       className="flex flex-col overflow-hidden"
-      style={{ height: "100vh", backgroundColor: "#05070a", color: "#e2e8f0" }}
+      style={{ height: "100vh", backgroundColor: C.bg, color: C.vellum }}
     >
-      {/* Minimal Header — compressed for 400px iframe */}
+      {/* Header */}
       <header
-        className="flex items-center justify-between px-3 py-2 shrink-0"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+        className="flex items-center justify-between px-3 py-2.5 shrink-0"
+        style={{ borderBottom: `1px solid ${C.borderSubtle}` }}
       >
         <div className="flex items-center gap-2">
           <div
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: "rgba(42,64,52,0.4)", outline: "1px solid rgba(42,64,52,0.6)" }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: C.green, boxShadow: `0 0 0 1px ${C.border}` }}
           >
-            <span className="text-[11px] font-serif" style={{ color: "#4ade80" }}>G</span>
+            <span className="font-serif text-xs" style={{ color: C.vellum }}>G</span>
           </div>
           <div className="leading-none">
-            <span className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Georgia</span>
-            <span className="ml-1.5 text-[9px]" style={{ color: "#94a3b8" }}>· Transition Assistant</span>
+            <span className="text-xs font-semibold font-serif" style={{ color: C.vellum }}>Georgia</span>
+            <span className="ml-1.5 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
+              · Transition Assistant
+            </span>
           </div>
         </div>
         <div
           className="flex items-center gap-1 rounded-full px-2 py-0.5"
-          style={{ border: "1px solid rgba(42,64,52,0.5)", backgroundColor: "rgba(42,64,52,0.15)" }}
+          style={{ border: `1px solid ${C.border}`, backgroundColor: "rgba(169,140,90,0.08)" }}
         >
-          <Lock className="h-2 w-2" style={{ color: "#4ade80" }} />
-          <span className="text-[9px]" style={{ color: "#4ade80" }}>Secure</span>
+          <Lock className="h-2 w-2" style={{ color: C.bronze }} />
+          <span className="text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>Secure</span>
         </div>
       </header>
 
-      {/* Chat Area — fills remaining space */}
+      {/* Chat Area */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="space-y-3 p-3">
           <AnimatePresence initial={false}>
@@ -210,27 +219,41 @@ export default function DiscoveryEmbed() {
                 key={i}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
                 className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.role === "assistant" && (
                   <div
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                    style={{ backgroundColor: "rgba(42,64,52,0.4)", outline: "1px solid rgba(42,64,52,0.5)" }}
+                    style={{ backgroundColor: C.green, boxShadow: `0 0 0 1px ${C.border}` }}
                   >
-                    <span className="text-[10px] font-serif" style={{ color: "#4ade80" }}>G</span>
+                    <span className="font-serif text-[10px]" style={{ color: C.vellum }}>G</span>
                   </div>
                 )}
                 <div
-                  className="max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed"
+                  className="max-w-[85%] text-xs leading-relaxed"
                   style={
                     msg.role === "user"
-                      ? { backgroundColor: "#2A4034", color: "#e2e8f0" }
-                      : { backgroundColor: "rgba(255,255,255,0.05)", color: "#cbd5e1", outline: "1px solid rgba(255,255,255,0.08)" }
+                      ? {
+                          backgroundColor: C.green,
+                          color: C.vellum,
+                          borderRadius: "14px 4px 14px 14px",
+                          padding: "8px 12px",
+                          border: `1px solid rgba(169,140,90,0.25)`,
+                        }
+                      : {
+                          backgroundColor: C.surface,
+                          color: C.charcoal,
+                          borderRadius: "4px 14px 14px 14px",
+                          padding: "8px 12px",
+                          border: `1px solid ${C.borderSubtle}`,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }
                   }
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none prose-invert prose-p:my-0.5 prose-p:leading-relaxed">
+                    <div className="prose prose-sm max-w-none prose-p:my-0.5 prose-p:leading-relaxed"
+                      style={{ color: C.charcoal }}>
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
@@ -241,6 +264,7 @@ export default function DiscoveryEmbed() {
             ))}
           </AnimatePresence>
 
+          {/* Typing dots */}
           {isLoading && (
             <motion.div
               initial={{ opacity: 0, y: 4 }}
@@ -249,17 +273,17 @@ export default function DiscoveryEmbed() {
             >
               <div
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                style={{ backgroundColor: "rgba(42,64,52,0.4)", outline: "1px solid rgba(42,64,52,0.5)" }}
+                style={{ backgroundColor: C.green }}
               >
-                <span className="text-[10px] font-serif" style={{ color: "#4ade80" }}>G</span>
+                <span className="font-serif text-[10px]" style={{ color: C.vellum }}>G</span>
               </div>
               <div
-                className="flex items-center gap-1.5 rounded-2xl px-3 py-2"
-                style={{ backgroundColor: "rgba(255,255,255,0.05)", outline: "1px solid rgba(255,255,255,0.08)" }}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-2"
+                style={{ backgroundColor: C.surface, border: `1px solid ${C.borderSubtle}` }}
               >
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" style={{ backgroundColor: C.bronze }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" style={{ backgroundColor: C.bronze }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" style={{ backgroundColor: C.bronze }} />
               </div>
             </motion.div>
           )}
@@ -269,45 +293,40 @@ export default function DiscoveryEmbed() {
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               <div
                 className="rounded-xl p-3 space-y-2.5"
-                style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(42,64,52,0.4)" }}
+                style={{ backgroundColor: C.surface, border: `1px solid ${C.border}` }}
               >
                 <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5" style={{ color: "#4ade80" }} />
-                  <span className="text-[11px] font-semibold" style={{ color: "#f1f5f9" }}>Connect with Rolf</span>
+                  <ShieldCheck className="h-3.5 w-3.5" style={{ color: C.bronze }} />
+                  <span className="text-[11px] font-semibold font-serif" style={{ color: C.vellum }}>Connect with Rolf</span>
                 </div>
-                <p className="text-[10px]" style={{ color: "#94a3b8" }}>
+                <p className="text-[10px]" style={{ color: C.muted }}>
                   Provide your details to schedule your Transition Session.
                 </p>
 
-                <Input
-                  value={leadForm.first_name}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, first_name: e.target.value }))}
-                  placeholder="First name *"
-                  maxLength={100}
-                  className="h-8 text-xs"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)", color: "#e2e8f0" }}
-                />
-                <Input
-                  value={leadForm.phone}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="Phone"
-                  maxLength={20}
-                  className="h-8 text-xs"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)", color: "#e2e8f0" }}
-                />
-                <Input
-                  type="email"
-                  value={leadForm.email}
-                  onChange={(e) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="Email *"
-                  maxLength={255}
-                  className="h-8 text-xs"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)", color: "#e2e8f0" }}
-                />
+                {[
+                  { key: "first_name", placeholder: "First name *", type: "text", max: 100 },
+                  { key: "phone", placeholder: "Phone", type: "tel", max: 20 },
+                  { key: "email", placeholder: "Email *", type: "email", max: 255 },
+                ].map(({ key, placeholder, type, max }) => (
+                  <input
+                    key={key}
+                    type={type}
+                    value={leadForm[key as keyof typeof leadForm]}
+                    onChange={(e) => setLeadForm((f) => ({ ...f, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    maxLength={max}
+                    className="w-full h-8 rounded-lg px-3 text-xs focus-visible:outline-none"
+                    style={{
+                      backgroundColor: C.surfaceAlt,
+                      border: `1px solid rgba(211,197,183,0.15)`,
+                      color: C.vellum,
+                    }}
+                  />
+                ))}
 
                 <div
                   className="flex items-start gap-2 rounded-lg p-2"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                  style={{ backgroundColor: "rgba(169,140,90,0.06)", border: `1px solid ${C.border}` }}
                 >
                   <Checkbox
                     id="pipeda-embed"
@@ -318,42 +337,50 @@ export default function DiscoveryEmbed() {
                   <label
                     htmlFor="pipeda-embed"
                     className="text-[9px] leading-relaxed cursor-pointer"
-                    style={{ color: "#94a3b8" }}
+                    style={{ color: C.muted }}
                   >
                     I consent to ProsperWise collecting my information under{" "}
-                    <span style={{ color: "#4ade80" }}>PIPEDA</span>. Processed in Canadian data centres only.
+                    <span style={{ color: C.bronze }}>PIPEDA</span>. Processed in Canadian data centres only.
                   </label>
                 </div>
 
-                <Button
+                <button
                   onClick={submitLead}
                   disabled={isSubmitting || !leadForm.first_name || !leadForm.email || !pipedaConsent}
-                  className="w-full h-8 text-xs font-semibold"
-                  style={{ backgroundColor: "#2A4034", color: "#e2e8f0" }}
+                  className="w-full h-8 rounded-lg text-xs font-semibold tracking-wide disabled:opacity-40 transition-opacity"
+                  style={{ backgroundColor: C.green, color: C.vellum, border: `1px solid ${C.border}` }}
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                    <span className="flex items-center justify-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
                       Submitting...
-                    </>
+                    </span>
                   ) : (
                     "Request Transition Session"
                   )}
-                </Button>
+                </button>
               </div>
             </motion.div>
           )}
 
           {phase === "complete" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
               <div
                 className="rounded-xl p-4 text-center"
-                style={{ backgroundColor: "rgba(42,64,52,0.2)", border: "1px solid rgba(42,64,52,0.4)" }}
+                style={{ backgroundColor: C.surface, border: `1px solid ${C.border}` }}
               >
-                <ShieldCheck className="mx-auto mb-2 h-6 w-6" style={{ color: "#4ade80" }} />
-                <p className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Transition Session Requested</p>
-                <p className="mt-1 text-[10px]" style={{ color: "#94a3b8" }}>
+                <div
+                  className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: "rgba(169,140,90,0.12)", border: `1px solid ${C.border}` }}
+                >
+                  <ShieldCheck className="h-4.5 w-4.5" style={{ color: C.bronze }} />
+                </div>
+                <p className="text-xs font-semibold font-serif" style={{ color: C.vellum }}>Transition Session Requested</p>
+                <p className="mt-1 text-[10px]" style={{ color: C.muted }}>
                   Rolf Issler will reach out within 1–2 business days.
+                </p>
+                <p className="mt-2 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
+                  Fee-Only · Canada · PIPEDA
                 </p>
               </div>
             </motion.div>
@@ -363,11 +390,11 @@ export default function DiscoveryEmbed() {
         </div>
       </ScrollArea>
 
-      {/* Input — pinned to bottom */}
+      {/* Input */}
       {phase === "chat" && (
         <div
           className="shrink-0 px-3 py-2"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ borderTop: `1px solid ${C.borderSubtle}`, backgroundColor: C.bg }}
         >
           <div className="flex items-end gap-2">
             <textarea
@@ -378,23 +405,23 @@ export default function DiscoveryEmbed() {
               placeholder="Share what's on your mind..."
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-xl px-3 py-2 text-xs placeholder:text-slate-500 focus-visible:outline-none"
+              className="flex-1 resize-none rounded-xl px-3 py-2 text-xs focus-visible:outline-none"
               style={{
-                backgroundColor: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#e2e8f0",
+                backgroundColor: C.surface,
+                border: `1px solid rgba(211,197,183,0.12)`,
+                color: C.vellum,
               }}
             />
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl disabled:opacity-40"
-              style={{ backgroundColor: "#2A4034" }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl disabled:opacity-40 transition-opacity"
+              style={{ backgroundColor: C.green, border: `1px solid ${C.border}` }}
             >
-              <Send className="h-3.5 w-3.5" style={{ color: "#e2e8f0" }} />
+              <Send className="h-3.5 w-3.5" style={{ color: C.vellum }} />
             </button>
           </div>
-          <p className="mt-1 text-center text-[8px]" style={{ color: "#475569" }}>
+          <p className="mt-1 text-center text-[8px] uppercase tracking-wider" style={{ color: C.bronze }}>
             PIPEDA · Canada · Fee-Only
           </p>
         </div>
