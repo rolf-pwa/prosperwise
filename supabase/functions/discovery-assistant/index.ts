@@ -7,6 +7,78 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ---------- Types ----------
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+// ---------- Auth Helper ----------
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryKey,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const jwt = `${unsigned}.${signature}`;
+
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
+
 // ---------- Georgia System Prompt ----------
 
 const GEORGIA_SYSTEM_PROMPT = `You are **Georgia**, the Transition Assistant for ProsperWise — a Fee-Only family office based in Canada.
@@ -65,49 +137,50 @@ ONLY after receiving a "Yes" to the Transition Session, call the **register_disc
 - If the user shares something emotional, acknowledge it before moving on.
 - Keep responses under 150 words unless the user asks for elaboration.`;
 
-// ---------- OpenAI-compatible Tool Definitions ----------
+// ---------- Tool Definitions ----------
 
 const TOOLS = [
   {
-    type: "function",
-    function: {
-      name: "register_discovery_lead",
-      description:
-        "Register a new discovery lead after the prospect has agreed to the Transition Session. Only call this AFTER receiving a clear 'Yes' to the session offer.",
-      parameters: {
-        type: "object",
-        properties: {
-          transition_type: {
-            type: "string",
-            description: "Type of transition: business_sale, divorce, legacy_event, or other",
+    functionDeclarations: [
+      {
+        name: "register_discovery_lead",
+        description:
+          "Register a new discovery lead after the prospect has agreed to the Transition Session. Only call this AFTER receiving a clear 'Yes' to the session offer.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            transition_type: {
+              type: "STRING",
+              description: "Type of transition: business_sale, divorce, legacy_event, or other",
+            },
+            anxiety_anchor: {
+              type: "STRING",
+              description: "The prospect's primary friction point or anxiety",
+            },
+            vision_summary: {
+              type: "STRING",
+              description: "Their 3-year sovereignty vision summary",
+            },
+            vineyard_summary: {
+              type: "STRING",
+              description: "Summary of vineyard audit findings from the conversation",
+            },
+            discovery_notes: {
+              type: "STRING",
+              description: "Full conversation summary capturing key points discussed",
+            },
           },
-          anxiety_anchor: {
-            type: "string",
-            description: "The prospect's primary friction point or anxiety",
-          },
-          vision_summary: {
-            type: "string",
-            description: "Their 3-year sovereignty vision summary",
-          },
-          vineyard_summary: {
-            type: "string",
-            description: "Summary of vineyard audit findings from the conversation",
-          },
-          discovery_notes: {
-            type: "string",
-            description: "Full conversation summary capturing key points discussed",
-          },
+          required: ["transition_type", "discovery_notes"],
         },
-        required: ["transition_type", "discovery_notes"],
       },
-    },
+    ],
   },
 ];
 
 // ---------- Main ----------
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+const REGION = "northamerica-northeast1";
+const MODEL = "gemini-2.5-flash";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -117,7 +190,7 @@ serve(async (req) => {
   try {
     const { messages, action, leadData } = await req.json();
 
-    // Handle lead registration action
+    // Handle lead registration action (called from frontend after form submission)
     if (action === "register_lead") {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -140,6 +213,7 @@ serve(async (req) => {
         );
       }
 
+      // Validate inputs
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return new Response(
@@ -184,59 +258,92 @@ serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) throw new Error("LOVABLE_API_KEY not configured");
+    // Load service account key
+    const saKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!saKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    let cleaned = saKeyRaw.trim().replace(/^\uFEFF/, "");
+    if (!cleaned.startsWith("{")) cleaned = "{" + cleaned;
+    if (!cleaned.endsWith("}")) cleaned = cleaned + "}";
+    const saKey: ServiceAccountKey = JSON.parse(cleaned);
+    const accessToken = await getAccessToken(saKey);
 
-    // Build OpenAI-compatible message array
-    const apiMessages = [
-      { role: "system", content: GEORGIA_SYSTEM_PROMPT },
-      ...messages
-        .filter((m: any) => m.role !== "system")
-        .map((m: any) => ({ role: m.role, content: m.content })),
-    ];
+    const projectId = saKey.project_id;
 
-    const gatewayRes = await fetch(AI_GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: apiMessages,
-        tools: TOOLS,
-        tool_choice: "auto",
+    // Build contents
+    const contents: any[] = [];
+    for (const m of messages) {
+      if (m.role === "system") continue;
+      contents.push({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      });
+    }
+
+    const vertexBody: any = {
+      contents,
+      systemInstruction: { parts: [{ text: GEORGIA_SYSTEM_PROMPT }] },
+      tools: TOOLS,
+      generationConfig: {
         temperature: 0.6,
-        max_tokens: 2048,
-      }),
-    });
+        maxOutputTokens: 2048,
+        responseMimeType: "text/plain",
+      },
+    };
 
-    if (!gatewayRes.ok) {
-      const errText = await gatewayRes.text();
-      console.error("AI Gateway error:", gatewayRes.status, errText);
+    const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
+
+    // Exponential backoff retry for 429 rate limit errors
+    let vertexRes: Response | null = null;
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      vertexRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(vertexBody),
+      });
+
+      if (vertexRes.status !== 429) break;
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt) * 1000;
+      console.warn(`Vertex AI 429 rate limit — retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    if (!vertexRes!.ok) {
+      const errText = await vertexRes!.text();
+      console.error("Vertex AI error:", vertexRes!.status, errText);
+      const isRateLimit = vertexRes!.status === 429;
       return new Response(
-        JSON.stringify({ error: "Georgia is temporarily unavailable. Please try again in a moment." }),
+        JSON.stringify({
+          error: isRateLimit
+            ? "Georgia is handling several conversations right now. Please wait a moment and try again."
+            : `AI service error: ${vertexRes!.status}`,
+        }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = await gatewayRes.json();
-    const choice = result?.choices?.[0];
-    const message = choice?.message;
+    const result = await vertexRes.json();
+    const candidate = result?.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
 
-    // Extract text content
-    const text = message?.content || "";
-
-    // Extract tool/function calls
-    const functionCalls = (message?.tool_calls || []).map((tc: any) => ({
-      name: tc.function.name,
-      args: typeof tc.function.arguments === "string"
-        ? JSON.parse(tc.function.arguments)
-        : tc.function.arguments,
-    }));
+    const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
+    const functionCalls = parts
+      .filter((p: any) => p.functionCall)
+      .map((p: any) => ({
+        name: p.functionCall.name,
+        args: p.functionCall.args,
+      }));
 
     return new Response(
-      JSON.stringify({ text, functionCalls }),
+      JSON.stringify({
+        text: textParts.join("\n"),
+        functionCalls,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
