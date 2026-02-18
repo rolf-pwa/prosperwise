@@ -184,29 +184,31 @@ export default function DiscoveryEmbed() {
     >
       {/* Header */}
       <header
-        className="flex items-center justify-between px-3 py-2.5 shrink-0"
-        style={{ borderBottom: `1px solid ${C.borderSubtle}` }}
+        className="flex items-center justify-between px-8 py-5 shrink-0"
+        style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: C.bg }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: C.green, boxShadow: `0 0 0 1px ${C.border}` }}
+            className="flex h-11 w-11 items-center justify-center rounded-full"
+            style={{ backgroundColor: C.green, boxShadow: `0 0 0 1px rgba(42,64,52,0.3)` }}
           >
-            <span className="font-serif text-xs" style={{ color: C.vellum }}>G</span>
+            <span className="font-serif text-lg" style={{ color: C.vellum }}>G</span>
           </div>
-          <div className="leading-none">
-            <span className="text-xs font-semibold font-serif" style={{ color: C.green }}>Georgia</span>
-            <span className="ml-1.5 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
-              · Transition Assistant
-            </span>
+          <div>
+            <h1 className="font-serif text-xl font-semibold" style={{ color: C.green, letterSpacing: "-0.01em" }}>
+              Georgia
+            </h1>
+            <p className="text-[11px] tracking-wide uppercase" style={{ color: C.bronze, letterSpacing: "0.08em" }}>
+              Transition Assistant · ProsperWise
+            </p>
           </div>
         </div>
         <div
-          className="flex items-center gap-1 rounded-full px-2 py-0.5"
-          style={{ border: `1px solid ${C.border}`, backgroundColor: "rgba(169,140,90,0.08)" }}
+          className="flex items-center gap-2 rounded-full px-4 py-1.5"
+          style={{ border: `1px solid ${C.border}`, backgroundColor: "rgba(42,64,52,0.05)" }}
         >
-          <Lock className="h-2 w-2" style={{ color: C.bronze }} />
-          <span className="text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>Secure</span>
+          <Lock className="h-3 w-3" style={{ color: C.green }} />
+          <span className="text-[11px] font-medium" style={{ color: C.green }}>Secure · PIPEDA · Canada</span>
         </div>
       </header>
 
