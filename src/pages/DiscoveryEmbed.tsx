@@ -208,7 +208,7 @@ export default function DiscoveryEmbed() {
           style={{ border: `1px solid ${C.border}`, backgroundColor: "rgba(42,64,52,0.05)" }}
         >
           <Lock className="h-3 w-3" style={{ color: C.green }} />
-          <span className="text-[11px] font-medium" style={{ color: C.green }}>Secure · PIPEDA · Canada</span>
+          <span className="text-[11px] font-medium" style={{ color: C.green }}>Secure</span>
         </div>
       </header>
 
@@ -395,10 +395,10 @@ export default function DiscoveryEmbed() {
       {/* Input */}
       {phase === "chat" && (
         <div
-          className="shrink-0 px-3 py-2"
-          style={{ borderTop: `1px solid ${C.borderSubtle}`, backgroundColor: C.bg }}
+          className="shrink-0 px-6 py-4"
+          style={{ borderTop: `1px solid ${C.border}`, backgroundColor: C.bg }}
         >
-          <div className="flex items-end gap-2">
+          <div className="mx-auto flex max-w-2xl items-end gap-3">
             <textarea
               ref={inputRef}
               value={input}
@@ -407,24 +407,26 @@ export default function DiscoveryEmbed() {
               placeholder="Share what's on your mind..."
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-xl px-3 py-2 text-xs focus-visible:outline-none"
+              className="flex-1 resize-none rounded-xl px-4 py-3 text-sm focus-visible:outline-none"
               style={{
-                backgroundColor: C.surface,
+                backgroundColor: "#FFFFFF",
                 border: `1px solid ${C.border}`,
                 color: C.charcoal,
+                fontFamily: "'DM Sans', sans-serif",
+                boxShadow: "0 1px 4px rgba(59,63,63,0.05)",
               }}
             />
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl disabled:opacity-40 transition-opacity"
-              style={{ backgroundColor: C.green, border: `1px solid ${C.border}` }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl disabled:opacity-40 transition-opacity"
+              style={{ backgroundColor: C.green }}
             >
-              <Send className="h-3.5 w-3.5" style={{ color: C.vellum }} />
+              <Send className="h-4 w-4" style={{ color: C.vellum }} />
             </button>
           </div>
-          <p className="mt-1 text-center text-[8px] uppercase tracking-wider" style={{ color: C.bronze }}>
-            PIPEDA · Canada · Fee-Only
+          <p className="mx-auto mt-2 max-w-2xl text-center text-[10px] tracking-wide" style={{ color: C.bronze }}>
+            Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
           </p>
         </div>
       )}
