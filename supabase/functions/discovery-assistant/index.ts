@@ -145,7 +145,7 @@ const TOOLS = [
       {
         name: "register_discovery_lead",
         description:
-          "Register a new discovery lead after the prospect has agreed to the Stabilization Triage. Only call this AFTER receiving a clear 'Yes' to the triage offer.",
+          "Register a new discovery lead after the prospect has agreed to the Transition Session. Only call this AFTER receiving a clear 'Yes' to the session offer.",
         parameters: {
           type: "OBJECT",
           properties: {
@@ -231,7 +231,7 @@ serve(async (req) => {
         vision_summary: discoveryData.vision_summary || null,
         vineyard_summary: discoveryData.vineyard_summary || null,
         discovery_notes: discoveryData.discovery_notes || null,
-        sovereignty_status: "stabilization_triage_requested",
+        sovereignty_status: "transition_session_requested",
         pipeda_consent: true,
         pipeda_consented_at: new Date().toISOString(),
       }).select().single();
@@ -292,20 +292,37 @@ serve(async (req) => {
 
     const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
 
-    const vertexRes = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(vertexBody),
-    });
+    // Exponential backoff retry for 429 rate limit errors
+    let vertexRes: Response | null = null;
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      vertexRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(vertexBody),
+      });
 
-    if (!vertexRes.ok) {
-      const errText = await vertexRes.text();
-      console.error("Vertex AI error:", vertexRes.status, errText);
+      if (vertexRes.status !== 429) break;
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt) * 1000;
+      console.warn(`Vertex AI 429 rate limit — retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    if (!vertexRes!.ok) {
+      const errText = await vertexRes!.text();
+      console.error("Vertex AI error:", vertexRes!.status, errText);
+      const isRateLimit = vertexRes!.status === 429;
       return new Response(
-        JSON.stringify({ error: `AI service error: ${vertexRes.status}` }),
+        JSON.stringify({
+          error: isRateLimit
+            ? "Georgia is handling several conversations right now. Please wait a moment and try again."
+            : `AI service error: ${vertexRes!.status}`,
+        }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
