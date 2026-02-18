@@ -40,19 +40,19 @@ function saveState(messages: Message[], phase: Phase) {
   }
 }
 
-// Sanctuary palette — warm dark, not cold tech-dark
+// Sanctuary palette — warm vellum light, "old money" feel
 const C = {
-  bg: "#1C2420",          // deep sovereign green, not pure black
-  surface: "#243028",     // slightly lighter panel
-  surfaceAlt: "#1E2822",  // message bg for assistant
-  border: "rgba(169,140,90,0.2)",   // bronze border
-  borderSubtle: "rgba(211,197,183,0.12)",
-  vellum: "#F8F6F2",      // text on dark
-  charcoal: "#C8CCCA",    // secondary text
-  muted: "#7A8C84",       // muted text
-  green: "#2A4034",       // sovereign green
-  bronze: "#A98C5A",      // ratified bronze
-  bronzeLight: "#C4A46A", // lighter bronze
+  bg: "#F8F6F2",          // vellum — the primary background
+  surface: "#EFECE6",     // slightly deeper parchment for panels
+  surfaceAlt: "#EAE6DF",  // input / alt surface
+  border: "rgba(169,140,90,0.35)",   // bronze border
+  borderSubtle: "rgba(169,140,90,0.18)",
+  vellum: "#F8F6F2",      // light bg (reused for button text)
+  charcoal: "#3B3F3F",    // constitutional charcoal — primary text
+  muted: "#8A8A80",       // muted stone text
+  green: "#2A4034",       // sovereign green — avatar, user bubbles, CTAs
+  bronze: "#A98C5A",      // ratified bronze — accents
+  bronzeLight: "#C4A46A", // lighter bronze for hover hints
 };
 
 export default function DiscoveryEmbed() {
@@ -241,14 +241,14 @@ export default function DiscoveryEmbed() {
                           padding: "8px 12px",
                           border: `1px solid rgba(169,140,90,0.25)`,
                         }
-                      : {
-                          backgroundColor: C.surface,
-                          color: C.charcoal,
-                          borderRadius: "4px 14px 14px 14px",
-                          padding: "8px 12px",
-                          border: `1px solid ${C.borderSubtle}`,
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                        }
+                       : {
+                           backgroundColor: C.surface,
+                           color: C.charcoal,
+                           borderRadius: "4px 14px 14px 14px",
+                           padding: "8px 12px",
+                           border: `1px solid ${C.borderSubtle}`,
+                           boxShadow: "0 1px 3px rgba(169,140,90,0.08)",
+                         }
                   }
                 >
                   {msg.role === "assistant" ? (
