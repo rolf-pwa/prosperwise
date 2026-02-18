@@ -195,7 +195,7 @@ export default function DiscoveryEmbed() {
             <span className="font-serif text-xs" style={{ color: C.vellum }}>G</span>
           </div>
           <div className="leading-none">
-            <span className="text-xs font-semibold font-serif" style={{ color: C.vellum }}>Georgia</span>
+            <span className="text-xs font-semibold font-serif" style={{ color: C.green }}>Georgia</span>
             <span className="ml-1.5 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
               · Transition Assistant
             </span>
@@ -252,7 +252,7 @@ export default function DiscoveryEmbed() {
                   }
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none prose-p:my-0.5 prose-p:leading-relaxed"
+                    <div className="prose prose-sm max-w-none prose-p:my-2 prose-p:leading-relaxed"
                       style={{ color: C.charcoal }}>
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
@@ -408,8 +408,8 @@ export default function DiscoveryEmbed() {
               className="flex-1 resize-none rounded-xl px-3 py-2 text-xs focus-visible:outline-none"
               style={{
                 backgroundColor: C.surface,
-                border: `1px solid rgba(211,197,183,0.12)`,
-                color: C.vellum,
+                border: `1px solid ${C.border}`,
+                color: C.charcoal,
               }}
             />
             <button
