@@ -20,10 +20,12 @@ interface FunctionCall {
 
 type Phase = "chat" | "lead_capture" | "complete";
 
-const STORAGE_KEY = "georgia_embed_state";
+const STORAGE_KEY = "georgia_embed_state_v2";
 
 function loadSavedState(): { messages: Message[]; phase: Phase } | null {
   try {
+    // Clear old cache key
+    localStorage.removeItem("georgia_embed_state");
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
