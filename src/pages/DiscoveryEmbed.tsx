@@ -23,8 +23,8 @@ const STORAGE_KEY = "georgia_embed_state_v2";
 
 function loadSavedState(): { messages: Message[]; phase: Phase } | null {
   try {
-    localStorage.removeItem("georgia_embed_state");
-    const raw = localStorage.getItem(STORAGE_KEY);
+    sessionStorage.removeItem("georgia_embed_state");
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -34,7 +34,7 @@ function loadSavedState(): { messages: Message[]; phase: Phase } | null {
 
 function saveState(messages: Message[], phase: Phase) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, phase }));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, phase }));
   } catch {
     // ignore
   }
