@@ -20,26 +20,51 @@ interface FunctionCall {
 
 type Phase = "chat" | "lead_capture" | "complete";
 
+const STORAGE_KEY = "georgia_embed_state";
+
+function loadSavedState(): { messages: Message[]; phase: Phase } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveState(messages: Message[], phase: Phase) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, phase }));
+  } catch {
+    // ignore
+  }
+}
+
 export default function DiscoveryEmbed() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const saved = loadSavedState();
+  const [messages, setMessages] = useState<Message[]>(saved?.messages || []);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [phase, setPhase] = useState<Phase>("chat");
+  const [phase, setPhase] = useState<Phase>(saved?.phase || "chat");
   const [discoveryData, setDiscoveryData] = useState<Record<string, any>>({});
   const [leadForm, setLeadForm] = useState({ first_name: "", phone: "", email: "" });
   const [pipedaConsent, setPipedaConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasGreeted, setHasGreeted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist state to localStorage
+  useEffect(() => {
+    saveState(messages, phase);
+  }, [messages, phase]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  // Greet only if no saved messages
   useEffect(() => {
-    if (!hasGreeted) {
-      setHasGreeted(true);
+    if (messages.length === 0) {
       sendToGeorgia([{ role: "user", content: "Hello" }], true);
     }
   }, []);
@@ -126,7 +151,7 @@ export default function DiscoveryEmbed() {
         {
           role: "assistant",
           content:
-            "Thank you! Your information has been received. Rolf Issler will be in touch shortly to schedule your Stabilization Triage. In the meantime, take a breath — you've taken an important first step toward sovereignty.",
+            "Thank you! Your information has been received. Rolf Issler will be in touch shortly to schedule your Transition Session. In the meantime, take a breath — you've taken an important first step toward sovereignty.",
         },
       ]);
     } catch (err) {
@@ -144,50 +169,66 @@ export default function DiscoveryEmbed() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {/* Compact Header */}
-      <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/30">
-            <span className="text-sm font-serif text-accent">G</span>
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{ height: "100vh", backgroundColor: "#05070a", color: "#e2e8f0" }}
+    >
+      {/* Minimal Header — compressed for 400px iframe */}
+      <header
+        className="flex items-center justify-between px-3 py-2 shrink-0"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: "rgba(42,64,52,0.4)", outline: "1px solid rgba(42,64,52,0.6)" }}
+          >
+            <span className="text-[11px] font-serif" style={{ color: "#4ade80" }}>G</span>
           </div>
-          <div>
-            <h1 className="font-serif text-sm font-semibold text-foreground leading-tight">Georgia</h1>
-            <p className="text-[10px] text-muted-foreground">Transition Assistant</p>
+          <div className="leading-none">
+            <span className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Georgia</span>
+            <span className="ml-1.5 text-[9px]" style={{ color: "#94a3b8" }}>· Transition Assistant</span>
           </div>
         </div>
-        <div className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5">
-          <Lock className="h-2.5 w-2.5 text-primary" />
-          <span className="text-[10px] text-primary">Secure</span>
+        <div
+          className="flex items-center gap-1 rounded-full px-2 py-0.5"
+          style={{ border: "1px solid rgba(42,64,52,0.5)", backgroundColor: "rgba(42,64,52,0.15)" }}
+        >
+          <Lock className="h-2 w-2" style={{ color: "#4ade80" }} />
+          <span className="text-[9px]" style={{ color: "#4ade80" }}>Secure</span>
         </div>
       </header>
 
-      {/* Chat Area */}
+      {/* Chat Area — fills remaining space */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="space-y-3 p-4">
+        <div className="space-y-3 p-3">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.role === "assistant" && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/20">
-                    <span className="text-xs font-serif text-accent">G</span>
+                  <div
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                    style={{ backgroundColor: "rgba(42,64,52,0.4)", outline: "1px solid rgba(42,64,52,0.5)" }}
+                  >
+                    <span className="text-[10px] font-serif" style={{ color: "#4ade80" }}>G</span>
                   </div>
                 )}
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                  className="max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed"
+                  style={
                     msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground ring-1 ring-border"
-                  }`}
+                      ? { backgroundColor: "#2A4034", color: "#e2e8f0" }
+                      : { backgroundColor: "rgba(255,255,255,0.05)", color: "#cbd5e1", outline: "1px solid rgba(255,255,255,0.08)" }
+                  }
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-p:leading-relaxed">
+                    <div className="prose prose-sm max-w-none prose-invert prose-p:my-0.5 prose-p:leading-relaxed">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
@@ -200,119 +241,119 @@ export default function DiscoveryEmbed() {
 
           {isLoading && (
             <motion.div
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2.5"
+              className="flex items-center gap-2"
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 ring-1 ring-accent/20">
-                <span className="text-xs font-serif text-accent">G</span>
+              <div
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                style={{ backgroundColor: "rgba(42,64,52,0.4)", outline: "1px solid rgba(42,64,52,0.5)" }}
+              >
+                <span className="text-[10px] font-serif" style={{ color: "#4ade80" }}>G</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-2xl bg-muted px-3.5 py-2.5 ring-1 ring-border">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:0ms]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:300ms]" />
+              <div
+                className="flex items-center gap-1.5 rounded-2xl px-3 py-2"
+                style={{ backgroundColor: "rgba(255,255,255,0.05)", outline: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" style={{ backgroundColor: "#4ade80", opacity: 0.6 }} />
               </div>
             </motion.div>
           )}
 
           {/* Lead Capture Form */}
           {phase === "lead_capture" && (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-              <Card className="border-accent/20">
-                <CardContent className="p-4">
-                  <div className="mb-3 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-accent" />
-                    <h3 className="font-serif text-sm font-semibold text-foreground">Connect with Rolf</h3>
-                  </div>
-                  <p className="mb-4 text-xs text-muted-foreground">
-                    Provide your details to schedule your Stabilization Triage session.
-                  </p>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+              <div
+                className="rounded-xl p-3 space-y-2.5"
+                style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(42,64,52,0.4)" }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" style={{ color: "#4ade80" }} />
+                  <span className="text-[11px] font-semibold" style={{ color: "#f1f5f9" }}>Connect with Rolf</span>
+                </div>
+                <p className="text-[10px]" style={{ color: "#94a3b8" }}>
+                  Provide your details to schedule your Transition Session.
+                </p>
 
-                  <div className="space-y-2.5">
-                    <div>
-                      <label className="mb-1 block text-[11px] text-muted-foreground">
-                        First Name <span className="text-accent">*</span>
-                      </label>
-                      <Input
-                        value={leadForm.first_name}
-                        onChange={(e) => setLeadForm((f) => ({ ...f, first_name: e.target.value }))}
-                        placeholder="Your first name"
-                        maxLength={100}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[11px] text-muted-foreground">Phone</label>
-                      <Input
-                        value={leadForm.phone}
-                        onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
-                        placeholder="(555) 555-5555"
-                        maxLength={20}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[11px] text-muted-foreground">
-                        Email <span className="text-accent">*</span>
-                      </label>
-                      <Input
-                        type="email"
-                        value={leadForm.email}
-                        onChange={(e) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
-                        placeholder="you@example.com"
-                        maxLength={255}
-                        className="h-9 text-sm"
-                      />
-                    </div>
+                <Input
+                  value={leadForm.first_name}
+                  onChange={(e) => setLeadForm((f) => ({ ...f, first_name: e.target.value }))}
+                  placeholder="First name *"
+                  maxLength={100}
+                  className="h-8 text-xs"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)", color: "#e2e8f0" }}
+                />
+                <Input
+                  value={leadForm.phone}
+                  onChange={(e) => setLeadForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="Phone"
+                  maxLength={20}
+                  className="h-8 text-xs"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)", color: "#e2e8f0" }}
+                />
+                <Input
+                  type="email"
+                  value={leadForm.email}
+                  onChange={(e) => setLeadForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="Email *"
+                  maxLength={255}
+                  className="h-8 text-xs"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.1)", color: "#e2e8f0" }}
+                />
 
-                    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/50 p-2.5">
-                      <Checkbox
-                        id="pipeda-embed"
-                        checked={pipedaConsent}
-                        onCheckedChange={(v) => setPipedaConsent(v === true)}
-                        className="mt-0.5"
-                      />
-                      <label
-                        htmlFor="pipeda-embed"
-                        className="text-[11px] leading-relaxed text-muted-foreground cursor-pointer"
-                      >
-                        I consent to ProsperWise collecting and processing my personal information under
-                        <span className="text-accent font-medium"> PIPEDA</span>. Data processed in Canadian data
-                        centres only.
-                      </label>
-                    </div>
+                <div
+                  className="flex items-start gap-2 rounded-lg p-2"
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                >
+                  <Checkbox
+                    id="pipeda-embed"
+                    checked={pipedaConsent}
+                    onCheckedChange={(v) => setPipedaConsent(v === true)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <label
+                    htmlFor="pipeda-embed"
+                    className="text-[9px] leading-relaxed cursor-pointer"
+                    style={{ color: "#94a3b8" }}
+                  >
+                    I consent to ProsperWise collecting my information under{" "}
+                    <span style={{ color: "#4ade80" }}>PIPEDA</span>. Processed in Canadian data centres only.
+                  </label>
+                </div>
 
-                    <Button
-                      onClick={submitLead}
-                      disabled={isSubmitting || !leadForm.first_name || !leadForm.email || !pipedaConsent}
-                      className="w-full h-9 text-sm"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        "Request Stabilization Triage"
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                <Button
+                  onClick={submitLead}
+                  disabled={isSubmitting || !leadForm.first_name || !leadForm.email || !pipedaConsent}
+                  className="w-full h-8 text-xs font-semibold"
+                  style={{ backgroundColor: "#2A4034", color: "#e2e8f0" }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Request Transition Session"
+                  )}
+                </Button>
+              </div>
             </motion.div>
           )}
 
           {phase === "complete" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card className="border-primary/20 bg-primary/5 text-center">
-                <CardContent className="p-5">
-                  <ShieldCheck className="mx-auto mb-2 h-7 w-7 text-primary" />
-                  <p className="font-serif text-sm text-foreground">Your Stabilization Triage has been requested.</p>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    Rolf Issler will reach out within 1–2 business days.
-                  </p>
-                </CardContent>
-              </Card>
+              <div
+                className="rounded-xl p-4 text-center"
+                style={{ backgroundColor: "rgba(42,64,52,0.2)", border: "1px solid rgba(42,64,52,0.4)" }}
+              >
+                <ShieldCheck className="mx-auto mb-2 h-6 w-6" style={{ color: "#4ade80" }} />
+                <p className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Transition Session Requested</p>
+                <p className="mt-1 text-[10px]" style={{ color: "#94a3b8" }}>
+                  Rolf Issler will reach out within 1–2 business days.
+                </p>
+              </div>
             </motion.div>
           )}
 
@@ -320,9 +361,12 @@ export default function DiscoveryEmbed() {
         </div>
       </ScrollArea>
 
-      {/* Input */}
+      {/* Input — pinned to bottom */}
       {phase === "chat" && (
-        <div className="border-t border-border p-3">
+        <div
+          className="shrink-0 px-3 py-2"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+        >
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -332,19 +376,24 @@ export default function DiscoveryEmbed() {
               placeholder="Share what's on your mind..."
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex-1 resize-none rounded-xl px-3 py-2 text-xs placeholder:text-slate-500 focus-visible:outline-none"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "#e2e8f0",
+              }}
             />
-            <Button
-              size="icon"
+            <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="h-9 w-9 shrink-0 rounded-xl"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl disabled:opacity-40"
+              style={{ backgroundColor: "#2A4034" }}
             >
-              <Send className="h-3.5 w-3.5" />
-            </Button>
+              <Send className="h-3.5 w-3.5" style={{ color: "#e2e8f0" }} />
+            </button>
           </div>
-          <p className="mt-1.5 text-center text-[9px] text-muted-foreground">
-            Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
+          <p className="mt-1 text-center text-[8px]" style={{ color: "#475569" }}>
+            PIPEDA · Canada · Fee-Only
           </p>
         </div>
       )}
