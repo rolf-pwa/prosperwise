@@ -7,78 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ---------- Types ----------
-
-interface ServiceAccountKey {
-  type: string;
-  project_id: string;
-  private_key_id: string;
-  private_key: string;
-  client_email: string;
-  token_uri: string;
-}
-
-// ---------- Auth Helper ----------
-
-async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iss: sa.client_email,
-    scope: "https://www.googleapis.com/auth/cloud-platform",
-    aud: sa.token_uri,
-    iat: now,
-    exp: now + 3600,
-  };
-
-  const enc = (obj: unknown) =>
-    btoa(JSON.stringify(obj))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-
-  const unsigned = `${enc(header)}.${enc(payload)}`;
-
-  const pemBody = sa.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\s/g, "");
-  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryKey,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signatureBuffer = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    new TextEncoder().encode(unsigned)
-  );
-  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  const jwt = `${unsigned}.${signature}`;
-
-  const res = await fetch(sa.token_uri, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
-    }),
-  });
-
-  const data = await res.json();
-  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
-  return data.access_token;
-}
-
 // ---------- Georgia System Prompt ----------
 
 const GEORGIA_SYSTEM_PROMPT = `You are **Georgia**, the Transition Assistant for ProsperWise — a Fee-Only family office based in Canada.
@@ -179,9 +107,6 @@ const TOOLS = [
 
 // ---------- Main ----------
 
-const REGION = "northamerica-northeast1";
-const MODEL = "gemini-2.5-flash";
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -258,92 +183,83 @@ serve(async (req) => {
       );
     }
 
-    // Load service account key
-    const saKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
-    if (!saKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
-    let cleaned = saKeyRaw.trim().replace(/^\uFEFF/, "");
-    if (!cleaned.startsWith("{")) cleaned = "{" + cleaned;
-    if (!cleaned.endsWith("}")) cleaned = cleaned + "}";
-    const saKey: ServiceAccountKey = JSON.parse(cleaned);
-    const accessToken = await getAccessToken(saKey);
-
-    const projectId = saKey.project_id;
-
-    // Build contents
-    const contents: any[] = [];
+    // Build messages for OpenAI-compatible API
+    const apiMessages: any[] = [
+      { role: "system", content: GEORGIA_SYSTEM_PROMPT },
+    ];
     for (const m of messages) {
       if (m.role === "system") continue;
-      contents.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      });
+      apiMessages.push({ role: m.role, content: m.content });
     }
 
-    const vertexBody: any = {
-      contents,
-      systemInstruction: { parts: [{ text: GEORGIA_SYSTEM_PROMPT }] },
-      tools: TOOLS,
-      generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: 2048,
-        responseMimeType: "text/plain",
-      },
-    };
-
-    const endpoint = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
-
-    // Exponential backoff retry for 429 rate limit errors
-    let vertexRes: Response | null = null;
-    const maxRetries = 3;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      vertexRes = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+    // Convert Vertex-style tools to OpenAI-style tools
+    const openaiTools = TOOLS[0].functionDeclarations.map((fn: any) => ({
+      type: "function",
+      function: {
+        name: fn.name,
+        description: fn.description,
+        parameters: {
+          type: "object",
+          properties: Object.fromEntries(
+            Object.entries(fn.parameters.properties).map(([k, v]: [string, any]) => [
+              k,
+              { type: v.type.toLowerCase(), description: v.description },
+            ])
+          ),
+          required: fn.parameters.required || [],
         },
-        body: JSON.stringify(vertexBody),
-      });
+      },
+    }));
 
-      if (vertexRes.status !== 429) break;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-      // Exponential backoff: 1s, 2s, 4s
-      const delay = Math.pow(2, attempt) * 1000;
-      console.warn(`Vertex AI 429 rate limit — retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
+    const gatewayRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: apiMessages,
+        tools: openaiTools,
+        temperature: 0.6,
+        max_tokens: 2048,
+      }),
+    });
 
-    if (!vertexRes!.ok) {
-      const errText = await vertexRes!.text();
-      console.error("Vertex AI error:", vertexRes!.status, errText);
-      const isRateLimit = vertexRes!.status === 429;
+    if (!gatewayRes.ok) {
+      const errText = await gatewayRes.text();
+      console.error("AI gateway error:", gatewayRes.status, errText);
+      const isRateLimit = gatewayRes.status === 429;
+      const isPayment = gatewayRes.status === 402;
       return new Response(
         JSON.stringify({
           error: isRateLimit
             ? "Georgia is handling several conversations right now. Please wait a moment and try again."
-            : `AI service error: ${vertexRes!.status}`,
+            : isPayment
+            ? "AI service temporarily unavailable. Please try again later."
+            : `AI service error: ${gatewayRes.status}`,
         }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = await vertexRes.json();
-    const candidate = result?.candidates?.[0];
-    const parts = candidate?.content?.parts || [];
+    const result = await gatewayRes.json();
+    const choice = result?.choices?.[0];
+    const message = choice?.message;
 
-    const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
-    const functionCalls = parts
-      .filter((p: any) => p.functionCall)
-      .map((p: any) => ({
-        name: p.functionCall.name,
-        args: p.functionCall.args,
+    const text = message?.content || "";
+    const functionCalls = (message?.tool_calls || [])
+      .filter((tc: any) => tc.type === "function")
+      .map((tc: any) => ({
+        name: tc.function.name,
+        args: JSON.parse(tc.function.arguments),
       }));
 
     return new Response(
-      JSON.stringify({
-        text: textParts.join("\n"),
-        functionCalls,
-      }),
+      JSON.stringify({ text, functionCalls }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
