@@ -207,18 +207,39 @@ export function AssetContainer({
 
                     <div className="flex items-center justify-between mt-0.5">
                       {acc.charterAlignment && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] ${
-                            acc.charterAlignment === "aligned"
-                              ? "border-green-500/30 text-green-600"
-                              : acc.charterAlignment === "misaligned"
-                              ? "border-destructive/30 text-destructive"
-                              : "border-muted-foreground/30 text-muted-foreground"
-                          }`}
-                        >
-                          {acc.charterAlignment.replace("_", " ")}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] ${
+                              acc.charterAlignment === "aligned"
+                                ? "border-green-500/30 text-green-600"
+                                : acc.charterAlignment === "misaligned"
+                                ? "border-destructive/30 text-destructive"
+                                : "border-amber-500/40 text-amber-600"
+                            }`}
+                          >
+                            {acc.charterAlignment.replace("_", " ")}
+                          </Badge>
+                          {acc.charterAlignment === "pending_review" && (
+                            <button
+                              onClick={async () => {
+                                const { error } = await supabase
+                                  .from(acc.sourceTable as any)
+                                  .update({ charter_alignment: "aligned" } as any)
+                                  .eq("id", acc.id);
+                                if (error) {
+                                  toast.error("Failed to approve.");
+                                } else {
+                                  toast.success("Approved — marked as aligned.");
+                                  onRefresh();
+                                }
+                              }}
+                              className="rounded px-1.5 py-0.5 text-[9px] font-medium border border-green-500/40 text-green-700 hover:bg-green-500/10 transition-colors"
+                            >
+                              Approve
+                            </button>
+                          )}
+                        </div>
                       )}
                       <div className="flex items-center gap-1 ml-auto">
                         {SCOPE_OPTIONS.map((scope) => (
