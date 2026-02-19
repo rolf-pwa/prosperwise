@@ -111,8 +111,9 @@ class AsanaService {
 
   // -------------------------------------------------------------------------
   // getTasksForProject – LIVE: Fetch tasks from an Asana project
+  // Filters to only tasks where PW_Visibility custom field = "Client Visible"
   // -------------------------------------------------------------------------
-  async getTasksForProject(projectGid: string) {
+  async getTasksForProject(projectGid: string, clientVisible = false) {
     return withFailSafe("getTasksForProject", async () => {
       const url = `${ASANA_BASE_URL}/projects/${projectGid}/tasks?opt_fields=name,completed,due_on,assignee_status,custom_fields,memberships.section.name,followers,notes&limit=100`;
       console.log("[AsanaService] GET", url);
@@ -123,7 +124,82 @@ class AsanaService {
         throw new Error(`Asana API error ${res.status}: ${body}`);
       }
       const json = await res.json();
-      return json.data || [];
+      const tasks: any[] = json.data || [];
+
+      if (!clientVisible) return tasks;
+
+      // Filter to PW_Visibility = "Client Visible"
+      return tasks.filter((task: any) => {
+        const fields: any[] = task.custom_fields || [];
+        const visField = fields.find(
+          (f: any) =>
+            f.name?.toLowerCase().includes("pw_visibility") ||
+            f.name?.toLowerCase().includes("visibility"),
+        );
+        if (!visField) return false;
+        const val: string = (visField.enum_value?.name || visField.display_value || "").toLowerCase();
+        return val === "client visible";
+      });
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // getPhaseProgress – LIVE: Compute phase A-E completion from Asana sections
+  // Returns array of { id, label, complete, inProgress }
+  // -------------------------------------------------------------------------
+  async getPhaseProgress(projectGid: string) {
+    return withFailSafe("getPhaseProgress", async () => {
+      // 1. Get sections for the project
+      const sectionsUrl = `${ASANA_BASE_URL}/projects/${projectGid}/sections?opt_fields=name,gid`;
+      const sectionsRes = await fetch(sectionsUrl, { headers: this.headers() });
+      if (!sectionsRes.ok) {
+        const body = await sectionsRes.text();
+        throw new Error(`Asana API error ${sectionsRes.status}: ${body}`);
+      }
+      const sectionsJson = await sectionsRes.json();
+      const sections: { gid: string; name: string }[] = sectionsJson.data || [];
+
+      // Phase keyword mapping
+      const PHASE_KEYWORDS: { id: string; label: string; keywords: string[] }[] = [
+        { id: "A", label: "Transition Session", keywords: ["phase a", "transition"] },
+        { id: "B", label: "Charter Process",    keywords: ["phase b", "charter"] },
+        { id: "C", label: "Charter Funding",    keywords: ["phase c", "funding"] },
+        { id: "D", label: "Governance",         keywords: ["phase d", "governance"] },
+        { id: "E", label: "Individuals",        keywords: ["phase e", "individual"] },
+      ];
+
+      // 2. For each phase, find matching section and check task completion
+      const phaseResults = await Promise.all(
+        PHASE_KEYWORDS.map(async (phase) => {
+          const section = sections.find((s) =>
+            phase.keywords.some((kw) => s.name.toLowerCase().includes(kw)),
+          );
+
+          if (!section) {
+            return { id: phase.id, label: phase.label, complete: false, inProgress: false };
+          }
+
+          const tasksUrl = `${ASANA_BASE_URL}/sections/${section.gid}/tasks?opt_fields=completed&limit=50`;
+          const tasksRes = await fetch(tasksUrl, { headers: this.headers() });
+          if (!tasksRes.ok) {
+            return { id: phase.id, label: phase.label, complete: false, inProgress: false };
+          }
+          const tasksJson = await tasksRes.json();
+          const tasks: any[] = tasksJson.data || [];
+
+          if (tasks.length === 0) {
+            return { id: phase.id, label: phase.label, complete: false, inProgress: false };
+          }
+
+          const completedCount = tasks.filter((t: any) => t.completed).length;
+          const complete = completedCount === tasks.length;
+          const inProgress = !complete && completedCount > 0;
+
+          return { id: phase.id, label: phase.label, complete, inProgress };
+        }),
+      );
+
+      return phaseResults;
     });
   }
 
@@ -358,7 +434,21 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        result = await service.getTasksForProject(projectGid);
+        // For portal clients, filter to PW_Visibility = Client Visible only
+        const isPortal = !!portalContext;
+        result = await service.getTasksForProject(projectGid, isPortal);
+        break;
+      }
+
+      case "getPhaseProgress": {
+        const phaseProjectGid = portalContext?.asanaProjectGid || params.project_gid;
+        if (!phaseProjectGid) {
+          return new Response(
+            JSON.stringify({ error: "No Asana project configured for this contact" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        result = await service.getPhaseProgress(phaseProjectGid);
         break;
       }
 
