@@ -302,7 +302,7 @@ export default function DiscoveryEmbed() {
               >
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5" style={{ color: C.bronze }} />
-                  <span className="text-[11px] font-semibold font-serif" style={{ color: C.vellum }}>Connect with Rolf</span>
+                  <span className="text-[11px] font-semibold font-serif" style={{ color: C.green }}>Connect with Rolf</span>
                 </div>
                 <p className="text-[10px]" style={{ color: C.muted }}>
                   Provide your details to schedule your Transition Session.
@@ -320,11 +320,11 @@ export default function DiscoveryEmbed() {
                     onChange={(e) => setLeadForm((f) => ({ ...f, [key]: e.target.value }))}
                     placeholder={placeholder}
                     maxLength={max}
-                    className="w-full h-8 rounded-lg px-3 text-xs focus-visible:outline-none"
+                    className="w-full h-8 rounded-lg px-3 text-xs focus-visible:outline-none placeholder:text-[#8A8A80]"
                     style={{
-                      backgroundColor: C.surfaceAlt,
-                      border: `1px solid rgba(211,197,183,0.15)`,
-                      color: C.vellum,
+                      backgroundColor: "#FFFFFF",
+                      border: `1px solid ${C.border}`,
+                      color: C.charcoal,
                     }}
                   />
                 ))}
@@ -380,7 +380,7 @@ export default function DiscoveryEmbed() {
                 >
                   <ShieldCheck className="h-4.5 w-4.5" style={{ color: C.bronze }} />
                 </div>
-                <p className="text-xs font-semibold font-serif" style={{ color: C.vellum }}>Transition Session Requested</p>
+                <p className="text-xs font-semibold font-serif" style={{ color: C.green }}>Transition Session Requested</p>
                 <p className="mt-1 text-[10px]" style={{ color: C.muted }}>
                   Rolf Issler will reach out within 1–2 business days.
                 </p>
