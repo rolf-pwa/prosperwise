@@ -47,18 +47,8 @@ export function AppSidebar() {
     // Fetch a sample of contacts with asana_url to get a rough pending tasks count
     (async () => {
       try {
-        const { data: contacts } = await supabase
-          .from("contacts")
-          .select("id, asana_url")
-          .not("asana_url", "is", null)
-          .limit(10);
-
-        if (!contacts || contacts.length === 0) return;
-
-        // Pick the first contact that has an asana URL to get project tasks
-        const contact = contacts[0];
         const res = await supabase.functions.invoke("asana-service", {
-          body: { action: "getTasksForContact", contact_id: contact.id },
+          body: { action: "getInbox" },
         });
         if (!res.error && res.data?.data) {
           const open = (res.data.data as any[]).filter((t: any) => !t.completed).length;
