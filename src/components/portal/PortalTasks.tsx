@@ -49,7 +49,13 @@ export function PortalTasks({ portalToken }: Props) {
         });
         if (res.error) throw res.error;
         if (res.data?.error) {
-          setError(res.data.error);
+          // If no Asana project is linked, treat as empty rather than an error
+          const errMsg: string = res.data.error;
+          if (errMsg.toLowerCase().includes("no asana project")) {
+            setTasks([]);
+          } else {
+            setError(errMsg);
+          }
         } else {
           setTasks(res.data?.data || []);
         }
