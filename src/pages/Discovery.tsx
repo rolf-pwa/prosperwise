@@ -64,7 +64,10 @@ export default function Discovery() {
 
   useEffect(() => {
     if (messages.length === 0) {
-      sendToGeorgia([{ role: "user", content: "Hello" }], true);
+      setMessages([{
+        role: "assistant",
+        content: "Welcome. I'm Georgia, your Transition Assistant at ProsperWise.\n\nIf you're navigating a significant life transition — whether it's the loss of a spouse, a divorce, retirement, or a major liquidity event — I'm here to help you think through it with clarity.\n\nWhat's on your mind today?"
+      }]);
     }
   }, []);
 
@@ -168,11 +171,11 @@ export default function Discovery() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "#3B3F3F", color: "#3B3F3F" }}>
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "#F8F6F2", color: "#3B3F3F" }}>
       {/* Header — Sanctuary tone */}
       <header
         className="flex items-center justify-between px-8 py-5 shrink-0"
-        style={{ borderBottom: "1px solid #D3C5B7", backgroundColor: "#3B3F3F" }}
+        style={{ borderBottom: "1px solid #D3C5B7", backgroundColor: "#F8F6F2" }}
       >
         <div className="flex items-center gap-4">
           <div
