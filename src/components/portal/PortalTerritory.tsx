@@ -212,19 +212,8 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
                           className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
                         >
                           <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-foreground/80">{acc.asset_type || acc.notes || "Account"}</span>
-                              {acc.charter_alignment && (
-                                <span className={`text-xs mt-0.5 ${
-                                  acc.charter_alignment === "aligned"
-                                    ? "text-primary"
-                                    : acc.charter_alignment === "misaligned"
-                                    ? "text-destructive"
-                                    : "text-muted-foreground"
-                                }`}>
-                                  {acc.charter_alignment === "aligned" ? "Charter Aligned" : acc.charter_alignment === "misaligned" ? "Misaligned" : "Pending Review"}
-                                </span>
-                              )}
+                          <div className="flex flex-col">
+                              <span className="text-sm text-foreground/80">{acc.label || acc.asset_type || acc.notes || "Account"}</span>
                             </div>
                             <span className="text-sm font-medium text-foreground">
                               ${accCurrent.toLocaleString()}
