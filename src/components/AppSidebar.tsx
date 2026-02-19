@@ -19,11 +19,13 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/families", label: "Family Tree", icon: TreesIcon },
-  { to: "/contacts", label: "Contacts", icon: Users },
+  { to: "/contacts", label: "Contacts", icon: Users, tasksBadge: true },
   { to: "/leads", label: "Discovery Leads", icon: UserPlus },
 ];
 
@@ -39,6 +41,34 @@ const externalLinks = [
 export function AppSidebar() {
   const { user } = useAuth();
   const location = useLocation();
+  const [pendingTasksCount, setPendingTasksCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch a sample of contacts with asana_url to get a rough pending tasks count
+    (async () => {
+      try {
+        const { data: contacts } = await supabase
+          .from("contacts")
+          .select("id, asana_url")
+          .not("asana_url", "is", null)
+          .limit(10);
+
+        if (!contacts || contacts.length === 0) return;
+
+        // Pick the first contact that has an asana URL to get project tasks
+        const contact = contacts[0];
+        const res = await supabase.functions.invoke("asana-service", {
+          body: { action: "getTasksForContact", contact_id: contact.id },
+        });
+        if (!res.error && res.data?.data) {
+          const open = (res.data.data as any[]).filter((t: any) => !t.completed).length;
+          setPendingTasksCount(open);
+        }
+      } catch {
+        // silently fail
+      }
+    })();
+  }, []);
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -55,7 +85,7 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon, tasksBadge }) => (
           <Link
             key={to}
             to={to}
@@ -68,6 +98,11 @@ export function AppSidebar() {
           >
             <Icon className="h-4 w-4" />
             {label}
+            {tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0 && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
+                {pendingTasksCount > 99 ? "99+" : pendingTasksCount}
+              </span>
+            )}
           </Link>
         ))}
 
