@@ -21,7 +21,7 @@ type Phase = "chat" | "lead_capture" | "complete";
 
 const STORAGE_KEY = "georgia_embed_state_v2";
 
-function loadSavedState(): { messages: Message[]; phase: Phase } | null {
+function loadSavedState(): { messages: Message[]; phase: Phase; discoveryData?: Record<string, any> } | null {
   try {
     sessionStorage.removeItem("georgia_embed_state");
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -32,9 +32,9 @@ function loadSavedState(): { messages: Message[]; phase: Phase } | null {
   }
 }
 
-function saveState(messages: Message[], phase: Phase) {
+function saveState(messages: Message[], phase: Phase, discoveryData: Record<string, any>) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, phase }));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, phase, discoveryData }));
   } catch {
     // ignore
   }
@@ -61,7 +61,7 @@ export default function DiscoveryEmbed() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [phase, setPhase] = useState<Phase>(saved?.phase || "chat");
-  const [discoveryData, setDiscoveryData] = useState<Record<string, any>>({});
+  const [discoveryData, setDiscoveryData] = useState<Record<string, any>>(saved?.discoveryData || {});
   const [leadForm, setLeadForm] = useState({ first_name: "", phone: "", email: "" });
   const [pipedaConsent, setPipedaConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,8 +69,8 @@ export default function DiscoveryEmbed() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    saveState(messages, phase);
-  }, [messages, phase]);
+    saveState(messages, phase, discoveryData);
+  }, [messages, phase, discoveryData]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
