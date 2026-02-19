@@ -80,7 +80,7 @@ export default function DiscoveryEmbed() {
     if (messages.length === 0) {
       setMessages([{
         role: "assistant",
-        content: "Welcome. I'm Georgia, your Transition Assistant at ProsperWise.\n\nIf you're navigating a significant life transition — whether it's the loss of a spouse, a divorce, retirement, or a major liquidity event — I'm here to help you think through it with clarity.\n\nWhat's on your mind today?"
+        content: "Welcome to ProsperWise. My name is Georgia, and I am your Transition Assistant. Most people come here during a time of significant transition — a business sale, a separation, or a legacy event. How can I help you navigate your transition?"
       }]);
     }
   }, []);
