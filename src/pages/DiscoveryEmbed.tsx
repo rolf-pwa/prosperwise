@@ -78,7 +78,10 @@ export default function DiscoveryEmbed() {
 
   useEffect(() => {
     if (messages.length === 0) {
-      sendToGeorgia([{ role: "user", content: "Hello" }], true);
+      setMessages([{
+        role: "assistant",
+        content: "Welcome. I'm Georgia, your Transition Assistant at ProsperWise.\n\nIf you're navigating a significant life transition — whether it's the loss of a spouse, a divorce, retirement, or a major liquidity event — I'm here to help you think through it with clarity.\n\nWhat's on your mind today?"
+      }]);
     }
   }, []);
 
