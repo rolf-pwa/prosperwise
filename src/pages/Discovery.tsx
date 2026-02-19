@@ -90,9 +90,7 @@ export default function Discovery() {
       }
 
       if (data.functionCalls?.length > 0) {
-        const leadCall = data.functionCalls.find(
-          (fc: FunctionCall) => fc.name === "register_discovery_lead"
-        );
+        const leadCall = data.functionCalls.find((fc: FunctionCall) => fc.name === "register_discovery_lead");
         if (leadCall) {
           setDiscoveryData(leadCall.args);
           setPhase("lead_capture");
@@ -170,21 +168,20 @@ export default function Discovery() {
   };
 
   return (
-    <div
-      className="flex min-h-screen flex-col"
-      style={{ backgroundColor: "#F8F6F2", color: "#3B3F3F" }}
-    >
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "#3B3F3F", color: "#3B3F3F" }}>
       {/* Header — Sanctuary tone */}
       <header
         className="flex items-center justify-between px-8 py-5 shrink-0"
-        style={{ borderBottom: "1px solid #D3C5B7", backgroundColor: "#F8F6F2" }}
+        style={{ borderBottom: "1px solid #D3C5B7", backgroundColor: "#3B3F3F" }}
       >
         <div className="flex items-center gap-4">
           <div
             className="flex h-11 w-11 items-center justify-center rounded-full"
             style={{ backgroundColor: "#2A4034", boxShadow: "0 0 0 1px rgba(42,64,52,0.3)" }}
           >
-            <span className="font-serif text-lg" style={{ color: "#F8F6F2" }}>G</span>
+            <span className="font-serif text-lg" style={{ color: "#F8F6F2" }}>
+              G
+            </span>
           </div>
           <div>
             <h1 className="font-serif text-xl font-semibold" style={{ color: "#2A4034", letterSpacing: "-0.01em" }}>
@@ -200,7 +197,9 @@ export default function Discovery() {
           style={{ border: "1px solid #D3C5B7", backgroundColor: "rgba(42,64,52,0.05)" }}
         >
           <Lock className="h-3 w-3" style={{ color: "#2A4034" }} />
-          <span className="text-[11px] font-medium" style={{ color: "#2A4034" }}>Secure · PIPEDA · Canada</span>
+          <span className="text-[11px] font-medium" style={{ color: "#2A4034" }}>
+            Secure · PIPEDA · Canada
+          </span>
         </div>
       </header>
 
@@ -221,7 +220,9 @@ export default function Discovery() {
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                     style={{ backgroundColor: "#2A4034", boxShadow: "0 0 0 1px rgba(42,64,52,0.2)" }}
                   >
-                    <span className="font-serif text-sm" style={{ color: "#F8F6F2" }}>G</span>
+                    <span className="font-serif text-sm" style={{ color: "#F8F6F2" }}>
+                      G
+                    </span>
                   </div>
                 )}
                 <div
@@ -272,26 +273,33 @@ export default function Discovery() {
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                 style={{ backgroundColor: "#2A4034" }}
               >
-                <span className="font-serif text-sm" style={{ color: "#F8F6F2" }}>G</span>
+                <span className="font-serif text-sm" style={{ color: "#F8F6F2" }}>
+                  G
+                </span>
               </div>
               <div
                 className="flex items-center gap-1.5 rounded-2xl px-4 py-3"
                 style={{ backgroundColor: "#FFFFFF", border: "1px solid #D3C5B7" }}
               >
-                <span className="h-2 w-2 animate-bounce rounded-full [animation-delay:0ms]" style={{ backgroundColor: "#A98C5A" }} />
-                <span className="h-2 w-2 animate-bounce rounded-full [animation-delay:150ms]" style={{ backgroundColor: "#A98C5A" }} />
-                <span className="h-2 w-2 animate-bounce rounded-full [animation-delay:300ms]" style={{ backgroundColor: "#A98C5A" }} />
+                <span
+                  className="h-2 w-2 animate-bounce rounded-full [animation-delay:0ms]"
+                  style={{ backgroundColor: "#A98C5A" }}
+                />
+                <span
+                  className="h-2 w-2 animate-bounce rounded-full [animation-delay:150ms]"
+                  style={{ backgroundColor: "#A98C5A" }}
+                />
+                <span
+                  className="h-2 w-2 animate-bounce rounded-full [animation-delay:300ms]"
+                  style={{ backgroundColor: "#A98C5A" }}
+                />
               </div>
             </motion.div>
           )}
 
           {/* Lead Capture Form */}
           {phase === "lead_capture" && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <div
                 className="rounded-2xl p-6"
                 style={{
@@ -359,9 +367,12 @@ export default function Discovery() {
                       onCheckedChange={(v) => setPipedaConsent(v === true)}
                       className="mt-0.5 shrink-0"
                     />
-                    <label htmlFor="pipeda" className="text-xs leading-relaxed cursor-pointer" style={{ color: "#6B7070" }}>
-                      I consent to ProsperWise collecting and processing my personal information in accordance
-                      with the{" "}
+                    <label
+                      htmlFor="pipeda"
+                      className="text-xs leading-relaxed cursor-pointer"
+                      style={{ color: "#6B7070" }}
+                    >
+                      I consent to ProsperWise collecting and processing my personal information in accordance with the{" "}
                       <span className="font-medium" style={{ color: "#2A4034" }}>
                         Personal Information Protection and Electronic Documents Act (PIPEDA)
                       </span>
@@ -429,10 +440,7 @@ export default function Discovery() {
 
       {/* Input */}
       {phase === "chat" && (
-        <div
-          className="shrink-0 px-6 py-4"
-          style={{ borderTop: "1px solid #D3C5B7", backgroundColor: "#F8F6F2" }}
-        >
+        <div className="shrink-0 px-6 py-4" style={{ borderTop: "1px solid #D3C5B7", backgroundColor: "#F8F6F2" }}>
           <div className="mx-auto flex max-w-2xl items-end gap-3">
             <textarea
               ref={inputRef}
