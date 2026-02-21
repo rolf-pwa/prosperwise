@@ -50,6 +50,37 @@ function extractProjectGid(asanaUrl: string | null): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: Extract Asana task GID from a task URL
+// Supports:
+//   https://app.asana.com/0/PROJECT_GID/TASK_GID       → TASK_GID
+//   https://app.asana.com/0/PROJECT_GID/TASK_GID/f     → TASK_GID
+//   https://app.asana.com/0/TASK_GID/f                 → TASK_GID
+// ---------------------------------------------------------------------------
+function extractTaskGid(asanaUrl: string | null): string | null {
+  if (!asanaUrl) return null;
+  // Pattern: /0/SOMETHING/TASK_GID or /0/SOMETHING/TASK_GID/f
+  const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
+  if (twoSegment) return twoSegment[1];
+  // Pattern: /0/TASK_GID/f (single segment with /f suffix)
+  const singleSegment = asanaUrl.match(/app\.asana\.com\/0\/(\d+)\/f/);
+  if (singleSegment) return singleSegment[1];
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: Determine if the asana_url points to a task vs a project
+// Task URLs have a second numeric segment or end in /f
+// Project URLs end in /list, /board, /timeline, or have only one segment
+// ---------------------------------------------------------------------------
+function isTaskUrl(asanaUrl: string | null): boolean {
+  if (!asanaUrl) return false;
+  // If it has /f suffix or two numeric segments, it's a task URL
+  if (/app\.asana\.com\/0\/\d+\/f/.test(asanaUrl)) return true;
+  if (/app\.asana\.com\/0\/\d+\/\d+/.test(asanaUrl)) return true;
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // AsanaService – centralised module for Asana API communication
 // ---------------------------------------------------------------------------
 class AsanaService {
@@ -292,6 +323,42 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // getTaskDetail – LIVE: Fetch a single task with full details
+  // -------------------------------------------------------------------------
+  async getTaskDetail(taskGid: string) {
+    return withFailSafe("getTaskDetail", async () => {
+      const url = `${ASANA_BASE_URL}/tasks/${taskGid}?opt_fields=name,completed,due_on,notes,memberships.section.name,custom_fields,assignee.name`;
+      console.log("[AsanaService] GET task detail", url);
+
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // getSubtasks – LIVE: Fetch subtasks of a parent task
+  // -------------------------------------------------------------------------
+  async getSubtasks(taskGid: string) {
+    return withFailSafe("getSubtasks", async () => {
+      const url = `${ASANA_BASE_URL}/tasks/${taskGid}/subtasks?opt_fields=name,completed,due_on,notes,memberships.section.name,custom_fields,assignee.name&limit=100`;
+      console.log("[AsanaService] GET subtasks for", taskGid);
+
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data || [];
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // verifyTaskBelongsToProject – Privacy guardrail
   // -------------------------------------------------------------------------
   async verifyTaskBelongsToProject(taskGid: string, projectGid: string): Promise<boolean> {
@@ -304,6 +371,22 @@ class AsanaService {
       return memberships.some((m: any) => m.project?.gid === projectGid);
     });
   }
+
+  // -------------------------------------------------------------------------
+  // verifyTaskIsSubtaskOf – Privacy guardrail for task-based access
+  // -------------------------------------------------------------------------
+  async verifyTaskIsSubtaskOf(taskGid: string, parentTaskGid: string): Promise<boolean> {
+    return withFailSafe("verifyTaskIsSubtaskOf", async () => {
+      // Check if task is the parent itself
+      if (taskGid === parentTaskGid) return true;
+      // Fetch parent of the task
+      const url = `${ASANA_BASE_URL}/tasks/${taskGid}?opt_fields=parent.gid`;
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) return false;
+      const json = await res.json();
+      return json.data?.parent?.gid === parentTaskGid;
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +394,7 @@ class AsanaService {
 // ---------------------------------------------------------------------------
 async function validatePortalToken(
   portalToken: string,
-): Promise<{ contactId: string; asanaProjectGid: string | null } | null> {
+): Promise<{ contactId: string; asanaProjectGid: string | null; asanaTaskGid: string | null; isTaskBased: boolean } | null> {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -327,16 +410,22 @@ async function validatePortalToken(
   if (error || !tokenData) return null;
   if (new Date(tokenData.expires_at) < new Date()) return null;
 
-  // Get the contact's asana_url to extract the project GID
+  // Get the contact's asana_url
   const { data: contact } = await supabase
     .from("contacts")
     .select("asana_url")
     .eq("id", tokenData.contact_id)
     .maybeSingle();
 
-  const asanaProjectGid = extractProjectGid(contact?.asana_url || null);
+  const asanaUrl = contact?.asana_url || null;
+  const taskBased = isTaskUrl(asanaUrl);
 
-  return { contactId: tokenData.contact_id, asanaProjectGid };
+  return {
+    contactId: tokenData.contact_id,
+    asanaProjectGid: taskBased ? null : extractProjectGid(asanaUrl),
+    asanaTaskGid: taskBased ? extractTaskGid(asanaUrl) : null,
+    isTaskBased: taskBased,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -398,7 +487,30 @@ serve(async (req) => {
         break;
 
       case "getTasksForProject": {
-        // Portal path: use the project GID from the contact's asana_url
+        // Task-based portal path: fetch parent task + subtasks
+        if (portalContext?.isTaskBased && portalContext.asanaTaskGid) {
+          const parentTaskGid = portalContext.asanaTaskGid;
+          const [parentTask, subtasks] = await Promise.all([
+            service.getTaskDetail(parentTaskGid),
+            service.getSubtasks(parentTaskGid),
+          ]);
+
+          // Combine parent + subtasks, apply visibility filter for portal
+          const allTasks = [parentTask, ...subtasks].filter(Boolean);
+          const visibleTasks = allTasks.filter((task: any) => {
+            const customFields = task.custom_fields || [];
+            const isVisible = customFields.some(
+              (cf: any) =>
+                (cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility")) &&
+                cf.enum_value?.name === "Client Visible",
+            );
+            return isVisible;
+          });
+          result = visibleTasks;
+          break;
+        }
+
+        // Project-based path
         const projectGid = portalContext?.asanaProjectGid || params.project_gid;
         if (!projectGid) {
           return new Response(
@@ -445,18 +557,17 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        // Privacy guardrail: if portal, verify task belongs to the contact's project
+        // Privacy guardrail: if portal, verify task access
         if (portalContext) {
-          if (!portalContext.asanaProjectGid) {
-            return new Response(
-              JSON.stringify({ error: "No Asana project configured" }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-            );
+          let hasAccess = false;
+          if (portalContext.isTaskBased && portalContext.asanaTaskGid) {
+            hasAccess = await service.verifyTaskIsSubtaskOf(task_gid, portalContext.asanaTaskGid);
+          } else if (portalContext.asanaProjectGid) {
+            hasAccess = await service.verifyTaskBelongsToProject(task_gid, portalContext.asanaProjectGid);
           }
-          const belongs = await service.verifyTaskBelongsToProject(task_gid, portalContext.asanaProjectGid);
-          if (!belongs) {
+          if (!hasAccess) {
             return new Response(
-              JSON.stringify({ error: "Access denied: task does not belong to your project" }),
+              JSON.stringify({ error: "Access denied" }),
               { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
@@ -475,16 +586,15 @@ serve(async (req) => {
         }
         // Privacy guardrail
         if (portalContext) {
-          if (!portalContext.asanaProjectGid) {
-            return new Response(
-              JSON.stringify({ error: "No Asana project configured" }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-            );
+          let hasAccess = false;
+          if (portalContext.isTaskBased && portalContext.asanaTaskGid) {
+            hasAccess = await service.verifyTaskIsSubtaskOf(tGid, portalContext.asanaTaskGid);
+          } else if (portalContext.asanaProjectGid) {
+            hasAccess = await service.verifyTaskBelongsToProject(tGid, portalContext.asanaProjectGid);
           }
-          const belongs = await service.verifyTaskBelongsToProject(tGid, portalContext.asanaProjectGid);
-          if (!belongs) {
+          if (!hasAccess) {
             return new Response(
-              JSON.stringify({ error: "Access denied: task does not belong to your project" }),
+              JSON.stringify({ error: "Access denied" }),
               { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
@@ -513,16 +623,15 @@ serve(async (req) => {
         }
         // Privacy guardrail for portal users
         if (portalContext) {
-          if (!portalContext.asanaProjectGid) {
-            return new Response(
-              JSON.stringify({ error: "No Asana project configured" }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-            );
+          let hasAccess = false;
+          if (portalContext.isTaskBased && portalContext.asanaTaskGid) {
+            hasAccess = await service.verifyTaskIsSubtaskOf(updateGid, portalContext.asanaTaskGid);
+          } else if (portalContext.asanaProjectGid) {
+            hasAccess = await service.verifyTaskBelongsToProject(updateGid, portalContext.asanaProjectGid);
           }
-          const belongs = await service.verifyTaskBelongsToProject(updateGid, portalContext.asanaProjectGid);
-          if (!belongs) {
+          if (!hasAccess) {
             return new Response(
-              JSON.stringify({ error: "Access denied: task does not belong to your project" }),
+              JSON.stringify({ error: "Access denied" }),
               { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
           }
