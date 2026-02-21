@@ -6,12 +6,13 @@ import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { PortalTasks } from "@/components/portal/PortalTasks";
+import { PortalGeorgiaChat } from "@/components/portal/PortalGeorgiaChat";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark } from "lucide-react";
+import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin } from "lucide-react";
 
 interface PortalData {
   portal_token?: string;
@@ -51,6 +52,7 @@ const Portal = () => {
 
   // Drill-down state
   const [drilldown, setDrilldown] = useState<DrilldownState>({ level: "individual" });
+  const [georgiaOpen, setGeorgiaOpen] = useState(false);
 
   // OTP login state
   const [email, setEmail] = useState("");
@@ -562,6 +564,18 @@ const Portal = () => {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content: Tasks & Meetings */}
         <div className="space-y-6 lg:col-span-2">
+          {/* Ask for Help */}
+          {isSelf && (
+            <Button
+              variant="outline"
+              onClick={() => setGeorgiaOpen(true)}
+              className="w-full justify-center gap-2 mb-2"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Ask for Help
+            </Button>
+          )}
+
           {/* Tasks */}
           <div>
             <div className="flex items-center gap-2 mb-4">
@@ -586,15 +600,26 @@ const Portal = () => {
                 <h2 className="text-lg font-semibold text-foreground font-serif">Upcoming Meetings</h2>
               </div>
               {isSelf && (
-                <a
-                  href="https://calendar.app.google/Yvvk8qnhSGUmzdEC8"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition-colors border border-accent/20"
-                >
-                  <Calendar className="h-3.5 w-3.5" />
-                  Book a Meeting
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="https://calendar.app.google/EwH29qfci75yedju8"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition-colors border border-accent/20"
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    In Person
+                  </a>
+                  <a
+                    href="https://calendar.app.google/HgYuTusrWbomsfsC8"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition-colors border border-accent/20"
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                    Video
+                  </a>
+                </div>
               )}
             </div>
             {isSelf ? (
@@ -655,8 +680,8 @@ const Portal = () => {
           {isSelf && (
             <div className="flex flex-col gap-1.5">
               {[
-                { href: contact.sidedrawer_url, label: "Document Vault", icon: FolderOpen },
-                { href: contact.ia_financial_url, label: "Accounts", icon: Landmark },
+                { href: contact.sidedrawer_url, label: "My Documents", icon: FolderOpen },
+                { href: contact.ia_financial_url, label: "My Accounts", icon: Landmark },
               ].map(({ href, label, icon: Icon }) => (
                 <a
                   key={label}
@@ -756,6 +781,12 @@ const Portal = () => {
           </p>
         </div>
       </footer>
+
+      <PortalGeorgiaChat
+        open={georgiaOpen}
+        onOpenChange={setGeorgiaOpen}
+        contactName={contact.first_name}
+      />
     </div>
   );
 };
