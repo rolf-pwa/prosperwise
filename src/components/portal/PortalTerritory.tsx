@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Grape, Landmark, Castle, Sword, Wheat, Lock, Users, Home } from "lucide-react";
+import { Grape, Landmark, Castle, Sword, Wheat, Lock, Users, Home, Eye, EyeOff, Globe } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STOREHOUSE_CONFIG = [
   { num: 1, name: "The Keep", subtitle: "Liquidity Reserve", icon: Castle },
@@ -16,6 +19,26 @@ const ROLE_LABELS: Record<string, string> = {
   minor: "Minor",
 };
 
+const SCOPE_LABELS: Record<string, string> = {
+  private: "Private",
+  household_shared: "Household",
+  family_shared: "Family",
+};
+
+const SCOPE_ICONS: Record<string, typeof Lock> = {
+  private: EyeOff,
+  household_shared: Home,
+  family_shared: Globe,
+};
+
+const SCOPE_COLORS: Record<string, string> = {
+  private: "border-muted-foreground/30 text-muted-foreground bg-muted/50",
+  household_shared: "border-accent/30 text-accent bg-accent/5",
+  family_shared: "border-primary/30 text-primary bg-primary/5",
+};
+
+const SCOPE_OPTIONS = ["private", "household_shared", "family_shared"] as const;
+
 interface Props {
   vineyardAccounts: any[];
   storehouses: any[];
@@ -24,9 +47,104 @@ interface Props {
   household?: any | null;
   householdMembers?: any[];
   scopeLabel?: string;
+  portalToken?: string;
+  onScopeChange?: () => void;
 }
 
-export function PortalTerritory({ vineyardAccounts, storehouses, contact, family, household, householdMembers = [], scopeLabel }: Props) {
+function ScopeBadge({
+  scope,
+  assetId,
+  assetTable,
+  editable,
+  portalToken,
+  onScopeChange,
+}: {
+  scope: string;
+  assetId: string;
+  assetTable: "vineyard_accounts" | "storehouses";
+  editable: boolean;
+  portalToken?: string;
+  onScopeChange?: () => void;
+}) {
+  const [updating, setUpdating] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const handleScopeChange = async (newScope: string) => {
+    if (newScope === scope || updating) return;
+    setUpdating(true);
+    try {
+      const resp = await supabase.functions.invoke("portal-update-scope", {
+        body: { portal_token: portalToken, asset_id: assetId, asset_table: assetTable, new_scope: newScope },
+      });
+      if (resp.error || resp.data?.error) {
+        toast.error(resp.data?.error || "Failed to update visibility.");
+      } else {
+        toast.success(`Visibility set to ${SCOPE_LABELS[newScope]}.`);
+        onScopeChange?.();
+      }
+    } catch {
+      toast.error("Failed to update visibility.");
+    } finally {
+      setUpdating(false);
+      setOpen(false);
+    }
+  };
+
+  const ScopeIcon = SCOPE_ICONS[scope] || EyeOff;
+
+  if (!editable) {
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-medium ${SCOPE_COLORS[scope] || SCOPE_COLORS.private}`}>
+        <ScopeIcon className="h-2.5 w-2.5" />
+        {SCOPE_LABELS[scope] || scope}
+      </span>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={updating}
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-medium transition-colors hover:opacity-80 ${SCOPE_COLORS[scope] || SCOPE_COLORS.private} ${updating ? "opacity-50" : "cursor-pointer"}`}
+      >
+        <ScopeIcon className="h-2.5 w-2.5" />
+        {SCOPE_LABELS[scope] || scope}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-50 mt-1 rounded-lg border border-border bg-card p-1 shadow-lg min-w-[130px]">
+            <p className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Visibility
+            </p>
+            {SCOPE_OPTIONS.map((opt) => {
+              const OptIcon = SCOPE_ICONS[opt];
+              return (
+                <button
+                  key={opt}
+                  onClick={() => handleScopeChange(opt)}
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[11px] transition-colors ${
+                    scope === opt
+                      ? "bg-muted font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  }`}
+                >
+                  <OptIcon className="h-3 w-3" />
+                  {SCOPE_LABELS[opt]}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function PortalTerritory({ vineyardAccounts, storehouses, contact, family, household, householdMembers = [], scopeLabel, portalToken, onScopeChange }: Props) {
+  const isIndividualSelf = scopeLabel === "My Territory";
+  
   // If scopeLabel is provided, assets are already pre-filtered by the parent; show all
   // Otherwise, filter out private assets (legacy individual behavior)
   const visibleAccounts = scopeLabel
@@ -70,7 +188,7 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
                   {household?.address ? ` · ${household.address}` : ""}
                 </p>
               </div>
-              {contact.family_role && (
+              {contact?.family_role && (
                 <span className="ml-auto rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                   {ROLE_LABELS[contact.family_role] || contact.family_role}
                 </span>
@@ -132,12 +250,24 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
                 {accounts.map((acc: any) => (
                   <div
                     key={acc.id}
-                    className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
+                    className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
                   >
-                    <span className="text-sm text-foreground/80">{acc.account_name}</span>
-                    <span className="text-sm font-medium text-foreground">
-                      ${(Number(acc.current_value) || 0).toLocaleString()}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-foreground/80">{acc.account_name}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        ${(Number(acc.current_value) || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-end mt-1.5">
+                      <ScopeBadge
+                        scope={acc.visibility_scope}
+                        assetId={acc.id}
+                        assetTable="vineyard_accounts"
+                        editable={isIndividualSelf && !!portalToken}
+                        portalToken={portalToken}
+                        onScopeChange={onScopeChange}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -214,12 +344,22 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
                           className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
                         >
                           <div className="flex items-center justify-between">
-                          <div className="flex flex-col">
+                            <div className="flex flex-col">
                               <span className="text-sm text-foreground/80">{acc.label || acc.asset_type || acc.notes || "Account"}</span>
                             </div>
                             <span className="text-sm font-medium text-foreground">
                               ${accCurrent.toLocaleString()}
                             </span>
+                          </div>
+                          <div className="flex items-center justify-end mt-1.5">
+                            <ScopeBadge
+                              scope={acc.visibility_scope}
+                              assetId={acc.id}
+                              assetTable="storehouses"
+                              editable={isIndividualSelf && !!portalToken}
+                              portalToken={portalToken}
+                              onScopeChange={onScopeChange}
+                            />
                           </div>
                         </div>
                       );
