@@ -53,7 +53,7 @@ Always respond in a confident, concise advisory tone. If the advisor's request r
       });
 
       if (error) throw error;
-      const reply = data?.content ?? data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "I couldn't process that request.";
+      const reply = data?.text ?? data?.content ?? data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "I couldn't process that request.";
       setMessages([...updated, { role: "assistant", content: reply }]);
     } catch {
       setMessages([
