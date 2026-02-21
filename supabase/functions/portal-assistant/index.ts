@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,8 +17,8 @@ You are a dedicated support assistant for EXISTING ProsperWise clients. You are 
 - **You are NOT a financial advisor.** You cannot provide financial advice, recommend products, or make investment decisions.
 - **You represent ProsperWise** and should be familiar with the firm's services and philosophy.
 
-## Administrative Requests — USE THE FORM
-For ANY administrative or account-related requests, you MUST direct the client to the **ProsperWise Admin Request Form**. This includes but is not limited to:
+## Administrative Requests — TRIGGER THE FORM
+When a client mentions ANY of the following, you MUST call the **open_admin_request_form** function to open the admin request form:
 - Address changes
 - Banking updates (adding/changing bank accounts)
 - Withdrawal requests
@@ -25,12 +26,14 @@ For ANY administrative or account-related requests, you MUST direct the client t
 - Account ownership changes
 - Tax document requests
 - Name changes
-- Any other account modifications
+- Account statements
+- Confirmation letters
+- Any other account modifications or document requests
 
-**When a client has an admin request**, respond helpfully and provide this link:
-👉 [Submit an Admin Request](https://form.asana.com/?k=u0f1fa0P7AhhBe09vl_TVQ&d=2156967713314)
-
-Example: "I can help with that! To update your address, please submit a request through our secure admin form: https://form.asana.com/?k=u0f1fa0P7AhhBe09vl_TVQ&d=2156967713314 — your Personal CFO will process the change and confirm once it's complete."
+When you detect an admin request:
+1. Acknowledge their request warmly
+2. Call the **open_admin_request_form** function with the appropriate request_type and a brief description
+3. Let the client know the form will help them submit everything securely
 
 ## What You Can Also Help With
 - Explaining ProsperWise services and processes
@@ -55,9 +58,36 @@ Example: "I can help with that! To update your address, please submit a request 
 ## Response Style
 - Be action-oriented — always give the client a clear next step
 - Keep responses concise — under 120 words unless the client asks for elaboration
-- Always include the admin form link when relevant, formatted as a clickable link
-- If you don't know something specific to their account, be honest and direct them to their Personal CFO or the admin form
-- For urgent matters: "For time-sensitive matters, please contact your Personal CFO directly or submit a priority request through our admin form."`;
+- If you don't know something specific to their account, be honest and direct them to their Personal CFO
+- For urgent matters: "For time-sensitive matters, please contact your Personal CFO directly."`;
+
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "open_admin_request_form",
+      description:
+        "Open the admin request form for the client to submit an administrative request. Call this whenever the client needs to make changes to their account, request documents, update banking info, or any other administrative action.",
+      parameters: {
+        type: "object",
+        properties: {
+          request_type: {
+            type: "string",
+            enum: ["banking_withdrawal", "personal_info", "document_request", "general_inquiry"],
+            description:
+              "The category of the request: banking_withdrawal (banking changes, withdrawals, PAC/SWP), personal_info (address, name, beneficiary changes), document_request (tax slips, statements), general_inquiry (anything else)",
+          },
+          prefill_description: {
+            type: "string",
+            description:
+              "A brief description to pre-fill in the form based on what the client described in the conversation",
+          },
+        },
+        required: ["request_type"],
+      },
+    },
+  },
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -65,8 +95,64 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
 
+    // Handle form submission action
+    if (body.action === "submit_request") {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      const { requestData } = body;
+      if (!requestData?.contact_id || !requestData?.request_type || !requestData?.request_description) {
+        return new Response(
+          JSON.stringify({ error: "Missing required fields" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate input lengths
+      if (requestData.request_description.length > 2000) {
+        return new Response(
+          JSON.stringify({ error: "Description too long (max 2000 characters)" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const validTypes = ["banking_withdrawal", "personal_info", "document_request", "general_inquiry"];
+      if (!validTypes.includes(requestData.request_type)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid request type" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data, error } = await supabase.from("portal_requests").insert({
+        contact_id: requestData.contact_id,
+        request_type: requestData.request_type,
+        request_description: requestData.request_description.slice(0, 2000),
+        request_details: requestData.request_details || {},
+        file_urls: requestData.file_urls || [],
+        status: "submitted",
+      }).select().single();
+
+      if (error) {
+        console.error("Insert error:", error);
+        return new Response(
+          JSON.stringify({ error: "Failed to submit request" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, requestId: data.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Chat flow
+    const { messages } = body;
     if (!messages || !Array.isArray(messages)) {
       return new Response(
         JSON.stringify({ error: "messages array is required" }),
@@ -94,6 +180,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: apiMessages,
+        tools: TOOLS,
         temperature: 0.5,
         max_tokens: 1024,
       }),
@@ -117,10 +204,23 @@ serve(async (req) => {
     }
 
     const result = await gatewayRes.json();
-    const text = result?.choices?.[0]?.message?.content || "";
+    const choice = result?.choices?.[0];
+    const message = choice?.message;
+    const text = message?.content || "";
+
+    // Extract function calls
+    const functionCalls = (message?.tool_calls || [])
+      .filter((tc: any) => tc.type === "function")
+      .map((tc: any) => {
+        let args = {};
+        try {
+          args = JSON.parse(tc.function.arguments);
+        } catch {}
+        return { name: tc.function.name, args };
+      });
 
     return new Response(
-      JSON.stringify({ text }),
+      JSON.stringify({ text, functionCalls }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

@@ -786,6 +786,7 @@ const Portal = () => {
         open={georgiaOpen}
         onOpenChange={setGeorgiaOpen}
         contactName={contact.first_name}
+        contactId={contact.id}
       />
     </div>
   );

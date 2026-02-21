@@ -422,6 +422,59 @@ export type Database = {
           },
         ]
       }
+      portal_requests: {
+        Row: {
+          contact_id: string
+          created_at: string
+          file_urls: string[] | null
+          id: string
+          request_description: string
+          request_details: Json | null
+          request_type: string
+          resolved_at: string | null
+          resolved_by: string | null
+          staff_notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          file_urls?: string[] | null
+          id?: string
+          request_description: string
+          request_details?: Json | null
+          request_type: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          staff_notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          file_urls?: string[] | null
+          id?: string
+          request_description?: string
+          request_details?: Json | null
+          request_type?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          staff_notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_requests_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_tokens: {
         Row: {
           contact_id: string
