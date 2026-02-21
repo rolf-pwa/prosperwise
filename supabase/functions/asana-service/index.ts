@@ -140,11 +140,29 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // getProjectMembers – LIVE: Fetch members of an Asana project
+  // -------------------------------------------------------------------------
+  async getProjectMembers(projectGid: string) {
+    return withFailSafe("getProjectMembers", async () => {
+      const url = `${ASANA_BASE_URL}/projects/${projectGid}/members?opt_fields=name,email`;
+      console.log("[AsanaService] GET", url);
+
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data || [];
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // getTasksForProject – LIVE: Fetch tasks from an Asana project
   // -------------------------------------------------------------------------
   async getTasksForProject(projectGid: string) {
     return withFailSafe("getTasksForProject", async () => {
-      const url = `${ASANA_BASE_URL}/projects/${projectGid}/tasks?opt_fields=name,completed,due_on,assignee_status,custom_fields,memberships.section.name,followers,notes&limit=100`;
+      const url = `${ASANA_BASE_URL}/projects/${projectGid}/tasks?opt_fields=name,completed,due_on,assignee.name,assignee.gid,assignee_status,custom_fields,memberships.section.name,followers,notes&limit=100`;
       console.log("[AsanaService] GET", url);
 
       const res = await fetch(url, { headers: this.headers() });
@@ -404,6 +422,18 @@ serve(async (req) => {
         } else {
           result = allTasks;
         }
+        break;
+      }
+
+      case "getProjectMembers": {
+        const pmProjectGid = portalContext?.asanaProjectGid || params.project_gid;
+        if (!pmProjectGid) {
+          return new Response(
+            JSON.stringify({ error: "project_gid is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        result = await service.getProjectMembers(pmProjectGid);
         break;
       }
 
