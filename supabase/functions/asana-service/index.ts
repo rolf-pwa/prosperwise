@@ -361,7 +361,22 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        result = await service.getTasksForProject(projectGid);
+        const allTasks = await service.getTasksForProject(projectGid);
+
+        // Portal users only see tasks marked "Client Visible" via Asana custom field
+        if (portalContext) {
+          const visibleTasks = (allTasks as any[]).filter((task: any) => {
+            const customFields = task.custom_fields || [];
+            return customFields.some(
+              (cf: any) =>
+                cf.name?.toLowerCase().includes("client visible") &&
+                (cf.display_value === "Yes" || cf.enum_value?.name === "Yes" || cf.display_value === "true" || cf.number_value === 1 || cf.type === "enum" && cf.enum_value?.name?.toLowerCase() === "yes"),
+            );
+          });
+          result = visibleTasks;
+        } else {
+          result = allTasks;
+        }
         break;
       }
 
