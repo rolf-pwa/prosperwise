@@ -23,13 +23,15 @@ interface Props {
   family?: any | null;
   household?: any | null;
   householdMembers?: any[];
+  scopeLabel?: string;
 }
 
-export function PortalTerritory({ vineyardAccounts, storehouses, contact, family, household, householdMembers = [] }: Props) {
-  // Filter: show family_shared and household_shared to portal users; mask private
-  const visibleAccounts = vineyardAccounts.filter(
-    (a: any) => a.visibility_scope !== "private"
-  );
+export function PortalTerritory({ vineyardAccounts, storehouses, contact, family, household, householdMembers = [], scopeLabel }: Props) {
+  // If scopeLabel is provided, assets are already pre-filtered by the parent; show all
+  // Otherwise, filter out private assets (legacy individual behavior)
+  const visibleAccounts = scopeLabel
+    ? vineyardAccounts
+    : vineyardAccounts.filter((a: any) => a.visibility_scope !== "private");
   const privateAccountCount = vineyardAccounts.length - visibleAccounts.length;
 
   const totalVineyard = visibleAccounts.reduce(
@@ -45,9 +47,9 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
     byType[t].total += Number(a.current_value) || 0;
   });
 
-  const visibleStorehouses = storehouses.filter(
-    (s: any) => s.visibility_scope !== "private"
-  );
+  const visibleStorehouses = scopeLabel
+    ? storehouses
+    : storehouses.filter((s: any) => s.visibility_scope !== "private");
 
   return (
     <div className="space-y-6">
