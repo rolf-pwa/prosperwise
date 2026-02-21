@@ -47,6 +47,7 @@ import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
 import { AssetContainer, type AssetAccount, type MoveTarget } from "@/components/AssetContainer";
 import { Grape } from "lucide-react";
+import { ContactTaskList } from "@/components/ContactTaskList";
 
 interface Storehouse {
   id: string;
@@ -735,6 +736,9 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
+
+            {/* Tasks */}
+            <ContactTaskList asanaUrl={contact.asana_url} />
 
             <Card>
               <CardHeader>
