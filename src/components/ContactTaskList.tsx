@@ -357,25 +357,22 @@ function TaskRow({
         >
           {task.name}
         </p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          {task.assignee?.name && (
-            <span className="text-[10px] text-muted-foreground">{task.assignee.name}</span>
-          )}
-          {task.assignee?.name && task.due_on && !completed && (
-            <span className="text-[10px] text-muted-foreground">·</span>
-          )}
-          {task.due_on && !completed && (
-            <span className="text-[10px] text-muted-foreground">
-              Due{" "}
-              {new Date(task.due_on).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-          )}
-        </div>
+        {task.due_on && !completed && (
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Due{" "}
+            {new Date(task.due_on).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
+        {task.assignee?.name && (
+          <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+            {task.assignee.name.split(" ")[0]}
+          </Badge>
+        )}
         {visibility && (
           <Badge
             variant={visibility === "Client Visible" ? "default" : "secondary"}
