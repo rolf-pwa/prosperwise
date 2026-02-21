@@ -5,21 +5,29 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, MessageCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { PortalAdminRequestForm } from "./PortalAdminRequestForm";
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 type Message = { role: "user" | "assistant"; content: string };
 
+interface FormTrigger {
+  requestType: string;
+  prefillDescription: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contactName?: string;
+  contactId?: string;
 }
 
-export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
+export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [formTrigger, setFormTrigger] = useState<FormTrigger | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
@@ -28,7 +36,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
       initialized.current = true;
       const greeting: Message = {
         role: "assistant",
-        content: `Hello${contactName ? ` ${contactName}` : ""}! I'm Georgia, your ProsperWise assistant. How can I help you today?`,
+        content: `Hello${contactName ? ` ${contactName}` : ""}! I'm Georgia, your ProsperWise support assistant. I can help you with questions about your accounts, submit admin requests, or direct you to the right resources. How can I help you today?`,
       };
       setMessages([greeting]);
     }
@@ -38,7 +46,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, formTrigger]);
 
   async function sendMessage() {
     if (!input.trim() || isLoading) return;
@@ -60,15 +68,69 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
       if (!res.ok) {
         throw new Error(data.error || "Request failed");
       }
+
+      // Handle text response
       if (data.text) {
         setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
       }
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "I'm sorry, I'm having trouble connecting right now. Please try again." }]);
+
+      // Handle function calls (form trigger)
+      if (data.functionCalls?.length) {
+        for (const fc of data.functionCalls) {
+          if (fc.name === "open_admin_request_form") {
+            // If no text was returned with the tool call, add a friendly message
+            if (!data.text) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "assistant",
+                  content: "I can help you with that! Please fill out the form below to submit your request securely.",
+                },
+              ]);
+            }
+            setFormTrigger({
+              requestType: fc.args.request_type || "",
+              prefillDescription: fc.args.prefill_description || "",
+            });
+          }
+        }
+      }
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   }
+
+  const handleFormSubmitted = () => {
+    setFormTrigger(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          "Your request has been submitted successfully! Your Personal CFO will review it and follow up with you shortly. Is there anything else I can help you with?",
+      },
+    ]);
+  };
+
+  const handleFormCancel = () => {
+    setFormTrigger(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          "No problem — the form has been closed. If you'd like to submit a request later, just let me know. Is there anything else I can help with?",
+      },
+    ]);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,7 +154,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert [&>p]:mb-0">
+                    <div className="prose prose-sm max-w-none dark:prose-invert [&>p]:mb-0 [&_a]:text-accent [&_a]:underline">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
@@ -101,6 +163,21 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
                 </div>
               </div>
             ))}
+
+            {/* Admin Request Form (inline) */}
+            {formTrigger && contactId && (
+              <div className="py-2">
+                <PortalAdminRequestForm
+                  contactId={contactId}
+                  contactName={contactName || ""}
+                  onSubmitted={handleFormSubmitted}
+                  onCancel={handleFormCancel}
+                  prefillType={formTrigger.requestType}
+                  prefillDescription={formTrigger.prefillDescription}
+                />
+              </div>
+            )}
+
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-lg px-3.5 py-2.5">
