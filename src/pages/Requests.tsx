@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -19,10 +20,20 @@ import {
   Clock,
   FileText,
   ExternalLink,
+  Send,
+  MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+
+interface RequestMessage {
+  id: string;
+  sender_type: "advisor" | "client";
+  sender_name: string | null;
+  content: string;
+  created_at: string;
+}
 
 interface PortalRequest {
   id: string;
@@ -37,6 +48,7 @@ interface PortalRequest {
   updated_at: string;
   resolved_at: string | null;
   contact?: { full_name: string } | null;
+  messages?: RequestMessage[];
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -59,12 +71,15 @@ const Requests = () => {
   const [selected, setSelected] = useState<PortalRequest | null>(null);
   const [staffNotes, setStaffNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchRequests = async () => {
     try {
       const { data, error: err } = await supabase
         .from("portal_requests")
-        .select("*, contact:contacts(full_name)")
+        .select("*, contact:contacts(full_name), messages:portal_request_messages(*)")
         .order("created_at", { ascending: false });
       if (err) throw err;
       setRequests((data as any[]) || []);
@@ -79,9 +94,17 @@ const Requests = () => {
     fetchRequests();
   }, []);
 
+  // Auto-scroll messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [selected?.messages]);
+
   const openRequest = (req: PortalRequest) => {
     setSelected(req);
     setStaffNotes(req.staff_notes || "");
+    setReplyText("");
   };
 
   const updateStatus = async (status: string) => {
@@ -112,6 +135,52 @@ const Requests = () => {
     }
   };
 
+  const sendReply = async () => {
+    if (!replyText.trim() || !selected || sendingReply) return;
+    setSendingReply(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user?.id || "")
+        .maybeSingle();
+
+      const { error: err } = await supabase
+        .from("portal_request_messages")
+        .insert({
+          request_id: selected.id,
+          sender_type: "advisor",
+          sender_name: profile?.full_name || "Your Personal CFO",
+          content: replyText.trim(),
+        });
+      if (err) throw err;
+
+      // Also mark as in_progress if still submitted
+      if (selected.status === "submitted") {
+        await supabase
+          .from("portal_requests")
+          .update({ status: "in_progress" })
+          .eq("id", selected.id);
+      }
+
+      setReplyText("");
+      toast.success("Reply sent to client");
+      // Refresh to get updated messages
+      const { data } = await supabase
+        .from("portal_requests")
+        .select("*, contact:contacts(full_name), messages:portal_request_messages(*)")
+        .eq("id", selected.id)
+        .maybeSingle();
+      if (data) setSelected(data as any);
+      fetchRequests();
+    } catch {
+      toast.error("Failed to send reply");
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -133,6 +202,7 @@ const Requests = () => {
 
   const renderRequestCard = (req: PortalRequest) => {
     const sc = STATUS_CONFIG[req.status] || STATUS_CONFIG.submitted;
+    const clientMessages = (req.messages || []).filter((m) => m.sender_type === "client");
     return (
       <button
         key={req.id}
@@ -155,6 +225,12 @@ const Requests = () => {
             <Badge variant={sc.variant} className="text-[10px]">
               {sc.label}
             </Badge>
+            {clientMessages.length > 0 && (
+              <Badge variant="outline" className="text-[10px]">
+                <MessageCircle className="h-2.5 w-2.5 mr-0.5" />
+                {clientMessages.length}
+              </Badge>
+            )}
             <span className="text-[10px] text-muted-foreground">
               {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
             </span>
@@ -257,8 +333,8 @@ const Requests = () => {
 
       {/* Detail Dialog */}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
             <DialogTitle className="font-serif">
               {selected ? TYPE_LABELS[selected.request_type] || selected.request_type : "Request"}
             </DialogTitle>
@@ -273,73 +349,132 @@ const Requests = () => {
           </DialogHeader>
 
           {selected && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-medium">Status:</span>
-                <Badge variant={(STATUS_CONFIG[selected.status] || STATUS_CONFIG.submitted).variant}>
-                  {(STATUS_CONFIG[selected.status] || STATUS_CONFIG.submitted).label}
-                </Badge>
-              </div>
+            <>
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* Status & Actions */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium">Status:</span>
+                  <Badge variant={(STATUS_CONFIG[selected.status] || STATUS_CONFIG.submitted).variant}>
+                    {(STATUS_CONFIG[selected.status] || STATUS_CONFIG.submitted).label}
+                  </Badge>
+                </div>
 
-              <div className="rounded-md bg-muted p-3">
-                <p className="text-sm text-foreground whitespace-pre-wrap">
-                  {selected.request_description}
-                </p>
-              </div>
+                {/* Original request */}
+                <div className="rounded-md bg-muted p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Client's Request</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">
+                    {selected.request_description}
+                  </p>
+                </div>
 
-              {selected.file_urls && selected.file_urls.length > 0 && (
+                {/* Attachments */}
+                {selected.file_urls && selected.file_urls.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Attached Files</p>
+                    {selected.file_urls.map((url, i) => {
+                      const fileName = url.split("/").pop() || `File ${i + 1}`;
+                      return (
+                        <a
+                          key={i}
+                          href={signedUrls[url] || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
+                        >
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="flex-1 truncate text-foreground">{fileName}</span>
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Conversation Thread */}
+                {(selected.messages || []).length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      Conversation
+                    </p>
+                    {(selected.messages || [])
+                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.sender_type === "advisor" ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                              msg.sender_type === "advisor"
+                                ? "bg-accent text-accent-foreground"
+                                : "bg-muted text-foreground"
+                            }`}
+                          >
+                            <p className="text-[10px] font-medium mb-0.5 opacity-70">
+                              {msg.sender_type === "advisor" ? (msg.sender_name || "Advisor") : (msg.sender_name || "Client")}
+                            </p>
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="text-[9px] opacity-50 mt-1">
+                              {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {/* Staff Notes */}
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">Attached Files</p>
-                  {selected.file_urls.map((url, i) => {
-                    const fileName = url.split("/").pop() || `File ${i + 1}`;
-                    return (
-                      <a
-                        key={i}
-                        href={signedUrls[url] || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
-                      >
-                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="flex-1 truncate text-foreground">{fileName}</span>
-                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                      </a>
-                    );
-                  })}
+                  <label className="text-xs font-medium text-muted-foreground">Staff Notes (internal)</label>
+                  <Textarea
+                    value={staffNotes}
+                    onChange={(e) => setStaffNotes(e.target.value)}
+                    placeholder="Add internal notes..."
+                    className="text-sm min-h-[60px] resize-none"
+                    disabled={saving}
+                  />
+                </div>
+
+                {/* Status buttons */}
+                <div className="flex gap-2">
+                  {selected.status !== "in_progress" && selected.status !== "resolved" && (
+                    <Button size="sm" variant="outline" onClick={() => updateStatus("in_progress")} disabled={saving} className="flex-1">
+                      <Clock className="h-3.5 w-3.5 mr-1" />
+                      Mark In Progress
+                    </Button>
+                  )}
+                  {selected.status !== "resolved" && (
+                    <Button size="sm" onClick={() => updateStatus("resolved")} disabled={saving} className="flex-1">
+                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                      Resolve
+                    </Button>
+                  )}
+                  {selected.status === "resolved" && (
+                    <Button size="sm" variant="outline" onClick={() => updateStatus("submitted")} disabled={saving} className="flex-1">
+                      Reopen
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Reply to client */}
+              {selected.status !== "resolved" && (
+                <div className="border-t border-border px-4 py-3 flex gap-2">
+                  <Input
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendReply()}
+                    placeholder="Reply to client..."
+                    disabled={sendingReply}
+                    className="flex-1"
+                  />
+                  <Button size="icon" onClick={sendReply} disabled={sendingReply || !replyText.trim()}>
+                    {sendingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
                 </div>
               )}
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Staff Notes</label>
-                <Textarea
-                  value={staffNotes}
-                  onChange={(e) => setStaffNotes(e.target.value)}
-                  placeholder="Add internal notes..."
-                  className="text-sm min-h-[60px] resize-none"
-                  disabled={saving}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                {selected.status !== "in_progress" && selected.status !== "resolved" && (
-                  <Button size="sm" variant="outline" onClick={() => updateStatus("in_progress")} disabled={saving} className="flex-1">
-                    <Clock className="h-3.5 w-3.5 mr-1" />
-                    Mark In Progress
-                  </Button>
-                )}
-                {selected.status !== "resolved" && (
-                  <Button size="sm" onClick={() => updateStatus("resolved")} disabled={saving} className="flex-1">
-                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
-                    Resolve
-                  </Button>
-                )}
-                {selected.status === "resolved" && (
-                  <Button size="sm" variant="outline" onClick={() => updateStatus("submitted")} disabled={saving} className="flex-1">
-                    Reopen
-                  </Button>
-                )}
-              </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
