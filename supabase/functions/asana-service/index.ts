@@ -42,8 +42,11 @@ async function withFailSafe<T>(
 // ---------------------------------------------------------------------------
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
-  const match = asanaUrl.match(/app\.asana\.com\/0\/(\d+)/);
-  return match ? match[1] : null;
+  // Match both old format (/0/PROJECT_GID) and new format (/project/PROJECT_GID)
+  const newMatch = asanaUrl.match(/\/project\/(\d+)/);
+  if (newMatch) return newMatch[1];
+  const oldMatch = asanaUrl.match(/app\.asana\.com\/0\/(\d+)/);
+  return oldMatch ? oldMatch[1] : null;
 }
 
 // ---------------------------------------------------------------------------
