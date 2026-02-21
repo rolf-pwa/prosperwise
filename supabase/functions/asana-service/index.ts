@@ -99,6 +99,33 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // updateTask – LIVE: Update task fields (name, notes, due_on, completed)
+  // -------------------------------------------------------------------------
+  async updateTask(taskGid: string, updates: {
+    name?: string;
+    notes?: string;
+    due_on?: string | null;
+    completed?: boolean;
+  }) {
+    return withFailSafe("updateTask", async () => {
+      const url = `${ASANA_BASE_URL}/tasks/${taskGid}`;
+      console.log("[AsanaService] PUT", url, JSON.stringify(updates));
+
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: this.headers(),
+        body: JSON.stringify({ data: updates }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data;
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // getProjectStatus – PLACEHOLDER (no live API call)
   // -------------------------------------------------------------------------
   async getProjectStatus(payload: { project_gid: string }) {
@@ -443,6 +470,34 @@ serve(async (req) => {
 
       case "getInbox": {
         result = await service.getInbox();
+        break;
+      }
+
+      case "updateTask": {
+        const { task_gid: updateGid, updates } = params;
+        if (!updateGid || !updates) {
+          return new Response(
+            JSON.stringify({ error: "task_gid and updates are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        // Privacy guardrail for portal users
+        if (portalContext) {
+          if (!portalContext.asanaProjectGid) {
+            return new Response(
+              JSON.stringify({ error: "No Asana project configured" }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          const belongs = await service.verifyTaskBelongsToProject(updateGid, portalContext.asanaProjectGid);
+          if (!belongs) {
+            return new Response(
+              JSON.stringify({ error: "Access denied: task does not belong to your project" }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+        }
+        result = await service.updateTask(updateGid, updates);
         break;
       }
 
