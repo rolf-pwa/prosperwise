@@ -263,6 +263,7 @@ class AsanaService {
     notes?: string;
     due_on?: string | null;
     completed?: boolean;
+    custom_fields?: Record<string, string>;
   }) {
     return withFailSafe("updateTask", async () => {
       const url = `${ASANA_BASE_URL}/tasks/${taskGid}`;

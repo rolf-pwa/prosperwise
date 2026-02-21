@@ -147,23 +147,92 @@ function getVisibility(task: AsanaTask): string | null {
   return cf?.enum_value?.name || null;
 }
 
-// ── Visibility Select ──
+// ── Visibility Select (inline editable) ──
 function VisibilitySelect({
   value,
   onChange,
+  disabled,
 }: {
   value: "client_visible" | "internal_only";
   onChange: (v: "client_visible" | "internal_only") => void;
+  disabled?: boolean;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as any)}
-      className="h-7 rounded-md border bg-background px-2 text-xs text-foreground"
+      disabled={disabled}
+      className="h-7 rounded-md border bg-background px-2 text-xs text-foreground disabled:opacity-50"
     >
       <option value="client_visible">Client Visible</option>
       <option value="internal_only">Internal Only</option>
     </select>
+  );
+}
+
+// ── Inline Visibility Badge/Toggle ──
+function VisibilityToggle({
+  task,
+  visFieldInfo,
+  onUpdated,
+}: {
+  task: AsanaTask;
+  visFieldInfo: VisibilityFieldInfo | null;
+  onUpdated?: (t: AsanaTask) => void;
+}) {
+  const visibility = getVisibility(task);
+  const [updating, setUpdating] = useState(false);
+
+  if (!visFieldInfo || !visibility) return null;
+
+  const currentValue: "client_visible" | "internal_only" =
+    visibility === "Client Visible" ? "client_visible" : "internal_only";
+
+  const handleChange = async (newVal: "client_visible" | "internal_only") => {
+    if (newVal === currentValue) return;
+    setUpdating(true);
+    try {
+      const res = await supabase.functions.invoke("asana-service", {
+        body: {
+          action: "updateTask",
+          task_gid: task.gid,
+          updates: {
+            custom_fields: {
+              [visFieldInfo.fieldGid]: newVal === "client_visible"
+                ? visFieldInfo.clientVisibleGid
+                : visFieldInfo.internalOnlyGid,
+            },
+          },
+        },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+
+      // Update the task's custom_fields locally
+      const updatedCf = (task.custom_fields || []).map((cf: any) => {
+        if (cf.gid === visFieldInfo.fieldGid) {
+          return {
+            ...cf,
+            enum_value: {
+              ...cf.enum_value,
+              name: newVal === "client_visible" ? "Client Visible" : "Internal Only",
+              gid: newVal === "client_visible" ? visFieldInfo.clientVisibleGid : visFieldInfo.internalOnlyGid,
+            },
+          };
+        }
+        return cf;
+      });
+      onUpdated?.({ ...task, custom_fields: updatedCf });
+      toast.success(`Visibility set to ${newVal === "client_visible" ? "Client Visible" : "Internal Only"}`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update visibility");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  return (
+    <VisibilitySelect value={currentValue} onChange={handleChange} disabled={updating} />
   );
 }
 
@@ -247,11 +316,15 @@ function TaskRow({
   completed,
   onClick,
   depth = 0,
+  visFieldInfo,
+  onTaskUpdated,
 }: {
   task: AsanaTask;
   completed?: boolean;
   onClick: () => void;
   depth?: number;
+  visFieldInfo?: VisibilityFieldInfo | null;
+  onTaskUpdated?: (t: AsanaTask) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [subtasks, setSubtasks] = useState<AsanaTask[]>([]);
@@ -280,6 +353,12 @@ function TaskRow({
       }
     }
     setExpanded(!expanded);
+  };
+
+  const handleSubtaskUpdated = (updatedSub: AsanaTask) => {
+    setSubtasks((prev) =>
+      prev.map((s) => (s.gid === updatedSub.gid ? { ...s, ...updatedSub } : s)),
+    );
   };
 
   return (
@@ -353,6 +432,8 @@ function TaskRow({
               completed={sub.completed}
               onClick={onClick}
               depth={depth + 1}
+              visFieldInfo={visFieldInfo}
+              onTaskUpdated={handleSubtaskUpdated}
             />
           ))}
         </div>
@@ -605,6 +686,8 @@ export function ContactTaskList({ asanaUrl }: Props) {
                   key={task.gid}
                   task={task}
                   onClick={() => setSelectedTask(task)}
+                  visFieldInfo={visFieldInfo}
+                  onTaskUpdated={handleTaskUpdated}
                 />
               ))}
             </div>
@@ -621,6 +704,8 @@ export function ContactTaskList({ asanaUrl }: Props) {
                   key={task.gid}
                   task={task}
                   onClick={() => setSelectedTask(task)}
+                  visFieldInfo={visFieldInfo}
+                  onTaskUpdated={handleTaskUpdated}
                 />
               ))}
             </div>
@@ -643,6 +728,8 @@ export function ContactTaskList({ asanaUrl }: Props) {
                     task={task}
                     completed
                     onClick={() => setSelectedTask(task)}
+                    visFieldInfo={visFieldInfo}
+                    onTaskUpdated={handleTaskUpdated}
                   />
                 ))}
               </CollapsibleContent>
@@ -680,6 +767,171 @@ export function ContactTaskList({ asanaUrl }: Props) {
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+// ── SubtaskDetailRow – Expandable inline subtask with visibility + comments ──
+function SubtaskDetailRow({
+  subtask,
+  visFieldInfo,
+  onUpdated,
+}: {
+  subtask: AsanaTask;
+  visFieldInfo: VisibilityFieldInfo | null;
+  onUpdated: (t: AsanaTask) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [comments, setComments] = useState<AsanaComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsFetched, setCommentsFetched] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [posting, setPosting] = useState(false);
+
+  const subStatus = getTaskStatus(subtask);
+
+  const handleToggle = async () => {
+    if (!expanded && !commentsFetched) {
+      setCommentsLoading(true);
+      try {
+        const res = await supabase.functions.invoke("asana-service", {
+          body: { action: "getTaskStories", task_gid: subtask.gid },
+        });
+        if (!res.error && !res.data?.error) {
+          setComments(res.data?.data || []);
+        }
+      } catch {
+        // silent
+      } finally {
+        setCommentsLoading(false);
+        setCommentsFetched(true);
+      }
+    }
+    setExpanded(!expanded);
+  };
+
+  const handlePostComment = async () => {
+    if (!newComment.trim()) return;
+    setPosting(true);
+    try {
+      const res = await supabase.functions.invoke("asana-service", {
+        body: { action: "postTaskComment", task_gid: subtask.gid, text: newComment.trim() },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      setComments((prev) => [
+        ...prev,
+        { gid: Date.now().toString(), text: newComment.trim(), created_at: new Date().toISOString(), created_by: { name: "You" } },
+      ]);
+      setNewComment("");
+      toast.success("Comment posted.");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to post comment.");
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-border overflow-hidden">
+      {/* Header row */}
+      <button
+        onClick={handleToggle}
+        className={`flex items-center gap-2 px-2.5 py-2 text-sm w-full text-left transition-colors ${
+          subtask.completed ? "opacity-50 bg-muted/30" : "bg-muted/50 hover:bg-muted"
+        }`}
+      >
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm truncate ${subtask.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+            {subtask.name}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Badge variant={subStatus.variant} className="text-[9px] px-1.5 py-0">
+            {subStatus.label}
+          </Badge>
+        </div>
+      </button>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="px-3 py-3 space-y-3 border-t border-border bg-background">
+          {/* Visibility */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground font-medium">Visibility:</span>
+            <VisibilityToggle task={subtask} visFieldInfo={visFieldInfo} onUpdated={onUpdated} />
+          </div>
+
+          {/* Due date */}
+          {subtask.due_on && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span>Due {new Date(subtask.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+          )}
+
+          {/* Notes */}
+          {subtask.notes && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5 whitespace-pre-wrap">
+              {subtask.notes}
+            </div>
+          )}
+
+          {/* Comments */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+              <MessageSquare className="h-2.5 w-2.5" />
+              Comments {commentsFetched ? `(${comments.length})` : ""}
+            </div>
+
+            {commentsLoading ? (
+              <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
+            ) : comments.length === 0 && commentsFetched ? (
+              <p className="text-[10px] text-muted-foreground italic">No comments</p>
+            ) : (
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                {comments.map((c) => (
+                  <div key={c.gid} className="rounded bg-muted/50 px-2 py-1.5 space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium">{c.created_by?.name || "Unknown"}</span>
+                      <span className="text-[9px] text-muted-foreground">
+                        {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <p className="text-xs whitespace-pre-wrap">{c.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-1.5">
+              <Textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Comment…"
+                rows={1}
+                className="text-xs flex-1 min-h-[32px]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePostComment();
+                }}
+              />
+              <Button
+                size="icon"
+                className="shrink-0 h-8 w-8"
+                onClick={handlePostComment}
+                disabled={posting || !newComment.trim()}
+              >
+                {posting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -892,18 +1144,7 @@ function TaskDetailPanel({
             <Badge variant={status.variant} className="text-xs">
               {status.label}
             </Badge>
-            {visibility && (
-              <Badge
-                variant={visibility === "Client Visible" ? "default" : "secondary"}
-                className="text-xs"
-              >
-                {visibility === "Client Visible" ? (
-                  <><Eye className="h-3 w-3 mr-1" />Client Visible</>
-                ) : (
-                  <><EyeOff className="h-3 w-3 mr-1" />Internal Only</>
-                )}
-              </Badge>
-            )}
+            <VisibilityToggle task={task} visFieldInfo={visFieldInfo} onUpdated={onUpdated} />
           </div>
           <div className="flex items-center gap-1">
             {!editing && (
@@ -1020,37 +1261,18 @@ function TaskDetailPanel({
           <p className="text-sm text-muted-foreground italic py-1">No subtasks</p>
         ) : (
           <div className="space-y-1">
-            {detailSubtasks.map((sub) => {
-              const subStatus = getTaskStatus(sub);
-              const subVis = getVisibility(sub);
-              return (
-                <div
-                  key={sub.gid}
-                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm ${
-                    sub.completed ? "opacity-50" : "bg-muted/50"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm truncate ${sub.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                      {sub.name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {subVis && (
-                      <Badge
-                        variant={subVis === "Client Visible" ? "default" : "secondary"}
-                        className="text-[9px] px-1.5 py-0"
-                      >
-                        {subVis === "Client Visible" ? "Client" : "Internal"}
-                      </Badge>
-                    )}
-                    <Badge variant={subStatus.variant} className="text-[9px] px-1.5 py-0">
-                      {subStatus.label}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
+            {detailSubtasks.map((sub) => (
+              <SubtaskDetailRow
+                key={sub.gid}
+                subtask={sub}
+                visFieldInfo={visFieldInfo}
+                onUpdated={(updated) => {
+                  setDetailSubtasks((prev) =>
+                    prev.map((s) => (s.gid === updated.gid ? { ...s, ...updated } : s)),
+                  );
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
