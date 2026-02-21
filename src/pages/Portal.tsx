@@ -280,181 +280,239 @@ const Portal = () => {
     );
   };
 
+  // Helper: aggregate assets from hierarchy at a given scope level
+  const aggregateAssetsAtLevel = (level: "family" | "household", householdId?: string) => {
+    const allVineyard: any[] = [];
+    const allStorehouses: any[] = [];
+
+    if (level === "family") {
+      // Family level: only family_shared assets across all households
+      const households = hierarchy?.households || [];
+      households.forEach((hh: any) => {
+        (hh.members || []).forEach((m: any) => {
+          (m.vineyard_accounts || []).filter((a: any) => a.visibility_scope === "family_shared").forEach((a: any) => allVineyard.push(a));
+          (m.storehouses || []).filter((a: any) => a.visibility_scope === "family_shared").forEach((a: any) => allStorehouses.push(a));
+        });
+      });
+    } else if (level === "household") {
+      // Household level: household_shared + family_shared assets from household members
+      const members = householdId
+        ? (hierarchy?.households?.find((h: any) => h.id === householdId)?.members || [])
+        : (hierarchy?.members || []);
+      // Include self's assets too
+      const selfVineyard = vineyard_accounts.filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared");
+      const selfStorehouses = storehouses.filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared");
+      allVineyard.push(...selfVineyard);
+      allStorehouses.push(...selfStorehouses);
+      members.forEach((m: any) => {
+        (m.vineyard_accounts || []).filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared").forEach((a: any) => allVineyard.push(a));
+        (m.storehouses || []).filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared").forEach((a: any) => allStorehouses.push(a));
+      });
+    }
+
+    return { vineyard: allVineyard, storehouses: allStorehouses };
+  };
+
   // ─── Family Overview (drill-down landing) ───
   const renderFamilyView = () => {
     const households = hierarchy?.households || [];
+    const familyAssets = aggregateAssetsAtLevel("family");
     
-    // Aggregate financials across all households
-    const totalAssets = households.reduce((sum: number, hh: any) => {
-      return sum + (hh.members || []).reduce((mSum: number, m: any) => {
-        const vTotal = (m.vineyard_accounts || [])
-          .filter((a: any) => a.visibility_scope !== "private")
-          .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
-        const sTotal = (m.storehouses || [])
-          .filter((a: any) => a.visibility_scope !== "private")
-          .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
-        return mSum + vTotal + sTotal;
-      }, 0);
-    }, 0);
+    // Aggregate financials across all households (family_shared only)
+    const totalAssets = familyAssets.vineyard.reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
+      + familyAssets.storehouses.reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
 
     return (
-      <div className="space-y-6">
-        {/* Family Summary */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                <Home className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground font-serif">{family?.name || "Family"}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {households.length} household{households.length !== 1 ? "s" : ""} · {households.reduce((s: number, h: any) => s + (h.members?.length || 0), 0)} members
-                </p>
-              </div>
-              <div className="ml-auto text-right">
-                <p className="text-2xl font-bold text-accent">${totalAssets.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Family Assets</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Household Cards */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {households.map((hh: any) => {
-            const members = hh.members || [];
-            const hhTotal = members.reduce((sum: number, m: any) => {
-              const vTotal = (m.vineyard_accounts || [])
-                .filter((a: any) => a.visibility_scope !== "private")
-                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
-              const sTotal = (m.storehouses || [])
-                .filter((a: any) => a.visibility_scope !== "private")
-                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
-              return sum + vTotal + sTotal;
-            }, 0);
-
-            return (
-              <button
-                key={hh.id}
-                onClick={() => setDrilldown({ level: "household", householdId: hh.id })}
-                className="text-left rounded-lg border border-border bg-card p-5 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Home className="h-4 w-4 text-accent" />
-                    <h3 className="font-semibold text-foreground font-serif">{hh.label} Household</h3>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content: Summary + Household Cards */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Family Summary */}
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                  <Home className="h-5 w-5 text-accent" />
                 </div>
-                {hh.address && (
-                  <p className="text-xs text-muted-foreground mb-3">{hh.address}</p>
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      {members.length} member{members.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">${hhTotal.toLocaleString()}</span>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground font-serif">{family?.name || "Family"}</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {households.length} household{households.length !== 1 ? "s" : ""} · {households.reduce((s: number, h: any) => s + (h.members?.length || 0), 0)} members
+                  </p>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {members.slice(0, 4).map((m: any) => (
-                    <span key={m.id} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {m.first_name}
-                    </span>
-                  ))}
-                  {members.length > 4 && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                      +{members.length - 4}
-                    </span>
+                <div className="ml-auto text-right">
+                  <p className="text-2xl font-bold text-accent">${totalAssets.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Family Shared Assets</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Household Cards */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {households.map((hh: any) => {
+              const members = hh.members || [];
+              const hhTotal = members.reduce((sum: number, m: any) => {
+                const vTotal = (m.vineyard_accounts || [])
+                  .filter((a: any) => a.visibility_scope === "family_shared")
+                  .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+                const sTotal = (m.storehouses || [])
+                  .filter((a: any) => a.visibility_scope === "family_shared")
+                  .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+                return sum + vTotal + sTotal;
+              }, 0);
+
+              return (
+                <button
+                  key={hh.id}
+                  onClick={() => setDrilldown({ level: "household", householdId: hh.id })}
+                  className="text-left rounded-lg border border-border bg-card p-5 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Home className="h-4 w-4 text-accent" />
+                      <h3 className="font-semibold text-foreground font-serif">{hh.label} Household</h3>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  {hh.address && (
+                    <p className="text-xs text-muted-foreground mb-3">{hh.address}</p>
                   )}
-                </div>
-              </button>
-            );
-          })}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        {members.length} member{members.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">${hhTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {members.slice(0, 4).map((m: any) => (
+                      <span key={m.id} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {m.first_name}
+                      </span>
+                    ))}
+                    {members.length > 4 && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                        +{members.length - 4}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Sidebar: Family-Shared Territory */}
+        <div className="space-y-4">
+          <PortalTerritory
+            vineyardAccounts={familyAssets.vineyard}
+            storehouses={familyAssets.storehouses}
+            contact={contact}
+            family={family}
+            household={null}
+            householdMembers={[]}
+            scopeLabel="Family Shared"
+          />
         </div>
       </div>
     );
   };
 
-  // ─── Household View (shows member cards) ───
+  // ─── Household View (shows member cards + territory sidebar) ───
   const renderHouseholdView = () => {
     const members = currentHousehold?.members || hierarchy?.members || [];
     const hhLabel = currentHousehold?.label || household?.label || "Household";
+    const hhAssets = aggregateAssetsAtLevel("household", drilldown.householdId);
 
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                <Home className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground font-serif">{hhLabel} Household</h2>
-                <p className="text-xs text-muted-foreground">
-                  {members.length + 1} member{members.length !== 0 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Member cards */}
-        <div className="grid gap-3">
-          {/* Self */}
-          <button
-            onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: undefined })}
-            className="text-left rounded-lg border border-accent/30 bg-accent/5 p-4 hover:bg-accent/10 transition-colors group"
-          >
-            <div className="flex items-center justify-between">
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content: Household info + member cards */}
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardContent className="p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20">
-                  <Shield className="h-4 w-4 text-accent" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                  <Home className="h-5 w-5 text-accent" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{contact.first_name} {contact.last_name || ""}</p>
-                  <p className="text-xs text-muted-foreground">{ROLE_LABELS[contact.family_role] || contact.family_role} · You</p>
+                  <h2 className="text-lg font-semibold text-foreground font-serif">{hhLabel} Household</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {members.length + 1} member{members.length !== 0 ? "s" : ""}
+                  </p>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </button>
+            </CardContent>
+          </Card>
 
-          {members.map((m: any) => {
-            const mTotal = (m.vineyard_accounts || [])
-              .filter((a: any) => a.visibility_scope !== "private")
-              .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
-              + (m.storehouses || [])
-              .filter((a: any) => a.visibility_scope !== "private")
-              .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
-
-            return (
-              <button
-                key={m.id}
-                onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: m.id })}
-                className="text-left rounded-lg border border-border bg-card p-4 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name || ""}</p>
-                      <p className="text-xs text-muted-foreground">{ROLE_LABELS[m.family_role] || m.family_role}</p>
-                    </div>
+          {/* Member cards */}
+          <div className="grid gap-3">
+            {/* Self */}
+            <button
+              onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: undefined })}
+              className="text-left rounded-lg border border-accent/30 bg-accent/5 p-4 hover:bg-accent/10 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20">
+                    <Shield className="h-4 w-4 text-accent" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{contact.first_name} {contact.last_name || ""}</p>
+                    <p className="text-xs text-muted-foreground">{ROLE_LABELS[contact.family_role] || contact.family_role} · You</p>
                   </div>
                 </div>
-              </button>
-            );
-          })}
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+
+            {members.map((m: any) => {
+              const mTotal = (m.vineyard_accounts || [])
+                .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
+                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
+                + (m.storehouses || [])
+                .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
+                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: m.id })}
+                  className="text-left rounded-lg border border-border bg-card p-4 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name || ""}</p>
+                        <p className="text-xs text-muted-foreground">{ROLE_LABELS[m.family_role] || m.family_role}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Sidebar: Household-Shared Territory */}
+        <div className="space-y-4">
+          <PortalTerritory
+            vineyardAccounts={hhAssets.vineyard}
+            storehouses={hhAssets.storehouses}
+            contact={contact}
+            family={family}
+            household={currentHousehold || household}
+            householdMembers={[]}
+            scopeLabel="Household Shared"
+          />
         </div>
       </div>
     );
@@ -598,6 +656,7 @@ const Portal = () => {
             family={family}
             household={household}
             householdMembers={[]}
+            scopeLabel={isSelf ? "My Territory" : `${currentMember?.first_name || ""}'s Territory`}
           />
         </div>
       </div>
