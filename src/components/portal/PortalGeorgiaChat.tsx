@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, MessageCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PortalAdminRequestForm } from "./PortalAdminRequestForm";
@@ -43,9 +42,8 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }
   }, [open, contactName]);
 
   useEffect(() => {
-    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
-    if (viewport) {
-      viewport.scrollTop = viewport.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, formTrigger]);
 
@@ -143,7 +141,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-5 py-4 min-h-[300px] max-h-[50vh]" ref={scrollRef}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -187,7 +185,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <div className="border-t border-border px-4 py-3 flex gap-2">
           <Input
