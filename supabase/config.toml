@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.discovery-assistant]
 verify_jwt = false
+
+[functions.portal-assistant]
+verify_jwt = false
