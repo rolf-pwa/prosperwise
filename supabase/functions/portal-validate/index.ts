@@ -69,7 +69,6 @@ async function fetchCalendarEvents(accessToken: string, contactEmail: string): P
     if (!calRes.ok) return [];
 
     const data = await calRes.json();
-    // Filter to only events where the contact is an attendee
     return (data.items || []).filter((event: any) =>
       event.attendees?.some((a: any) =>
         a.email?.toLowerCase() === contactEmail.toLowerCase()
@@ -80,6 +79,81 @@ async function fetchCalendarEvents(accessToken: string, contactEmail: string): P
   } catch {
     return [];
   }
+}
+
+// Fetch vineyard + storehouse data for a list of contact IDs
+async function fetchAssetsForContacts(supabase: any, contactIds: string[]) {
+  if (contactIds.length === 0) return { vineyard: [], storehouses: [] };
+  const [vRes, sRes] = await Promise.all([
+    supabase.from("vineyard_accounts").select("*").in("contact_id", contactIds).order("created_at"),
+    supabase.from("storehouses").select("*").in("contact_id", contactIds).order("storehouse_number"),
+  ]);
+  return { vineyard: vRes.data || [], storehouses: sRes.data || [] };
+}
+
+// Build hierarchy data based on family_role
+async function buildHierarchy(supabase: any, contact: any) {
+  const role = contact.family_role;
+  const familyId = contact.family_id;
+  const householdId = contact.household_id;
+
+  if (role === "head_of_family" && familyId) {
+    // Fetch all households in the family
+    const { data: households } = await supabase
+      .from("households")
+      .select("id, label, address")
+      .eq("family_id", familyId)
+      .order("label");
+
+    const householdIds = (households || []).map((h: any) => h.id);
+
+    // Fetch all contacts in these households
+    const { data: allMembers } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, family_role, is_minor, household_id, email")
+      .in("household_id", householdIds.length > 0 ? householdIds : ["__none__"]);
+
+    const memberIds = (allMembers || []).map((m: any) => m.id);
+    const assets = await fetchAssetsForContacts(supabase, memberIds);
+
+    // Group by household
+    const householdsWithMembers = (households || []).map((hh: any) => {
+      const members = (allMembers || []).filter((m: any) => m.household_id === hh.id);
+      return {
+        ...hh,
+        members: members.map((m: any) => ({
+          ...m,
+          vineyard_accounts: assets.vineyard.filter((v: any) => v.contact_id === m.id),
+          storehouses: assets.storehouses.filter((s: any) => s.contact_id === m.id),
+        })),
+      };
+    });
+
+    return { level: "family", households: householdsWithMembers };
+  }
+
+  if ((role === "head_of_family" || role === "spouse") && householdId) {
+    // Head of household or spouse: see household members
+    const { data: members } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, family_role, is_minor, email")
+      .eq("household_id", householdId)
+      .neq("id", contact.id);
+
+    const memberIds = (members || []).map((m: any) => m.id);
+    const assets = await fetchAssetsForContacts(supabase, memberIds);
+
+    return {
+      level: role === "head_of_family" ? "family" : "household",
+      members: (members || []).map((m: any) => ({
+        ...m,
+        vineyard_accounts: assets.vineyard.filter((v: any) => v.contact_id === m.id),
+        storehouses: assets.storehouses.filter((s: any) => s.contact_id === m.id),
+      })),
+    };
+  }
+
+  return { level: "individual" };
 }
 
 serve(async (req) => {
@@ -155,7 +229,6 @@ serve(async (req) => {
         extraQueries.push(
           supabase.from("households").select("id, label, address").eq("id", householdId).maybeSingle()
         );
-        // Get other members in the same household
         extraQueries.push(
           supabase.from("contacts").select("id, first_name, last_name, family_role, is_minor").eq("household_id", householdId).neq("id", contactId)
         );
@@ -169,6 +242,9 @@ serve(async (req) => {
       household = householdRes.data;
       householdMembers = membersRes.data || [];
     }
+
+    // Build hierarchy data based on role
+    const hierarchy = contactRes.data ? await buildHierarchy(supabase, contactRes.data) : { level: "individual" };
 
     // Fetch calendar events if contact has an email
     let meetings: any[] = [];
@@ -189,6 +265,7 @@ serve(async (req) => {
       family,
       household,
       household_members: householdMembers,
+      hierarchy,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

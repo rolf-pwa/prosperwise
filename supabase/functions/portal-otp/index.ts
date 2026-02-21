@@ -10,6 +10,77 @@ function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// Fetch vineyard + storehouse data for a list of contact IDs
+async function fetchAssetsForContacts(supabase: any, contactIds: string[]) {
+  if (contactIds.length === 0) return { vineyard: [], storehouses: [] };
+  const [vRes, sRes] = await Promise.all([
+    supabase.from("vineyard_accounts").select("*").in("contact_id", contactIds).order("created_at"),
+    supabase.from("storehouses").select("*").in("contact_id", contactIds).order("storehouse_number"),
+  ]);
+  return { vineyard: vRes.data || [], storehouses: sRes.data || [] };
+}
+
+// Build hierarchy data based on family_role
+async function buildHierarchy(supabase: any, contact: any) {
+  const role = contact.family_role;
+  const familyId = contact.family_id;
+  const householdId = contact.household_id;
+
+  if (role === "head_of_family" && familyId) {
+    const { data: households } = await supabase
+      .from("households")
+      .select("id, label, address")
+      .eq("family_id", familyId)
+      .order("label");
+
+    const householdIds = (households || []).map((h: any) => h.id);
+
+    const { data: allMembers } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, family_role, is_minor, household_id, email")
+      .in("household_id", householdIds.length > 0 ? householdIds : ["__none__"]);
+
+    const memberIds = (allMembers || []).map((m: any) => m.id);
+    const assets = await fetchAssetsForContacts(supabase, memberIds);
+
+    const householdsWithMembers = (households || []).map((hh: any) => {
+      const members = (allMembers || []).filter((m: any) => m.household_id === hh.id);
+      return {
+        ...hh,
+        members: members.map((m: any) => ({
+          ...m,
+          vineyard_accounts: assets.vineyard.filter((v: any) => v.contact_id === m.id),
+          storehouses: assets.storehouses.filter((s: any) => s.contact_id === m.id),
+        })),
+      };
+    });
+
+    return { level: "family", households: householdsWithMembers };
+  }
+
+  if ((role === "head_of_family" || role === "spouse") && householdId) {
+    const { data: members } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, family_role, is_minor, email")
+      .eq("household_id", householdId)
+      .neq("id", contact.id);
+
+    const memberIds = (members || []).map((m: any) => m.id);
+    const assets = await fetchAssetsForContacts(supabase, memberIds);
+
+    return {
+      level: role === "head_of_family" ? "family" : "household",
+      members: (members || []).map((m: any) => ({
+        ...m,
+        vineyard_accounts: assets.vineyard.filter((v: any) => v.contact_id === m.id),
+        storehouses: assets.storehouses.filter((s: any) => s.contact_id === m.id),
+      })),
+    };
+  }
+
+  return { level: "individual" };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -68,8 +139,7 @@ serve(async (req) => {
         expires_at: expiresAt,
       });
 
-      // Send OTP email via Supabase Auth admin (using built-in SMTP)
-      // We use a simple approach: send via the Supabase built-in email
+      // Send OTP email via Resend
       const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
       
       if (RESEND_API_KEY) {
@@ -139,7 +209,7 @@ serve(async (req) => {
 
       const contactId = otp.contact_id;
 
-      // Create a portal token so the client can use it for subsequent API calls (e.g. Asana tasks)
+      // Create a portal token so the client can use it for subsequent API calls
       const { data: newToken } = await supabase
         .from("portal_tokens")
         .insert({
@@ -149,8 +219,7 @@ serve(async (req) => {
         .select("token")
         .single();
 
-      // Now load portal data (same as portal-validate)
-
+      // Now load portal data
       const [contactRes, accountsRes, storehousesRes, auditRes] = await Promise.all([
         supabase.from("contacts").select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor").eq("id", contactId).maybeSingle(),
         supabase.from("vineyard_accounts").select("*").eq("contact_id", contactId).order("created_at"),
@@ -185,6 +254,9 @@ serve(async (req) => {
         householdMembers = membersRes.data || [];
       }
 
+      // Build hierarchy data based on role
+      const hierarchy = contactRes.data ? await buildHierarchy(supabase, contactRes.data) : { level: "individual" };
+
       return new Response(JSON.stringify({
         portal_token: newToken?.token || null,
         contact: contactRes.data,
@@ -195,6 +267,7 @@ serve(async (req) => {
         family,
         household,
         household_members: householdMembers,
+        hierarchy,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
