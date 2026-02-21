@@ -357,15 +357,23 @@ function TaskRow({
         >
           {task.name}
         </p>
-        {task.due_on && !completed && (
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            Due{" "}
-            {new Date(task.due_on).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
-          </p>
-        )}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {task.assignee?.name && (
+            <span className="text-[10px] text-muted-foreground">{task.assignee.name}</span>
+          )}
+          {task.assignee?.name && task.due_on && !completed && (
+            <span className="text-[10px] text-muted-foreground">·</span>
+          )}
+          {task.due_on && !completed && (
+            <span className="text-[10px] text-muted-foreground">
+              Due{" "}
+              {new Date(task.due_on).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         {visibility && (
