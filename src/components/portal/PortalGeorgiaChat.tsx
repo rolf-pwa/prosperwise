@@ -43,8 +43,9 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }
   }, [open, contactName]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages, formTrigger]);
 
