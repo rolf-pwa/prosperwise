@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   Shield,
   ArrowDownUp,
   MapPin,
+  Clock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditAction, type FunctionCall } from "@/lib/vertex-ai";
@@ -45,6 +47,8 @@ const CARD_CONFIG: Record<string, { icon: typeof Database; label: string; color:
 
 export function ProposedUpdateCard({ functionCall, contactId, isApproved, onApproved }: ProposedUpdateCardProps) {
   const [loading, setLoading] = useState(false);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [queued, setQueued] = useState(false);
   const config = CARD_CONFIG[functionCall.name] || { icon: Database, label: "Action", color: "text-foreground" };
   const Icon = config.icon;
   const args = functionCall.args;
@@ -417,6 +421,25 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
         }
       }
 
+      // Log to review queue
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await (supabase.from("review_queue" as any) as any).insert({
+          contact_id: cid || null,
+          action_type: functionCall.name,
+          action_description: args.rationale || args.task_title || args.subject || args.summary || config.label,
+          proposed_data: args,
+          logic_trace: `Auto-approved by CFO via Sovereignty Assistant. Action: ${functionCall.name}`,
+          status: "approved",
+          client_visible: false,
+          created_by: user?.id || null,
+          reviewed_by: user?.id || null,
+          reviewed_at: new Date().toISOString(),
+        });
+      } catch {
+        // Non-blocking — review queue logging is supplementary
+      }
+
       onApproved();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to execute action");
@@ -538,20 +561,59 @@ export function ProposedUpdateCard({ functionCall, contactId, isApproved, onAppr
             <CheckCircle2 className="h-3.5 w-3.5" />
             <span className="font-medium">Approved by Personal CFO</span>
           </div>
+        ) : queued ? (
+          <div className="flex items-center gap-1.5 text-xs text-amber-600">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="font-medium">Queued for Review</span>
+          </div>
         ) : (
-          <Button
-            size="sm"
-            onClick={handleApprove}
-            disabled={loading}
-            className="w-full bg-sanctuary-green text-primary-foreground hover:bg-sanctuary-green/90"
-          >
-            {loading ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Approve & Sync
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleApprove}
+              disabled={loading || queueLoading}
+              className="flex-1 bg-sanctuary-green text-primary-foreground hover:bg-sanctuary-green/90"
+            >
+              {loading ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Approve & Sync
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                setQueueLoading(true);
+                try {
+                  const cid = args.contact_id || contactId;
+                  const { data: { user } } = await supabase.auth.getUser();
+                  await (supabase.from("review_queue" as any) as any).insert({
+                    contact_id: cid || null,
+                    action_type: functionCall.name,
+                    action_description: args.rationale || args.task_title || args.subject || config.label,
+                    proposed_data: args,
+                    logic_trace: `AI proposed: ${functionCall.name}. Queued for human review.`,
+                    status: "pending",
+                    client_visible: false,
+                    created_by: user?.id || null,
+                  });
+                  setQueued(true);
+                  toast.success("Added to Review Queue.");
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Failed to queue");
+                } finally {
+                  setQueueLoading(false);
+                }
+              }}
+              disabled={loading || queueLoading}
+              className="gap-1"
+            >
+              {queueLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
+              Queue
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
