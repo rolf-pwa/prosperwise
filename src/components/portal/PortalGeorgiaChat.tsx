@@ -49,15 +49,17 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName }: Props) {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${FUNCTIONS_URL}/discovery-assistant`, {
+      const res = await fetch(`${FUNCTIONS_URL}/portal-assistant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: updated.map((m) => ({ role: m.role, content: m.content })),
-          systemPrompt: `You are Georgia, a helpful assistant for ProsperWise Advisors clients. Answer questions about wealth management, financial planning, and ProsperWise services. Be warm, professional, and concise. If the client needs specific account help, suggest they contact their Personal CFO.`,
         }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Request failed");
+      }
       if (data.text) {
         setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
       }
