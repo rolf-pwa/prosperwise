@@ -42,9 +42,10 @@ async function withFailSafe<T>(
 // ---------------------------------------------------------------------------
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
-  // Match both old format (/0/PROJECT_GID) and new format (/project/PROJECT_GID)
+  // New format: /1/WORKSPACE/project/PROJECT_GID/...
   const newMatch = asanaUrl.match(/\/project\/(\d+)/);
   if (newMatch) return newMatch[1];
+  // Old format: /0/PROJECT_GID
   const oldMatch = asanaUrl.match(/app\.asana\.com\/0\/(\d+)/);
   return oldMatch ? oldMatch[1] : null;
 }
@@ -58,10 +59,16 @@ function extractProjectGid(asanaUrl: string | null): string | null {
 // ---------------------------------------------------------------------------
 function extractTaskGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
-  // Pattern: /0/SOMETHING/TASK_GID or /0/SOMETHING/TASK_GID/f
+  // New format: /task/TASK_GID
+  const newTaskMatch = asanaUrl.match(/\/task\/(\d+)/);
+  if (newTaskMatch) return newTaskMatch[1];
+  // New format: /project/PROJECT/list/TASK_GID (task selected in list view)
+  const listTaskMatch = asanaUrl.match(/\/project\/\d+\/list\/(\d+)/);
+  if (listTaskMatch) return listTaskMatch[1];
+  // Old format: /0/SOMETHING/TASK_GID or /0/SOMETHING/TASK_GID/f
   const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
   if (twoSegment) return twoSegment[1];
-  // Pattern: /0/TASK_GID/f (single segment with /f suffix)
+  // Old format: /0/TASK_GID/f (single segment with /f suffix)
   const singleSegment = asanaUrl.match(/app\.asana\.com\/0\/(\d+)\/f/);
   if (singleSegment) return singleSegment[1];
   return null;
@@ -74,9 +81,14 @@ function extractTaskGid(asanaUrl: string | null): string | null {
 // ---------------------------------------------------------------------------
 function isTaskUrl(asanaUrl: string | null): boolean {
   if (!asanaUrl) return false;
-  // If it has /f suffix or two numeric segments, it's a task URL
+  // New format: /task/TASK_GID
+  if (/\/task\/\d+/.test(asanaUrl)) return true;
+  // New format: /project/PROJECT/list/TASK_GID (task selected in list view)
+  if (/\/project\/\d+\/list\/\d+/.test(asanaUrl)) return true;
+  // Old format: /0/TASK_GID/f
   if (/app\.asana\.com\/0\/\d+\/f/.test(asanaUrl)) return true;
-  if (/app\.asana\.com\/0\/\d+\/\d+/.test(asanaUrl)) return true;
+  // Old format: /0/PROJECT_GID/TASK_GID (two numeric segments, not a view suffix)
+  if (/app\.asana\.com\/0\/\d+\/\d+/.test(asanaUrl) && !/\/(list|board|timeline|calendar)/.test(asanaUrl)) return true;
   return false;
 }
 
@@ -441,7 +453,7 @@ serve(async (req) => {
     const { action, portal_token, ...params } = body;
 
     // ---- Auth: either Supabase Bearer or portal_token ----
-    let portalContext: { contactId: string; asanaProjectGid: string | null } | null = null;
+    let portalContext: { contactId: string; asanaProjectGid: string | null; asanaTaskGid: string | null; isTaskBased: boolean } | null = null;
 
     if (portal_token) {
       portalContext = await validatePortalToken(portal_token);
