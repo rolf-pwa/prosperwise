@@ -490,6 +490,75 @@ export type Database = {
         }
         Relationships: []
       }
+      review_queue: {
+        Row: {
+          action_description: string
+          action_type: string
+          client_visible: boolean
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          escalated_to: string | null
+          family_id: string | null
+          id: string
+          logic_trace: string | null
+          proposed_data: Json | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["review_status"]
+          updated_at: string
+        }
+        Insert: {
+          action_description: string
+          action_type: string
+          client_visible?: boolean
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          escalated_to?: string | null
+          family_id?: string | null
+          id?: string
+          logic_trace?: string | null
+          proposed_data?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["review_status"]
+          updated_at?: string
+        }
+        Update: {
+          action_description?: string
+          action_type?: string
+          client_visible?: boolean
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          escalated_to?: string | null
+          family_id?: string | null
+          id?: string
+          logic_trace?: string | null
+          proposed_data?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["review_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_queue_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_queue_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sovereignty_audit_trail: {
         Row: {
           action_description: string
@@ -738,6 +807,7 @@ export type Database = {
       fee_tier: "sovereign" | "legacy" | "dynasty"
       fiduciary_entity: "pws" | "pwa"
       governance_status: "stabilization" | "sovereign"
+      review_status: "pending" | "approved" | "rejected" | "escalated"
       visibility_scope: "private" | "household_shared" | "family_shared"
     }
     CompositeTypes: {
@@ -871,6 +941,7 @@ export const Constants = {
       fee_tier: ["sovereign", "legacy", "dynasty"],
       fiduciary_entity: ["pws", "pwa"],
       governance_status: ["stabilization", "sovereign"],
+      review_status: ["pending", "approved", "rejected", "escalated"],
       visibility_scope: ["private", "household_shared", "family_shared"],
     },
   },

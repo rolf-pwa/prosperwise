@@ -10,6 +10,7 @@ import {
   CheckSquare,
   ShieldCheck,
   ExternalLink,
+  ClipboardCheck,
   Calendar,
   Mail,
   FolderOpen,
@@ -27,6 +28,7 @@ const navItems = [
   { to: "/families", label: "Family Tree", icon: TreesIcon },
   { to: "/contacts", label: "Contacts", icon: Users, tasksBadge: true },
   { to: "/leads", label: "Discovery Leads", icon: UserPlus },
+  { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
 ];
 
 const externalLinks = [
@@ -42,9 +44,10 @@ export function AppSidebar() {
   const { user } = useAuth();
   const location = useLocation();
   const [pendingTasksCount, setPendingTasksCount] = useState<number | null>(null);
+  const [pendingReviewCount, setPendingReviewCount] = useState<number | null>(null);
 
   useEffect(() => {
-    // Fetch a sample of contacts with asana_url to get a rough pending tasks count
+    // Fetch Asana pending tasks
     (async () => {
       try {
         const res = await supabase.functions.invoke("asana-service", {
@@ -54,6 +57,18 @@ export function AppSidebar() {
           const open = (res.data.data as any[]).filter((t: any) => !t.completed).length;
           setPendingTasksCount(open);
         }
+      } catch {
+        // silently fail
+      }
+    })();
+
+    // Fetch pending review queue count
+    (async () => {
+      try {
+        const { count } = await (supabase.from("review_queue" as any) as any)
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending");
+        setPendingReviewCount(count ?? 0);
       } catch {
         // silently fail
       }
@@ -75,7 +90,7 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map(({ to, label, icon: Icon, tasksBadge }) => (
+        {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge }: any) => (
           <Link
             key={to}
             to={to}
@@ -91,6 +106,11 @@ export function AppSidebar() {
             {tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0 && (
               <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
                 {pendingTasksCount > 99 ? "99+" : pendingTasksCount}
+              </span>
+            )}
+            {reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0 && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
+                {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
               </span>
             )}
           </Link>
