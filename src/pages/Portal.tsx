@@ -681,7 +681,7 @@ const Portal = () => {
             <div className="flex flex-col gap-1.5">
               {[
                 { href: contact.sidedrawer_url, label: "My Documents", icon: FolderOpen },
-                { href: contact.ia_financial_url, label: "My Accounts", icon: Landmark },
+                { href: "https://clients.ia.ca/account/login", label: "My Accounts", icon: Landmark },
               ].map(({ href, label, icon: Icon }) => (
                 <a
                   key={label}
