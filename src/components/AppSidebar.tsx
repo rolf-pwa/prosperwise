@@ -29,7 +29,7 @@ const navItems = [
   { to: "/families", label: "Family Tree", icon: TreesIcon },
   { to: "/contacts", label: "Contacts", icon: Users, tasksBadge: true },
   { to: "/leads", label: "Discovery Leads", icon: UserPlus },
-  { to: "/requests", label: "Client Requests", icon: ClipboardList },
+  { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
 ];
 
@@ -47,6 +47,7 @@ export function AppSidebar() {
   const location = useLocation();
   const [pendingTasksCount, setPendingTasksCount] = useState<number | null>(null);
   const [pendingReviewCount, setPendingReviewCount] = useState<number | null>(null);
+  const [openRequestsCount, setOpenRequestsCount] = useState<number | null>(null);
 
   useEffect(() => {
     // Fetch Asana pending tasks
@@ -75,6 +76,19 @@ export function AppSidebar() {
         // silently fail
       }
     })();
+
+    // Fetch open client requests count
+    (async () => {
+      try {
+        const { count } = await supabase
+          .from("portal_requests")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["submitted", "in_progress"]);
+        setOpenRequestsCount(count ?? 0);
+      } catch {
+        // silently fail
+      }
+    })();
   }, []);
 
   return (
@@ -92,7 +106,7 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge }: any) => (
+        {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge, requestsBadge }: any) => (
           <Link
             key={to}
             to={to}
@@ -113,6 +127,11 @@ export function AppSidebar() {
             {reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0 && (
               <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
                 {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
+              </span>
+            )}
+            {requestsBadge && openRequestsCount !== null && openRequestsCount > 0 && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
+                {openRequestsCount > 99 ? "99+" : openRequestsCount}
               </span>
             )}
           </Link>
