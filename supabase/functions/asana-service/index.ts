@@ -131,6 +131,7 @@ class AsanaService {
     due_on?: string | null;
     projects?: string[];
     assignee?: string | null;
+    custom_fields?: Record<string, string>;
   }) {
     return withFailSafe("createTask", async () => {
       const url = `${ASANA_BASE_URL}/tasks`;
@@ -139,6 +140,7 @@ class AsanaService {
       if (payload.due_on) data.due_on = payload.due_on;
       if (payload.projects) data.projects = payload.projects;
       if (payload.assignee) data.assignee = payload.assignee;
+      if (payload.custom_fields) data.custom_fields = payload.custom_fields;
 
       console.log("[AsanaService] POST", url, JSON.stringify(data));
       const res = await fetch(url, {
@@ -163,6 +165,7 @@ class AsanaService {
     notes?: string;
     due_on?: string | null;
     assignee?: string | null;
+    custom_fields?: Record<string, string>;
   }) {
     return withFailSafe("createSubtask", async () => {
       const url = `${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`;
@@ -170,6 +173,7 @@ class AsanaService {
       if (payload.notes) data.notes = payload.notes;
       if (payload.due_on) data.due_on = payload.due_on;
       if (payload.assignee) data.assignee = payload.assignee;
+      if (payload.custom_fields) data.custom_fields = payload.custom_fields;
 
       console.log("[AsanaService] POST subtask", url, JSON.stringify(data));
       const res = await fetch(url, {
@@ -183,6 +187,36 @@ class AsanaService {
       }
       const json = await res.json();
       return json.data;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // lookupVisibilityField – Find PW_Visibility custom field GID and enum options
+  // by inspecting a task's custom_fields
+  // -------------------------------------------------------------------------
+  async lookupVisibilityField(taskGid: string): Promise<{
+    fieldGid: string;
+    internalOnlyGid: string;
+    clientVisibleGid: string;
+  } | null> {
+    return withFailSafe("lookupVisibilityField", async () => {
+      const url = `${ASANA_BASE_URL}/tasks/${taskGid}?opt_fields=custom_fields`;
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const cfs = json.data?.custom_fields || [];
+      const visField = cfs.find(
+        (cf: any) => cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility"),
+      );
+      if (!visField || !visField.enum_options) return null;
+      const internalOpt = visField.enum_options.find((o: any) => o.name === "Internal Only");
+      const clientOpt = visField.enum_options.find((o: any) => o.name === "Client Visible");
+      if (!internalOpt || !clientOpt) return null;
+      return {
+        fieldGid: visField.gid,
+        internalOnlyGid: internalOpt.gid,
+        clientVisibleGid: clientOpt.gid,
+      };
     });
   }
 
@@ -536,7 +570,7 @@ serve(async (req) => {
 
     switch (action) {
       case "createTask": {
-        const { name, notes, due_on, project_gid, assignee } = params;
+        const { name, notes, due_on, project_gid, assignee, custom_fields } = params;
         if (!name) {
           return new Response(
             JSON.stringify({ error: "name is required" }),
@@ -549,12 +583,13 @@ serve(async (req) => {
           due_on,
           projects: project_gid ? [project_gid] : undefined,
           assignee,
+          custom_fields,
         });
         break;
       }
 
       case "createSubtask": {
-        const { parent_task_gid, name: subtaskName, notes: subtaskNotes, due_on: subtaskDueOn, assignee: subtaskAssignee } = params;
+        const { parent_task_gid, name: subtaskName, notes: subtaskNotes, due_on: subtaskDueOn, assignee: subtaskAssignee, custom_fields: subtaskCf } = params;
         if (!parent_task_gid || !subtaskName) {
           return new Response(
             JSON.stringify({ error: "parent_task_gid and name are required" }),
@@ -566,7 +601,20 @@ serve(async (req) => {
           notes: subtaskNotes,
           due_on: subtaskDueOn,
           assignee: subtaskAssignee,
+          custom_fields: subtaskCf,
         });
+        break;
+      }
+
+      case "lookupVisibilityField": {
+        const { task_gid: lookupTaskGid } = params;
+        if (!lookupTaskGid) {
+          return new Response(
+            JSON.stringify({ error: "task_gid is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        result = await service.lookupVisibilityField(lookupTaskGid);
         break;
       }
 
