@@ -112,8 +112,16 @@ export function PortalTaskConversation({ taskGid, portalToken }: Props) {
                   })}
                 </span>
               </div>
-              <div className="rounded-lg bg-slate-900 text-slate-100 px-4 py-3 text-sm leading-relaxed max-w-[90%]">
-                {story.text}
+              <div className="rounded-lg bg-slate-900 text-slate-100 px-4 py-3 text-sm leading-relaxed max-w-[90%] whitespace-pre-wrap break-words">
+                {story.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                  /^https?:\/\//.test(part) ? (
+                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline break-all">
+                      {part}
+                    </a>
+                  ) : (
+                    <span key={i}>{part}</span>
+                  )
+                )}
               </div>
             </div>
           ))
