@@ -18,6 +18,8 @@ import {
   Pencil,
   Users,
   Plus,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
+// ── Types ──
 interface AsanaTask {
   gid: string;
   name: string;
@@ -47,6 +50,7 @@ interface AsanaTask {
   assignee?: { gid: string; name: string } | null;
   memberships?: { section?: { name?: string } }[];
   custom_fields?: any[];
+  num_subtasks?: number;
 }
 
 interface AsanaMember {
@@ -62,8 +66,23 @@ interface AsanaComment {
   created_by?: { name?: string };
 }
 
+interface VisibilityFieldInfo {
+  fieldGid: string;
+  internalOnlyGid: string;
+  clientVisibleGid: string;
+}
+
 interface Props {
   asanaUrl: string | null;
+}
+
+// ── URL Helpers ──
+function extractProjectGid(url: string | null): string | null {
+  if (!url) return null;
+  const newMatch = url.match(/\/project\/(\d+)/);
+  if (newMatch) return newMatch[1];
+  const oldMatch = url.match(/app\.asana\.com\/0\/(\d+)/);
+  return oldMatch ? oldMatch[1] : null;
 }
 
 function extractTaskGid(url: string | null): string | null {
@@ -88,6 +107,7 @@ function isTaskUrl(url: string | null): boolean {
   return false;
 }
 
+// ── Task Helpers ──
 type TaskCategory = "new" | "ongoing";
 
 function getTaskStatus(task: AsanaTask): {
@@ -118,14 +138,6 @@ function categorise(task: AsanaTask): TaskCategory {
   return "new";
 }
 
-function extractProjectGid(url: string | null): string | null {
-  if (!url) return null;
-  const newMatch = url.match(/\/project\/(\d+)/);
-  if (newMatch) return newMatch[1];
-  const oldMatch = url.match(/app\.asana\.com\/0\/(\d+)/);
-  return oldMatch ? oldMatch[1] : null;
-}
-
 function getVisibility(task: AsanaTask): string | null {
   const cf = task.custom_fields?.find(
     (f: any) =>
@@ -135,6 +147,224 @@ function getVisibility(task: AsanaTask): string | null {
   return cf?.enum_value?.name || null;
 }
 
+// ── Visibility Select ──
+function VisibilitySelect({
+  value,
+  onChange,
+}: {
+  value: "client_visible" | "internal_only";
+  onChange: (v: "client_visible" | "internal_only") => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as any)}
+      className="h-7 rounded-md border bg-background px-2 text-xs text-foreground"
+    >
+      <option value="client_visible">Client Visible</option>
+      <option value="internal_only">Internal Only</option>
+    </select>
+  );
+}
+
+// ── Add Task/Subtask Form ──
+function AddTaskForm({
+  placeholder,
+  visFieldInfo,
+  onSubmit,
+  onCancel,
+}: {
+  placeholder: string;
+  visFieldInfo: VisibilityFieldInfo | null;
+  onSubmit: (name: string, dueOn: string, visibility: "client_visible" | "internal_only") => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [dueOn, setDueOn] = useState("");
+  const [visibility, setVisibility] = useState<"client_visible" | "internal_only">("internal_only");
+  const [creating, setCreating] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    setCreating(true);
+    try {
+      await onSubmit(name.trim(), dueOn, visibility);
+      setName("");
+      setDueOn("");
+      setVisibility("internal_only");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border p-3">
+      <Input
+        placeholder={placeholder}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && name.trim()) handleSubmit();
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <Input
+          type="date"
+          value={dueOn}
+          onChange={(e) => setDueOn(e.target.value)}
+          className="h-7 w-36 text-xs"
+        />
+        {visFieldInfo && (
+          <VisibilitySelect value={visibility} onChange={setVisibility} />
+        )}
+        <div className="flex-1" />
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          disabled={!name.trim() || creating}
+          onClick={handleSubmit}
+        >
+          {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs"
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── TaskRow with subtask nesting ──
+function TaskRow({
+  task,
+  completed,
+  onClick,
+  depth = 0,
+}: {
+  task: AsanaTask;
+  completed?: boolean;
+  onClick: () => void;
+  depth?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [subtasks, setSubtasks] = useState<AsanaTask[]>([]);
+  const [subtasksLoading, setSubtasksLoading] = useState(false);
+  const [subtasksFetched, setSubtasksFetched] = useState(false);
+
+  const status = getTaskStatus(task);
+  const visibility = getVisibility(task);
+
+  const handleToggleExpand = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!expanded && !subtasksFetched) {
+      setSubtasksLoading(true);
+      try {
+        const res = await supabase.functions.invoke("asana-service", {
+          body: { action: "getSubtasks", task_gid: task.gid },
+        });
+        if (!res.error && !res.data?.error) {
+          setSubtasks(res.data?.data || []);
+        }
+      } catch {
+        // silent
+      } finally {
+        setSubtasksLoading(false);
+        setSubtasksFetched(true);
+      }
+    }
+    setExpanded(!expanded);
+  };
+
+  return (
+    <div style={{ marginLeft: depth > 0 ? `${depth * 16}px` : undefined }}>
+      <button
+        onClick={onClick}
+        className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors w-full text-left ${
+          completed ? "opacity-50" : "bg-muted/50 hover:bg-muted"
+        }`}
+      >
+        {/* Expand toggle */}
+        <button
+          onClick={handleToggleExpand}
+          className="shrink-0 p-0.5 rounded hover:bg-background/80 transition-colors"
+        >
+          {subtasksLoading ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          ) : expanded ? (
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-sm font-medium truncate ${completed ? "line-through text-muted-foreground" : "text-foreground"}`}
+          >
+            {task.name}
+          </p>
+          {task.due_on && !completed && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Due{" "}
+              {new Date(task.due_on).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {task.assignee?.name && (
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+              {task.assignee.name.split(" ")[0]}
+            </Badge>
+          )}
+          {visibility && (
+            <Badge
+              variant={visibility === "Client Visible" ? "default" : "secondary"}
+              className="text-[9px] px-1.5 py-0"
+            >
+              {visibility === "Client Visible" ? (
+                <><Eye className="h-2.5 w-2.5 mr-0.5" />Client</>
+              ) : (
+                <><EyeOff className="h-2.5 w-2.5 mr-0.5" />Internal</>
+              )}
+            </Badge>
+          )}
+          <Badge variant={status.variant} className="text-[9px] px-1.5 py-0">
+            {status.label}
+          </Badge>
+        </div>
+      </button>
+
+      {/* Nested subtasks */}
+      {expanded && subtasksFetched && subtasks.length > 0 && (
+        <div className="mt-1 space-y-1">
+          {subtasks.map((sub) => (
+            <TaskRow
+              key={sub.gid}
+              task={sub}
+              completed={sub.completed}
+              onClick={onClick}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+      {expanded && subtasksFetched && subtasks.length === 0 && !subtasksLoading && (
+        <p className="text-[10px] text-muted-foreground pl-8 py-1 italic">No subtasks</p>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ──
 export function ContactTaskList({ asanaUrl }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [members, setMembers] = useState<AsanaMember[]>([]);
@@ -143,9 +373,7 @@ export function ContactTaskList({ asanaUrl }: Props) {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<AsanaTask | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
-  const [newTaskName, setNewTaskName] = useState("");
-  const [newTaskDueOn, setNewTaskDueOn] = useState("");
-  const [creatingTask, setCreatingTask] = useState(false);
+  const [visFieldInfo, setVisFieldInfo] = useState<VisibilityFieldInfo | null>(null);
 
   const projectGid = extractProjectGid(asanaUrl);
   const taskBased = isTaskUrl(asanaUrl);
@@ -159,8 +387,6 @@ export function ContactTaskList({ asanaUrl }: Props) {
     try {
       const tasksBody: any = { action: "getTasksForProject" };
       if (taskBased && parentTaskGid) {
-        // For task-based URLs, we fetch subtasks via the parent task
-        // But from CRM (not portal), we call getSubtasks directly
         tasksBody.action = "getSubtasks";
         tasksBody.task_gid = parentTaskGid;
       } else {
@@ -170,7 +396,6 @@ export function ContactTaskList({ asanaUrl }: Props) {
       const promises: Promise<any>[] = [
         supabase.functions.invoke("asana-service", { body: tasksBody }),
       ];
-      // Only fetch members for project-based URLs
       if (projectGid && !taskBased) {
         promises.push(
           supabase.functions.invoke("asana-service", {
@@ -184,7 +409,37 @@ export function ContactTaskList({ asanaUrl }: Props) {
       if (tasksRes.data?.error) {
         setError(tasksRes.data.error);
       } else {
-        setTasks(tasksRes.data?.data || []);
+        const fetchedTasks = tasksRes.data?.data || [];
+        setTasks(fetchedTasks);
+
+        // Lookup visibility field info from the first task that has custom_fields
+        if (!visFieldInfo && fetchedTasks.length > 0) {
+          const taskWithCf = fetchedTasks.find((t: any) => t.custom_fields?.length > 0);
+          if (taskWithCf) {
+            const cf = taskWithCf.custom_fields.find(
+              (f: any) => f.name === "PW_Visibility" || f.name?.toLowerCase().includes("visibility"),
+            );
+            if (cf?.enum_options) {
+              const internalOpt = cf.enum_options.find((o: any) => o.name === "Internal Only");
+              const clientOpt = cf.enum_options.find((o: any) => o.name === "Client Visible");
+              if (internalOpt && clientOpt) {
+                setVisFieldInfo({
+                  fieldGid: cf.gid,
+                  internalOnlyGid: internalOpt.gid,
+                  clientVisibleGid: clientOpt.gid,
+                });
+              }
+            }
+          } else if (parentTaskGid) {
+            // Try looking up from parent task
+            const res = await supabase.functions.invoke("asana-service", {
+              body: { action: "lookupVisibilityField", task_gid: parentTaskGid },
+            });
+            if (!res.error && res.data?.data) {
+              setVisFieldInfo(res.data.data);
+            }
+          }
+        }
       }
       if (membersRes && !membersRes.error && !membersRes.data?.error) {
         setMembers(membersRes.data?.data || []);
@@ -209,39 +464,36 @@ export function ContactTaskList({ asanaUrl }: Props) {
     );
   };
 
-  const handleCreateTask = async () => {
-    if (!newTaskName.trim()) return;
-    setCreatingTask(true);
-    try {
-      const body: any = {
-        name: newTaskName.trim(),
-        due_on: newTaskDueOn || undefined,
+  const handleCreateTask = async (name: string, dueOn: string, visibility: "client_visible" | "internal_only") => {
+    const body: any = {
+      name,
+      due_on: dueOn || undefined,
+    };
+
+    // Build custom_fields for visibility
+    if (visFieldInfo) {
+      body.custom_fields = {
+        [visFieldInfo.fieldGid]: visibility === "client_visible"
+          ? visFieldInfo.clientVisibleGid
+          : visFieldInfo.internalOnlyGid,
       };
-
-      if (taskBased && parentTaskGid) {
-        // Add as subtask of the parent task
-        body.action = "createSubtask";
-        body.parent_task_gid = parentTaskGid;
-      } else {
-        // Add as task in the project
-        body.action = "createTask";
-        body.project_gid = projectGid;
-      }
-
-      const res = await supabase.functions.invoke("asana-service", { body });
-      if (res.error) throw res.error;
-      if (res.data?.error) throw new Error(res.data.error);
-
-      toast.success("Task created.");
-      setNewTaskName("");
-      setNewTaskDueOn("");
-      setShowAddTask(false);
-      fetchTasks();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to create task.");
-    } finally {
-      setCreatingTask(false);
     }
+
+    if (taskBased && parentTaskGid) {
+      body.action = "createSubtask";
+      body.parent_task_gid = parentTaskGid;
+    } else {
+      body.action = "createTask";
+      body.project_gid = projectGid;
+    }
+
+    const res = await supabase.functions.invoke("asana-service", { body });
+    if (res.error) throw res.error;
+    if (res.data?.error) throw new Error(res.data.error);
+
+    toast.success("Task created.");
+    setShowAddTask(false);
+    fetchTasks();
   };
 
   if (!asanaUrl || (!projectGid && !parentTaskGid)) {
@@ -327,46 +579,13 @@ export function ContactTaskList({ asanaUrl }: Props) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Add Task Form */}
           {showAddTask && (
-            <div className="space-y-2 rounded-md border border-border p-3">
-              <Input
-                placeholder={taskBased ? "New subtask name…" : "New task name…"}
-                value={newTaskName}
-                onChange={(e) => setNewTaskName(e.target.value)}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newTaskName.trim()) handleCreateTask();
-                  if (e.key === "Escape") setShowAddTask(false);
-                }}
-              />
-              <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={newTaskDueOn}
-                  onChange={(e) => setNewTaskDueOn(e.target.value)}
-                  className="h-8 w-36 text-xs"
-                  placeholder="Due date"
-                />
-                <div className="flex-1" />
-                <Button
-                  size="sm"
-                  className="h-7 text-xs"
-                  disabled={!newTaskName.trim() || creatingTask}
-                  onClick={handleCreateTask}
-                >
-                  {creatingTask ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs"
-                  onClick={() => { setShowAddTask(false); setNewTaskName(""); setNewTaskDueOn(""); }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
+            <AddTaskForm
+              placeholder={taskBased ? "New subtask name…" : "New task name…"}
+              visFieldInfo={visFieldInfo}
+              onSubmit={handleCreateTask}
+              onCancel={() => setShowAddTask(false)}
+            />
           )}
 
           {active.length === 0 && completed.length === 0 && !showAddTask && (
@@ -452,6 +671,7 @@ export function ContactTaskList({ asanaUrl }: Props) {
             <TaskDetailPanel
               task={selectedTask}
               members={members}
+              visFieldInfo={visFieldInfo}
               onUpdated={handleTaskUpdated}
               onClose={() => setSelectedTask(null)}
               onSubtaskCreated={fetchTasks}
@@ -463,74 +683,18 @@ export function ContactTaskList({ asanaUrl }: Props) {
   );
 }
 
-/* ── Task Row ── */
-function TaskRow({
-  task,
-  completed,
-  onClick,
-}: {
-  task: AsanaTask;
-  completed?: boolean;
-  onClick: () => void;
-}) {
-  const status = getTaskStatus(task);
-  const visibility = getVisibility(task);
-
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors w-full text-left ${
-        completed ? "opacity-50" : "bg-muted/50 hover:bg-muted"
-      }`}
-    >
-      <div className="min-w-0 flex-1">
-        <p
-          className={`text-sm font-medium truncate ${completed ? "line-through text-muted-foreground" : "text-foreground"}`}
-        >
-          {task.name}
-        </p>
-        {task.due_on && !completed && (
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            Due{" "}
-            {new Date(task.due_on).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
-          </p>
-        )}
-      </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {task.assignee?.name && (
-          <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-            {task.assignee.name.split(" ")[0]}
-          </Badge>
-        )}
-        {visibility && (
-          <Badge
-            variant={visibility === "Client Visible" ? "default" : "secondary"}
-            className="text-[9px] px-1.5 py-0"
-          >
-            {visibility === "Client Visible" ? "Client" : "Internal"}
-          </Badge>
-        )}
-        <Badge variant={status.variant} className="text-[9px] px-1.5 py-0">
-          {status.label}
-        </Badge>
-      </div>
-    </button>
-  );
-}
-
-/* ── Task Detail Panel (inside Sheet) ── */
+// ── Task Detail Panel (inside Sheet) ──
 function TaskDetailPanel({
   task,
   members,
+  visFieldInfo,
   onUpdated,
   onClose,
   onSubtaskCreated,
 }: {
   task: AsanaTask;
   members: AsanaMember[];
+  visFieldInfo: VisibilityFieldInfo | null;
   onUpdated: (t: AsanaTask) => void;
   onClose: () => void;
   onSubtaskCreated?: () => void;
@@ -547,36 +711,49 @@ function TaskDetailPanel({
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
 
-  // Subtask creation state
   const [showAddSubtask, setShowAddSubtask] = useState(false);
-  const [subtaskName, setSubtaskName] = useState("");
-  const [subtaskDueOn, setSubtaskDueOn] = useState("");
-  const [creatingSubtask, setCreatingSubtask] = useState(false);
 
-  // Reset edit state when task changes
+  // Subtasks in detail panel
+  const [detailSubtasks, setDetailSubtasks] = useState<AsanaTask[]>([]);
+  const [detailSubtasksLoading, setDetailSubtasksLoading] = useState(true);
+
+  const visibility = getVisibility(task);
+
+  // Reset state when task changes
   useEffect(() => {
     setEditName(task.name);
     setEditNotes(task.notes || "");
     setEditDueOn(task.due_on || "");
     setEditAssignee(task.assignee?.gid || "");
     setEditing(false);
+    setShowAddSubtask(false);
   }, [task.gid, task.name, task.notes, task.due_on, task.assignee?.gid]);
 
-  // Fetch comments
+  // Fetch comments + subtasks
   useEffect(() => {
     (async () => {
       setCommentsLoading(true);
+      setDetailSubtasksLoading(true);
       try {
-        const res = await supabase.functions.invoke("asana-service", {
-          body: { action: "getTaskStories", task_gid: task.gid },
-        });
-        if (!res.error && !res.data?.error) {
-          setComments(res.data?.data || []);
+        const [commentsRes, subtasksRes] = await Promise.all([
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getTaskStories", task_gid: task.gid },
+          }),
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getSubtasks", task_gid: task.gid },
+          }),
+        ]);
+        if (!commentsRes.error && !commentsRes.data?.error) {
+          setComments(commentsRes.data?.data || []);
+        }
+        if (!subtasksRes.error && !subtasksRes.data?.error) {
+          setDetailSubtasks(subtasksRes.data?.data || []);
         }
       } catch {
         // silent
       } finally {
         setCommentsLoading(false);
+        setDetailSubtasksLoading(false);
       }
     })();
   }, [task.gid]);
@@ -656,7 +833,6 @@ function TaskDetailPanel({
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
-      // Add optimistically
       setComments((prev) => [
         ...prev,
         {
@@ -675,30 +851,35 @@ function TaskDetailPanel({
     }
   };
 
-  const handleCreateSubtask = async () => {
-    if (!subtaskName.trim()) return;
-    setCreatingSubtask(true);
-    try {
-      const res = await supabase.functions.invoke("asana-service", {
-        body: {
-          action: "createSubtask",
-          parent_task_gid: task.gid,
-          name: subtaskName.trim(),
-          due_on: subtaskDueOn || undefined,
-        },
-      });
-      if (res.error) throw res.error;
-      if (res.data?.error) throw new Error(res.data.error);
-      toast.success("Subtask created.");
-      setSubtaskName("");
-      setSubtaskDueOn("");
-      setShowAddSubtask(false);
-      onSubtaskCreated?.();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to create subtask.");
-    } finally {
-      setCreatingSubtask(false);
+  const handleCreateSubtask = async (name: string, dueOn: string, vis: "client_visible" | "internal_only") => {
+    const body: any = {
+      action: "createSubtask",
+      parent_task_gid: task.gid,
+      name,
+      due_on: dueOn || undefined,
+    };
+    if (visFieldInfo) {
+      body.custom_fields = {
+        [visFieldInfo.fieldGid]: vis === "client_visible"
+          ? visFieldInfo.clientVisibleGid
+          : visFieldInfo.internalOnlyGid,
+      };
     }
+    const res = await supabase.functions.invoke("asana-service", { body });
+    if (res.error) throw res.error;
+    if (res.data?.error) throw new Error(res.data.error);
+
+    toast.success("Subtask created.");
+    setShowAddSubtask(false);
+
+    // Refresh detail subtasks
+    const refreshRes = await supabase.functions.invoke("asana-service", {
+      body: { action: "getSubtasks", task_gid: task.gid },
+    });
+    if (!refreshRes.error && !refreshRes.data?.error) {
+      setDetailSubtasks(refreshRes.data?.data || []);
+    }
+    onSubtaskCreated?.();
   };
 
   const status = getTaskStatus(task);
@@ -707,9 +888,23 @@ function TaskDetailPanel({
     <div className="space-y-6 pt-2">
       <SheetHeader className="space-y-1">
         <div className="flex items-center justify-between">
-          <Badge variant={status.variant} className="text-xs">
-            {status.label}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={status.variant} className="text-xs">
+              {status.label}
+            </Badge>
+            {visibility && (
+              <Badge
+                variant={visibility === "Client Visible" ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {visibility === "Client Visible" ? (
+                  <><Eye className="h-3 w-3 mr-1" />Client Visible</>
+                ) : (
+                  <><EyeOff className="h-3 w-3 mr-1" />Internal Only</>
+                )}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             {!editing && (
               <Button
@@ -738,7 +933,6 @@ function TaskDetailPanel({
 
       {/* Meta rows */}
       <div className="space-y-3 text-sm">
-        {/* Due date */}
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" />
           {editing ? (
@@ -761,7 +955,6 @@ function TaskDetailPanel({
           )}
         </div>
 
-        {/* Assignee */}
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
           {editing ? (
@@ -803,44 +996,61 @@ function TaskDetailPanel({
           </Button>
         </div>
 
-        {/* Add Subtask Form */}
         {showAddSubtask && (
-          <div className="space-y-2 rounded-md border border-border p-3">
-            <Input
-              placeholder="Subtask name…"
-              value={subtaskName}
-              onChange={(e) => setSubtaskName(e.target.value)}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && subtaskName.trim()) handleCreateSubtask();
-                if (e.key === "Escape") setShowAddSubtask(false);
-              }}
-            />
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={subtaskDueOn}
-                onChange={(e) => setSubtaskDueOn(e.target.value)}
-                className="h-7 w-36 text-xs"
-              />
-              <div className="flex-1" />
-              <Button
-                size="sm"
-                className="h-7 text-xs"
-                disabled={!subtaskName.trim() || creatingSubtask}
-                onClick={handleCreateSubtask}
-              >
-                {creatingSubtask ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs"
-                onClick={() => { setShowAddSubtask(false); setSubtaskName(""); setSubtaskDueOn(""); }}
-              >
-                Cancel
-              </Button>
-            </div>
+          <AddTaskForm
+            placeholder="Subtask name…"
+            visFieldInfo={visFieldInfo}
+            onSubmit={handleCreateSubtask}
+            onCancel={() => setShowAddSubtask(false)}
+          />
+        )}
+      </div>
+
+      {/* Subtasks */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+          <CheckSquare className="h-3 w-3" />
+          Subtasks ({detailSubtasks.length})
+        </div>
+        {detailSubtasksLoading ? (
+          <div className="flex items-center justify-center py-2">
+            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+          </div>
+        ) : detailSubtasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic py-1">No subtasks</p>
+        ) : (
+          <div className="space-y-1">
+            {detailSubtasks.map((sub) => {
+              const subStatus = getTaskStatus(sub);
+              const subVis = getVisibility(sub);
+              return (
+                <div
+                  key={sub.gid}
+                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm ${
+                    sub.completed ? "opacity-50" : "bg-muted/50"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm truncate ${sub.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                      {sub.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {subVis && (
+                      <Badge
+                        variant={subVis === "Client Visible" ? "default" : "secondary"}
+                        className="text-[9px] px-1.5 py-0"
+                      >
+                        {subVis === "Client Visible" ? "Client" : "Internal"}
+                      </Badge>
+                    )}
+                    <Badge variant={subStatus.variant} className="text-[9px] px-1.5 py-0">
+                      {subStatus.label}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -938,7 +1148,6 @@ function TaskDetailPanel({
           </div>
         )}
 
-        {/* Post comment */}
         <div className="flex gap-2">
           <Textarea
             value={newComment}
