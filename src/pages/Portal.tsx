@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalTerritory } from "@/components/portal/PortalTerritory";
+import { PortalRequests } from "@/components/portal/PortalRequests";
 import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin } from "lucide-react";
+import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList } from "lucide-react";
 
 interface PortalData {
   portal_token?: string;
@@ -20,6 +21,7 @@ interface PortalData {
   vineyard_accounts: any[];
   storehouses: any[];
   audit_trail: any[];
+  portal_requests: any[];
   meetings: any[];
   family: any | null;
   household: any | null;
@@ -246,7 +248,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, audit_trail, meetings, family, household, household_members, hierarchy } = data;
+  const { contact, vineyard_accounts, storehouses, audit_trail, portal_requests, meetings, family, household, household_members, hierarchy } = data;
   const portalToken = token || data.portal_token || "";
   const hierarchyLevel = hierarchy?.level || "individual";
 
@@ -592,7 +594,24 @@ const Portal = () => {
             )}
           </div>
 
-          {/* Meetings */}
+          {/* My Requests */}
+          {isSelf && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <ClipboardList className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground font-serif">My Requests</h2>
+              </div>
+              <PortalRequests
+                requests={portal_requests || []}
+                contactId={contact.id}
+                contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                portalToken={portalToken}
+                onUpdate={() => refreshData(portalToken)}
+              />
+            </div>
+          )}
+
+
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

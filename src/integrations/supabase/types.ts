@@ -422,6 +422,41 @@ export type Database = {
           },
         ]
       }
+      portal_request_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          request_id: string
+          sender_name: string | null
+          sender_type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          request_id: string
+          sender_name?: string | null
+          sender_type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          request_id?: string
+          sender_name?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_request_messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "portal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_requests: {
         Row: {
           contact_id: string
