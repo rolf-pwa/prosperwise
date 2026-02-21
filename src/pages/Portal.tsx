@@ -59,6 +59,18 @@ const Portal = () => {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
 
+  // Refresh portal data (after scope change etc.)
+  const refreshData = async (currentToken: string) => {
+    try {
+      const resp = await supabase.functions.invoke("portal-validate", {
+        body: { token: currentToken },
+      });
+      if (!resp.error && !resp.data?.error) {
+        setData(resp.data);
+      }
+    } catch {}
+  };
+
   // Legacy token-based access (for advisor "View Portal" bypass)
   useEffect(() => {
     if (!token) return;
@@ -414,6 +426,8 @@ const Portal = () => {
             household={null}
             householdMembers={[]}
             scopeLabel="Family Shared"
+            portalToken={portalToken}
+            onScopeChange={() => refreshData(portalToken)}
           />
         </div>
       </div>
@@ -512,6 +526,8 @@ const Portal = () => {
             household={currentHousehold || household}
             householdMembers={[]}
             scopeLabel="Household Shared"
+            portalToken={portalToken}
+            onScopeChange={() => refreshData(portalToken)}
           />
         </div>
       </div>
@@ -657,6 +673,8 @@ const Portal = () => {
             household={household}
             householdMembers={[]}
             scopeLabel={isSelf ? "My Territory" : `${currentMember?.first_name || ""}'s Territory`}
+            portalToken={portalToken}
+            onScopeChange={() => refreshData(portalToken)}
           />
         </div>
       </div>
