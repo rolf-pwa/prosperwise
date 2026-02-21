@@ -159,6 +159,8 @@ class AsanaService {
 
   // -------------------------------------------------------------------------
   // createSubtask – LIVE: Create a subtask under a parent task
+  // Custom fields must be set via a separate PUT after creation because
+  // subtasks don't inherit the parent project's custom field settings.
   // -------------------------------------------------------------------------
   async createSubtask(parentTaskGid: string, payload: {
     name: string;
@@ -173,7 +175,7 @@ class AsanaService {
       if (payload.notes) data.notes = payload.notes;
       if (payload.due_on) data.due_on = payload.due_on;
       if (payload.assignee) data.assignee = payload.assignee;
-      if (payload.custom_fields) data.custom_fields = payload.custom_fields;
+      // Do NOT include custom_fields on subtask creation – they aren't on the subtask object yet
 
       console.log("[AsanaService] POST subtask", url, JSON.stringify(data));
       const res = await fetch(url, {
@@ -186,7 +188,40 @@ class AsanaService {
         throw new Error(`Asana API error ${res.status}: ${body}`);
       }
       const json = await res.json();
-      return json.data;
+      const subtask = json.data;
+
+      // If custom_fields were requested, add the subtask to the parent's project first,
+      // then set the custom field value via PUT
+      if (payload.custom_fields && subtask?.gid) {
+        // Find parent task's project to add subtask to it
+        const parentRes = await fetch(
+          `${ASANA_BASE_URL}/tasks/${parentTaskGid}?opt_fields=projects.gid`,
+          { headers: this.headers() },
+        );
+        if (parentRes.ok) {
+          const parentJson = await parentRes.json();
+          const projectGid = parentJson.data?.projects?.[0]?.gid;
+          if (projectGid) {
+            // Add subtask to the same project so custom fields are available
+            await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}/addProject`, {
+              method: "POST",
+              headers: this.headers(),
+              body: JSON.stringify({ data: { project: projectGid } }),
+            });
+            // Now set the custom field
+            const cfRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}`, {
+              method: "PUT",
+              headers: this.headers(),
+              body: JSON.stringify({ data: { custom_fields: payload.custom_fields } }),
+            });
+            if (!cfRes.ok) {
+              console.warn("[AsanaService] Failed to set custom fields on subtask:", await cfRes.text());
+            }
+          }
+        }
+      }
+
+      return subtask;
     });
   }
 
