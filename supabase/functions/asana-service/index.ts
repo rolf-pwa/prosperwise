@@ -363,14 +363,14 @@ serve(async (req) => {
         }
         const allTasks = await service.getTasksForProject(projectGid);
 
-        // Portal users only see tasks marked "Client Visible" via Asana custom field
+        // Portal users only see tasks marked "Client Visible" via PW_Visibility custom field
         if (portalContext) {
           const visibleTasks = (allTasks as any[]).filter((task: any) => {
             const customFields = task.custom_fields || [];
             return customFields.some(
               (cf: any) =>
-                cf.name?.toLowerCase().includes("client visible") &&
-                (cf.display_value === "Yes" || cf.enum_value?.name === "Yes" || cf.display_value === "true" || cf.number_value === 1 || cf.type === "enum" && cf.enum_value?.name?.toLowerCase() === "yes"),
+                (cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility")) &&
+                cf.enum_value?.name === "Client Visible",
             );
           });
           result = visibleTasks;
