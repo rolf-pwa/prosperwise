@@ -13,6 +13,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink, FileBarChart, Mail, Loader2 } from "lucide-react";
 
 interface PortalData {
+  portal_token?: string;
   contact: any;
   vineyard_accounts: any[];
   storehouses: any[];
@@ -324,7 +325,7 @@ const Portal = () => {
           </TabsContent>
 
           <TabsContent value="tasks" className="mt-6">
-            <PortalTasks portalToken={token!} />
+            <PortalTasks portalToken={token || data.portal_token || ""} />
           </TabsContent>
 
           <TabsContent value="charter" className="mt-6">

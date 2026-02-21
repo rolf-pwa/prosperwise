@@ -137,8 +137,19 @@ serve(async (req) => {
       // Mark as verified
       await supabase.from("portal_otps").update({ verified: true }).eq("id", otp.id);
 
-      // Now load portal data (same as portal-validate)
       const contactId = otp.contact_id;
+
+      // Create a portal token so the client can use it for subsequent API calls (e.g. Asana tasks)
+      const { data: newToken } = await supabase
+        .from("portal_tokens")
+        .insert({
+          contact_id: contactId,
+          created_by: contactId, // self-issued via OTP
+        })
+        .select("token")
+        .single();
+
+      // Now load portal data (same as portal-validate)
 
       const [contactRes, accountsRes, storehousesRes, auditRes] = await Promise.all([
         supabase.from("contacts").select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor").eq("id", contactId).maybeSingle(),
@@ -175,6 +186,7 @@ serve(async (req) => {
       }
 
       return new Response(JSON.stringify({
+        portal_token: newToken?.token || null,
         contact: contactRes.data,
         vineyard_accounts: accountsRes.data || [],
         storehouses: storehousesRes.data || [],
