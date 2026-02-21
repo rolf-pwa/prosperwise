@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,7 @@ interface CommandMessage {
 const EXAMPLE_COMMANDS = [
   "Show all leads from this week",
   "Which families are in the Legacy Tier?",
-  "Create an Asana project for the Johnson Family",
+  "List all contacts in stabilization",
   "Who has a Quiet Period ending soon?",
 ];
 
@@ -23,7 +23,47 @@ export function StaffCommandBar() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<CommandMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [crmContext, setCrmContext] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch live CRM data on mount for AI context
+  useEffect(() => {
+    async function fetchCrmContext() {
+      const [familiesRes, contactsRes, leadsRes, reviewRes] = await Promise.all([
+        supabase.from("families").select("id, name, fee_tier, total_family_assets, annual_savings, fee_tier_discount_pct").limit(100),
+        supabase.from("contacts").select("id, full_name, first_name, last_name, email, phone, family_id, household_id, governance_status, fiduciary_entity, family_role, quiet_period_start_date, asana_url").limit(200),
+        supabase.from("discovery_leads").select("id, first_name, email, sovereignty_status, transition_type, anxiety_anchor, created_at, pipeda_consent").limit(100),
+        supabase.from("review_queue").select("id, action_type, action_description, status, client_visible, created_at").eq("status", "pending").limit(50),
+      ]);
+
+      const families = familiesRes.data || [];
+      const contacts = contactsRes.data || [];
+      const leads = leadsRes.data || [];
+      const pending = reviewRes.data || [];
+
+      const ctx = [
+        `## Live CRM Data (${new Date().toISOString().split("T")[0]})`,
+        "",
+        `### Families (${families.length})`,
+        ...families.map(f => `- **${f.name}** | Tier: ${f.fee_tier} | Assets: $${Number(f.total_family_assets).toLocaleString()} | Savings: $${Number(f.annual_savings).toLocaleString()} | ID: ${f.id}`),
+        "",
+        `### Contacts (${contacts.length})`,
+        ...contacts.map(c => {
+          const qp = c.quiet_period_start_date ? ` | Quiet Period: ${c.quiet_period_start_date}` : "";
+          return `- **${c.full_name}** | ${c.governance_status} | ${c.fiduciary_entity} | Role: ${c.family_role}${qp} | Family: ${c.family_id || "none"} | ID: ${c.id}`;
+        }),
+        "",
+        `### Discovery Leads (${leads.length})`,
+        ...leads.map(l => `- **${l.first_name}** | Status: ${l.sovereignty_status} | Type: ${l.transition_type || "N/A"} | Created: ${l.created_at?.split("T")[0]} | PIPEDA: ${l.pipeda_consent ? "Yes" : "No"}`),
+        "",
+        `### Pending Review Queue (${pending.length})`,
+        ...pending.map(r => `- ${r.action_type}: ${r.action_description} | Visible: ${r.client_visible} | Created: ${r.created_at?.split("T")[0]}`),
+      ].join("\n");
+
+      setCrmContext(ctx);
+    }
+    fetchCrmContext();
+  }, []);
 
   const sendCommand = async (text: string) => {
     const trimmed = text.trim();
@@ -39,16 +79,25 @@ export function StaffCommandBar() {
       const { data, error } = await supabase.functions.invoke("vertex-ai", {
         body: {
           messages: updated.map((m) => ({ role: m.role, content: m.content })),
-          systemPrompt: `You are the ProsperWise Sovereign Command Assistant. You help advisors manage their CRM using plain language. 
+          systemPrompt: `You are **Georgia**, the ProsperWise Sovereign Command Assistant. You have LIVE access to the CRM database and can answer questions with real data.
 
-You have access to the following capabilities (explain what action you'd take in plain terms — you cannot execute directly):
-- Querying and filtering contacts, families, households, and discovery leads
-- Summarizing governance statuses and fee tiers
-- Identifying Quiet Period deadlines
-- Suggesting Asana project creation steps
-- Providing clear, concise responses under 150 words
+## Your Capabilities
+- Query and filter contacts, families, households, and discovery leads using the live data below
+- Summarize governance statuses, fee tiers, and family financials
+- Identify Quiet Period deadlines (90 days from quiet_period_start_date)
+- Report on pending Review Queue items
+- Guide advisors on Asana project creation steps (navigate to the contact record → click the Asana link or use Lead Conversion)
+- Provide clear, concise, data-backed responses
 
-Always respond in a confident, concise advisory tone. If the advisor's request requires a CRM action you cannot execute directly, describe exactly what they need to do and where.`,
+## Rules
+- ALWAYS use the live data provided below to answer questions — do NOT make up data
+- If a family or contact doesn't exist in the data, say so clearly
+- Be confident, concise, and advisory in tone
+- Keep responses under 200 words unless detailed data is requested
+- Format financial figures with $ and commas
+- For Asana project creation: explain that this is done through the Lead Conversion workflow or by linking an Asana project URL on the contact record
+
+${crmContext}`,
         },
       });
 
