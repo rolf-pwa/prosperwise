@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   ExternalLink,
   ClipboardCheck,
+  ClipboardList,
   Calendar,
   Mail,
   FolderOpen,
@@ -28,6 +29,7 @@ const navItems = [
   { to: "/families", label: "Family Tree", icon: TreesIcon },
   { to: "/contacts", label: "Contacts", icon: Users, tasksBadge: true },
   { to: "/leads", label: "Discovery Leads", icon: UserPlus },
+  { to: "/requests", label: "Client Requests", icon: ClipboardList },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
 ];
 
