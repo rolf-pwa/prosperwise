@@ -16,6 +16,7 @@ import {
   Calendar,
   FileText,
   Pencil,
+  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,8 +43,15 @@ interface AsanaTask {
   completed: boolean;
   due_on: string | null;
   notes: string;
+  assignee?: { gid: string; name: string } | null;
   memberships?: { section?: { name?: string } }[];
   custom_fields?: any[];
+}
+
+interface AsanaMember {
+  gid: string;
+  name: string;
+  email?: string;
 }
 
 interface AsanaComment {
@@ -106,6 +114,7 @@ function getVisibility(task: AsanaTask): string | null {
 
 export function ContactTaskList({ asanaUrl }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
+  const [members, setMembers] = useState<AsanaMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedOpen, setCompletedOpen] = useState(false);
@@ -119,14 +128,22 @@ export function ContactTaskList({ asanaUrl }: Props) {
       return;
     }
     try {
-      const res = await supabase.functions.invoke("asana-service", {
-        body: { action: "getTasksForProject", project_gid: projectGid },
-      });
-      if (res.error) throw res.error;
-      if (res.data?.error) {
-        setError(res.data.error);
+      const [tasksRes, membersRes] = await Promise.all([
+        supabase.functions.invoke("asana-service", {
+          body: { action: "getTasksForProject", project_gid: projectGid },
+        }),
+        supabase.functions.invoke("asana-service", {
+          body: { action: "getProjectMembers", project_gid: projectGid },
+        }),
+      ]);
+      if (tasksRes.error) throw tasksRes.error;
+      if (tasksRes.data?.error) {
+        setError(tasksRes.data.error);
       } else {
-        setTasks(res.data?.data || []);
+        setTasks(tasksRes.data?.data || []);
+      }
+      if (!membersRes.error && !membersRes.data?.error) {
+        setMembers(membersRes.data?.data || []);
       }
     } catch (e: any) {
       setError(e.message || "Failed to load tasks");
@@ -303,6 +320,7 @@ export function ContactTaskList({ asanaUrl }: Props) {
           {selectedTask && (
             <TaskDetailPanel
               task={selectedTask}
+              members={members}
               onUpdated={handleTaskUpdated}
               onClose={() => setSelectedTask(null)}
             />
@@ -369,10 +387,12 @@ function TaskRow({
 /* ── Task Detail Panel (inside Sheet) ── */
 function TaskDetailPanel({
   task,
+  members,
   onUpdated,
   onClose,
 }: {
   task: AsanaTask;
+  members: AsanaMember[];
   onUpdated: (t: AsanaTask) => void;
   onClose: () => void;
 }) {
@@ -380,6 +400,7 @@ function TaskDetailPanel({
   const [editName, setEditName] = useState(task.name);
   const [editNotes, setEditNotes] = useState(task.notes || "");
   const [editDueOn, setEditDueOn] = useState(task.due_on || "");
+  const [editAssignee, setEditAssignee] = useState(task.assignee?.gid || "");
   const [saving, setSaving] = useState(false);
 
   const [comments, setComments] = useState<AsanaComment[]>([]);
@@ -392,8 +413,9 @@ function TaskDetailPanel({
     setEditName(task.name);
     setEditNotes(task.notes || "");
     setEditDueOn(task.due_on || "");
+    setEditAssignee(task.assignee?.gid || "");
     setEditing(false);
-  }, [task.gid, task.name, task.notes, task.due_on]);
+  }, [task.gid, task.name, task.notes, task.due_on, task.assignee?.gid]);
 
   // Fetch comments
   useEffect(() => {
@@ -422,6 +444,8 @@ function TaskDetailPanel({
       if (editNotes !== (task.notes || "")) updates.notes = editNotes;
       if (editDueOn !== (task.due_on || ""))
         updates.due_on = editDueOn || null;
+      if (editAssignee !== (task.assignee?.gid || ""))
+        updates.assignee = editAssignee || null;
 
       if (Object.keys(updates).length === 0) {
         setEditing(false);
@@ -435,7 +459,12 @@ function TaskDetailPanel({
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
-      onUpdated({ ...task, ...updates });
+      const assigneeMember = members.find((m) => m.gid === editAssignee);
+      onUpdated({
+        ...task,
+        ...updates,
+        assignee: assigneeMember ? { gid: assigneeMember.gid, name: assigneeMember.name } : updates.assignee === null ? null : task.assignee,
+      });
       toast.success("Task updated.");
       setEditing(false);
     } catch (e: any) {
@@ -536,8 +565,9 @@ function TaskDetailPanel({
         )}
       </SheetHeader>
 
-      {/* Meta row */}
-      <div className="flex items-center gap-4 text-sm">
+      {/* Meta rows */}
+      <div className="space-y-3 text-sm">
+        {/* Due date */}
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" />
           {editing ? (
@@ -559,6 +589,28 @@ function TaskDetailPanel({
             </span>
           )}
         </div>
+
+        {/* Assignee */}
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Users className="h-3.5 w-3.5" />
+          {editing ? (
+            <select
+              value={editAssignee}
+              onChange={(e) => setEditAssignee(e.target.value)}
+              className="h-7 rounded-md border bg-background px-2 text-xs text-foreground"
+            >
+              <option value="">Unassigned</option>
+              {members.map((m) => (
+                <option key={m.gid} value={m.gid}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span>{task.assignee?.name || "Unassigned"}</span>
+          )}
+        </div>
+
         <Button
           variant={task.completed ? "secondary" : "outline"}
           size="sm"
@@ -611,6 +663,7 @@ function TaskDetailPanel({
               setEditName(task.name);
               setEditNotes(task.notes || "");
               setEditDueOn(task.due_on || "");
+              setEditAssignee(task.assignee?.gid || "");
               setEditing(false);
             }}
           >
