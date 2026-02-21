@@ -123,21 +123,66 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
-  // createTask – PLACEHOLDER (no live API call)
+  // createTask – LIVE: Create a task in a project
   // -------------------------------------------------------------------------
   async createTask(payload: {
     name: string;
     notes?: string;
-    due_on?: string;
-    projects?: string;
+    due_on?: string | null;
+    projects?: string[];
+    assignee?: string | null;
   }) {
     return withFailSafe("createTask", async () => {
-      console.log("[AsanaService] createTask called with:", JSON.stringify(payload));
-      return {
-        status: "Infrastructure Ready",
-        method: "createTask",
-        payload_received: payload,
-      };
+      const url = `${ASANA_BASE_URL}/tasks`;
+      const data: any = { name: payload.name };
+      if (payload.notes) data.notes = payload.notes;
+      if (payload.due_on) data.due_on = payload.due_on;
+      if (payload.projects) data.projects = payload.projects;
+      if (payload.assignee) data.assignee = payload.assignee;
+
+      console.log("[AsanaService] POST", url, JSON.stringify(data));
+      const res = await fetch(url, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({ data }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // createSubtask – LIVE: Create a subtask under a parent task
+  // -------------------------------------------------------------------------
+  async createSubtask(parentTaskGid: string, payload: {
+    name: string;
+    notes?: string;
+    due_on?: string | null;
+    assignee?: string | null;
+  }) {
+    return withFailSafe("createSubtask", async () => {
+      const url = `${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`;
+      const data: any = { name: payload.name };
+      if (payload.notes) data.notes = payload.notes;
+      if (payload.due_on) data.due_on = payload.due_on;
+      if (payload.assignee) data.assignee = payload.assignee;
+
+      console.log("[AsanaService] POST subtask", url, JSON.stringify(data));
+      const res = await fetch(url, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({ data }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data;
     });
   }
 
@@ -490,9 +535,52 @@ serve(async (req) => {
     let result: unknown;
 
     switch (action) {
-      case "createTask":
-        result = await service.createTask(params as any);
+      case "createTask": {
+        const { name, notes, due_on, project_gid, assignee } = params;
+        if (!name) {
+          return new Response(
+            JSON.stringify({ error: "name is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        result = await service.createTask({
+          name,
+          notes,
+          due_on,
+          projects: project_gid ? [project_gid] : undefined,
+          assignee,
+        });
         break;
+      }
+
+      case "createSubtask": {
+        const { parent_task_gid, name: subtaskName, notes: subtaskNotes, due_on: subtaskDueOn, assignee: subtaskAssignee } = params;
+        if (!parent_task_gid || !subtaskName) {
+          return new Response(
+            JSON.stringify({ error: "parent_task_gid and name are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        result = await service.createSubtask(parent_task_gid, {
+          name: subtaskName,
+          notes: subtaskNotes,
+          due_on: subtaskDueOn,
+          assignee: subtaskAssignee,
+        });
+        break;
+      }
+
+      case "getSubtasks": {
+        const { task_gid: subtaskParentGid } = params;
+        if (!subtaskParentGid) {
+          return new Response(
+            JSON.stringify({ error: "task_gid is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        result = await service.getSubtasks(subtaskParentGid);
+        break;
+      }
 
       case "getProjectStatus":
         result = await service.getProjectStatus(params as any);

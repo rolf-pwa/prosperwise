@@ -17,6 +17,7 @@ import {
   FileText,
   Pencil,
   Users,
+  Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,28 @@ interface AsanaComment {
 
 interface Props {
   asanaUrl: string | null;
+}
+
+function extractTaskGid(url: string | null): string | null {
+  if (!url) return null;
+  const newTaskMatch = url.match(/\/task\/(\d+)/);
+  if (newTaskMatch) return newTaskMatch[1];
+  const listTaskMatch = url.match(/\/project\/\d+\/list\/(\d+)/);
+  if (listTaskMatch) return listTaskMatch[1];
+  const twoSegment = url.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
+  if (twoSegment) return twoSegment[1];
+  const singleSegment = url.match(/app\.asana\.com\/0\/(\d+)\/f/);
+  if (singleSegment) return singleSegment[1];
+  return null;
+}
+
+function isTaskUrl(url: string | null): boolean {
+  if (!url) return false;
+  if (/\/task\/\d+/.test(url)) return true;
+  if (/\/project\/\d+\/list\/\d+/.test(url)) return true;
+  if (/app\.asana\.com\/0\/\d+\/f/.test(url)) return true;
+  if (/app\.asana\.com\/0\/\d+\/\d+/.test(url) && !/\/(list|board|timeline|calendar)/.test(url)) return true;
+  return false;
 }
 
 type TaskCategory = "new" | "ongoing";
@@ -119,30 +142,51 @@ export function ContactTaskList({ asanaUrl }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<AsanaTask | null>(null);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskDueOn, setNewTaskDueOn] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
 
   const projectGid = extractProjectGid(asanaUrl);
+  const taskBased = isTaskUrl(asanaUrl);
+  const parentTaskGid = taskBased ? extractTaskGid(asanaUrl) : null;
 
   const fetchTasks = useCallback(async () => {
-    if (!projectGid) {
+    if (!projectGid && !parentTaskGid) {
       setLoading(false);
       return;
     }
     try {
-      const [tasksRes, membersRes] = await Promise.all([
-        supabase.functions.invoke("asana-service", {
-          body: { action: "getTasksForProject", project_gid: projectGid },
-        }),
-        supabase.functions.invoke("asana-service", {
-          body: { action: "getProjectMembers", project_gid: projectGid },
-        }),
-      ]);
+      const tasksBody: any = { action: "getTasksForProject" };
+      if (taskBased && parentTaskGid) {
+        // For task-based URLs, we fetch subtasks via the parent task
+        // But from CRM (not portal), we call getSubtasks directly
+        tasksBody.action = "getSubtasks";
+        tasksBody.task_gid = parentTaskGid;
+      } else {
+        tasksBody.project_gid = projectGid;
+      }
+
+      const promises: Promise<any>[] = [
+        supabase.functions.invoke("asana-service", { body: tasksBody }),
+      ];
+      // Only fetch members for project-based URLs
+      if (projectGid && !taskBased) {
+        promises.push(
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getProjectMembers", project_gid: projectGid },
+          }),
+        );
+      }
+
+      const [tasksRes, membersRes] = await Promise.all(promises);
       if (tasksRes.error) throw tasksRes.error;
       if (tasksRes.data?.error) {
         setError(tasksRes.data.error);
       } else {
         setTasks(tasksRes.data?.data || []);
       }
-      if (!membersRes.error && !membersRes.data?.error) {
+      if (membersRes && !membersRes.error && !membersRes.data?.error) {
         setMembers(membersRes.data?.data || []);
       }
     } catch (e: any) {
@@ -150,7 +194,7 @@ export function ContactTaskList({ asanaUrl }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [projectGid]);
+  }, [projectGid, parentTaskGid, taskBased]);
 
   useEffect(() => {
     fetchTasks();
@@ -165,7 +209,42 @@ export function ContactTaskList({ asanaUrl }: Props) {
     );
   };
 
-  if (!asanaUrl || !projectGid) {
+  const handleCreateTask = async () => {
+    if (!newTaskName.trim()) return;
+    setCreatingTask(true);
+    try {
+      const body: any = {
+        name: newTaskName.trim(),
+        due_on: newTaskDueOn || undefined,
+      };
+
+      if (taskBased && parentTaskGid) {
+        // Add as subtask of the parent task
+        body.action = "createSubtask";
+        body.parent_task_gid = parentTaskGid;
+      } else {
+        // Add as task in the project
+        body.action = "createTask";
+        body.project_gid = projectGid;
+      }
+
+      const res = await supabase.functions.invoke("asana-service", { body });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast.success("Task created.");
+      setNewTaskName("");
+      setNewTaskDueOn("");
+      setShowAddTask(false);
+      fetchTasks();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create task.");
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
+  if (!asanaUrl || (!projectGid && !parentTaskGid)) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -230,15 +309,67 @@ export function ContactTaskList({ asanaUrl }: Props) {
               <CheckSquare className="h-4 w-4 text-muted-foreground" />
               Tasks
             </CardTitle>
-            {active.length > 0 && (
-              <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent">
-                {active.length}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {active.length > 0 && (
+                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                  {active.length}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setShowAddTask(!showAddTask)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {active.length === 0 && completed.length === 0 && (
+          {/* Add Task Form */}
+          {showAddTask && (
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <Input
+                placeholder={taskBased ? "New subtask name…" : "New task name…"}
+                value={newTaskName}
+                onChange={(e) => setNewTaskName(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newTaskName.trim()) handleCreateTask();
+                  if (e.key === "Escape") setShowAddTask(false);
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={newTaskDueOn}
+                  onChange={(e) => setNewTaskDueOn(e.target.value)}
+                  className="h-8 w-36 text-xs"
+                  placeholder="Due date"
+                />
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={!newTaskName.trim() || creatingTask}
+                  onClick={handleCreateTask}
+                >
+                  {creatingTask ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => { setShowAddTask(false); setNewTaskName(""); setNewTaskDueOn(""); }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {active.length === 0 && completed.length === 0 && !showAddTask && (
             <p className="text-sm text-muted-foreground text-center py-2">
               No tasks found.
             </p>
@@ -323,6 +454,7 @@ export function ContactTaskList({ asanaUrl }: Props) {
               members={members}
               onUpdated={handleTaskUpdated}
               onClose={() => setSelectedTask(null)}
+              onSubtaskCreated={fetchTasks}
             />
           )}
         </SheetContent>
@@ -395,11 +527,13 @@ function TaskDetailPanel({
   members,
   onUpdated,
   onClose,
+  onSubtaskCreated,
 }: {
   task: AsanaTask;
   members: AsanaMember[];
   onUpdated: (t: AsanaTask) => void;
   onClose: () => void;
+  onSubtaskCreated?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(task.name);
@@ -412,6 +546,12 @@ function TaskDetailPanel({
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
+
+  // Subtask creation state
+  const [showAddSubtask, setShowAddSubtask] = useState(false);
+  const [subtaskName, setSubtaskName] = useState("");
+  const [subtaskDueOn, setSubtaskDueOn] = useState("");
+  const [creatingSubtask, setCreatingSubtask] = useState(false);
 
   // Reset edit state when task changes
   useEffect(() => {
@@ -535,6 +675,32 @@ function TaskDetailPanel({
     }
   };
 
+  const handleCreateSubtask = async () => {
+    if (!subtaskName.trim()) return;
+    setCreatingSubtask(true);
+    try {
+      const res = await supabase.functions.invoke("asana-service", {
+        body: {
+          action: "createSubtask",
+          parent_task_gid: task.gid,
+          name: subtaskName.trim(),
+          due_on: subtaskDueOn || undefined,
+        },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success("Subtask created.");
+      setSubtaskName("");
+      setSubtaskDueOn("");
+      setShowAddSubtask(false);
+      onSubtaskCreated?.();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to create subtask.");
+    } finally {
+      setCreatingSubtask(false);
+    }
+  };
+
   const status = getTaskStatus(task);
 
   return (
@@ -616,15 +782,67 @@ function TaskDetailPanel({
           )}
         </div>
 
-        <Button
-          variant={task.completed ? "secondary" : "outline"}
-          size="sm"
-          className="h-7 text-xs"
-          onClick={handleToggleComplete}
-          disabled={saving}
-        >
-          {task.completed ? "Reopen" : "Mark Complete"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={task.completed ? "secondary" : "outline"}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={handleToggleComplete}
+            disabled={saving}
+          >
+            {task.completed ? "Reopen" : "Mark Complete"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setShowAddSubtask(!showAddSubtask)}
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Subtask
+          </Button>
+        </div>
+
+        {/* Add Subtask Form */}
+        {showAddSubtask && (
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <Input
+              placeholder="Subtask name…"
+              value={subtaskName}
+              onChange={(e) => setSubtaskName(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && subtaskName.trim()) handleCreateSubtask();
+                if (e.key === "Escape") setShowAddSubtask(false);
+              }}
+            />
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={subtaskDueOn}
+                onChange={(e) => setSubtaskDueOn(e.target.value)}
+                className="h-7 w-36 text-xs"
+              />
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                disabled={!subtaskName.trim() || creatingSubtask}
+                onClick={handleCreateSubtask}
+              >
+                {creatingSubtask ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => { setShowAddSubtask(false); setSubtaskName(""); setSubtaskDueOn(""); }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Notes */}
