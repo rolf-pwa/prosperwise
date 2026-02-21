@@ -47,6 +47,7 @@ import {
   ArrowRightLeft,
   Scissors,
   Cross,
+  MoveRight,
 } from "lucide-react";
 import {
   Select,
@@ -135,6 +136,10 @@ const Families = () => {
   const [reassignHouseholdId, setReassignHouseholdId] = useState<string>("");
   const [availableHouseholds, setAvailableHouseholds] = useState<{ id: string; label: string }[]>([]);
   const [decouplerTarget, setDecouplerTarget] = useState<{ contactId: string; contactName: string; familyId: string; familyName: string } | null>(null);
+  const [moveHouseholdTarget, setMoveHouseholdTarget] = useState<{ householdId: string; householdLabel: string; currentFamilyId: string } | null>(null);
+  const [moveDestinationFamilyId, setMoveDestinationFamilyId] = useState<string>("");
+  const [moveNewFamilyName, setMoveNewFamilyName] = useState("");
+  const [moveCreateNew, setMoveCreateNew] = useState(false);
 
   const fetchFamilies = useCallback(async () => {
     // Fetch families
@@ -412,6 +417,59 @@ const Families = () => {
     }
   };
 
+  const moveHouseholdToFamily = async () => {
+    if (!moveHouseholdTarget || !user) return;
+    let targetFamilyId = moveDestinationFamilyId;
+
+    // Create new family if needed
+    if (moveCreateNew) {
+      if (!moveNewFamilyName.trim()) return;
+      const { data: newFamily, error: createErr } = await supabase
+        .from("families" as any)
+        .insert({ name: moveNewFamilyName.trim(), created_by: user.id } as any)
+        .select("id")
+        .single();
+      if (createErr || !newFamily) {
+        toast.error("Failed to create new family.");
+        return;
+      }
+      targetFamilyId = (newFamily as any).id;
+    }
+
+    if (!targetFamilyId || targetFamilyId === moveHouseholdTarget.currentFamilyId) return;
+
+    // Move the household to the new family
+    const { error: hhErr } = await supabase
+      .from("households" as any)
+      .update({ family_id: targetFamilyId } as any)
+      .eq("id", moveHouseholdTarget.householdId);
+    if (hhErr) {
+      toast.error("Failed to move household.");
+      return;
+    }
+
+    // Update all contacts in this household to the new family
+    const { error: contactErr } = await supabase
+      .from("contacts")
+      .update({ family_id: targetFamilyId } as any)
+      .eq("household_id", moveHouseholdTarget.householdId);
+    if (contactErr) {
+      toast.error("Household moved but failed to update contacts.");
+    }
+
+    toast.success("Household moved successfully.");
+    // Recalculate both families
+    await Promise.all([
+      recalcTier(moveHouseholdTarget.currentFamilyId),
+      recalcTier(targetFamilyId),
+    ]);
+    setMoveHouseholdTarget(null);
+    setMoveDestinationFamilyId("");
+    setMoveNewFamilyName("");
+    setMoveCreateNew(false);
+    fetchFamilies();
+  };
+
   const updateFamilyName = async (familyId: string, newName: string) => {
     const { error } = await supabase.from("families" as any).update({ name: newName } as any).eq("id", familyId);
     if (error) { toast.error("Failed to update family name."); }
@@ -586,6 +644,23 @@ const Families = () => {
                                   <span className="text-xs text-muted-foreground">
                                     {household.individuals.length} member{household.individuals.length !== 1 ? "s" : ""}
                                   </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMoveHouseholdTarget({
+                                        householdId: household.id,
+                                        householdLabel: household.label,
+                                        currentFamilyId: family.id,
+                                      });
+                                      setMoveDestinationFamilyId("");
+                                      setMoveNewFamilyName("");
+                                      setMoveCreateNew(false);
+                                    }}
+                                    title="Move household to another family"
+                                    className="p-1 rounded-md text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+                                  >
+                                    <MoveRight className="h-3.5 w-3.5" />
+                                  </button>
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                       <button
@@ -947,6 +1022,73 @@ const Families = () => {
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               Reassign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Household Dialog */}
+      <Dialog open={!!moveHouseholdTarget} onOpenChange={() => setMoveHouseholdTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move "{moveHouseholdTarget?.householdLabel}" Household</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="move-create-new"
+                checked={moveCreateNew}
+                onChange={(e) => {
+                  setMoveCreateNew(e.target.checked);
+                  if (e.target.checked) setMoveDestinationFamilyId("");
+                }}
+                className="rounded border-border"
+              />
+              <label htmlFor="move-create-new" className="text-sm">Create a new family</label>
+            </div>
+
+            {moveCreateNew ? (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">New Family Name</label>
+                <Input
+                  placeholder="e.g. The Richardson Family"
+                  value={moveNewFamilyName}
+                  onChange={(e) => setMoveNewFamilyName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Destination Family</label>
+                <Select value={moveDestinationFamilyId} onValueChange={setMoveDestinationFamilyId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select family" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {families
+                      .filter((f) => f.id !== moveHouseholdTarget?.currentFamilyId)
+                      .map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveHouseholdTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={moveHouseholdToFamily}
+              disabled={moveCreateNew ? !moveNewFamilyName.trim() : !moveDestinationFamilyId}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              <MoveRight className="mr-2 h-4 w-4" />
+              Move Household
             </Button>
           </DialogFooter>
         </DialogContent>
