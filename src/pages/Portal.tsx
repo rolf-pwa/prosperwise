@@ -580,9 +580,22 @@ const Portal = () => {
 
           {/* Meetings */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold text-foreground font-serif">Upcoming Meetings</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground font-serif">Upcoming Meetings</h2>
+              </div>
+              {isSelf && (
+                <a
+                  href="https://calendar.app.google/Yvvk8qnhSGUmzdEC8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition-colors border border-accent/20"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  Book a Meeting
+                </a>
+              )}
             </div>
             {isSelf ? (
               <PortalMeetings meetings={meetings} />
@@ -642,8 +655,8 @@ const Portal = () => {
           {isSelf && (
             <div className="flex flex-col gap-1.5">
               {[
-                { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
-                { href: contact.ia_financial_url, label: "Accounts", icon: ShieldCheck },
+                { href: contact.sidedrawer_url, label: "Document Vault", icon: FolderOpen },
+                { href: contact.ia_financial_url, label: "Accounts", icon: Landmark },
               ].map(({ href, label, icon: Icon }) => (
                 <a
                   key={label}

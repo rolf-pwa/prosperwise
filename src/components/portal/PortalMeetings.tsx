@@ -15,34 +15,8 @@ export function PortalMeetings({ meetings }: Props) {
     );
   }
 
-  const bookingLinks = [
-    { label: "Charter Review (Video)", href: "https://calendar.app.google/Yvvk8qnhSGUmzdEC8", icon: Video },
-    { label: "Charter Review (In Person)", href: "https://calendar.app.google/xVawK2BM665pZQ91A", icon: MapPin },
-  ];
-
   return (
-    <div className="space-y-6">
-      {/* Booking Links */}
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold text-foreground font-serif mb-3">Book a Meeting</h3>
-        <div className="flex flex-wrap gap-3">
-          {bookingLinks.map(({ label, href, icon: Icon }) => (
-            <a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-md border border-accent/20 bg-accent/5 px-4 py-2.5 text-sm font-medium text-accent hover:bg-accent/10 transition-colors"
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </a>
-          ))}
-        </div>
-      </div>
-
-      {/* Upcoming Meetings */}
-      <div className="space-y-3">
+    <div className="space-y-3">
       {meetings.map((event: any) => {
         const start = event.start?.dateTime
           ? parseISO(event.start.dateTime)
@@ -99,7 +73,6 @@ export function PortalMeetings({ meetings }: Props) {
           </div>
         );
       })}
-      </div>
     </div>
   );
 }
