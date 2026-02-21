@@ -9,8 +9,9 @@ import { PortalTasks } from "@/components/portal/PortalTasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, MessageCircle, ExternalLink, FileBarChart, Mail, Loader2 } from "lucide-react";
+import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark } from "lucide-react";
 
 interface PortalData {
   portal_token?: string;
@@ -22,6 +23,23 @@ interface PortalData {
   family: any | null;
   household: any | null;
   household_members: any[];
+  hierarchy?: any;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  head_of_family: "Head of Family",
+  spouse: "Spouse",
+  beneficiary: "Beneficiary",
+  minor: "Minor",
+};
+
+// ─── Drill-down view types ───
+type ViewLevel = "family" | "household" | "individual";
+
+interface DrilldownState {
+  level: ViewLevel;
+  householdId?: string;
+  memberId?: string;
 }
 
 const Portal = () => {
@@ -29,7 +47,10 @@ const Portal = () => {
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!token);
-  const [activeTab, setActiveTab] = useState("territory");
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Drill-down state
+  const [drilldown, setDrilldown] = useState<DrilldownState>({ level: "individual" });
 
   // OTP login state
   const [email, setEmail] = useState("");
@@ -50,6 +71,9 @@ const Portal = () => {
           setError(resp.data?.error || "Invalid link");
         } else {
           setData(resp.data);
+          // Set initial drilldown level based on hierarchy
+          const level = resp.data?.hierarchy?.level || "individual";
+          setDrilldown({ level });
         }
       } catch {
         setError("Unable to load portal");
@@ -88,6 +112,8 @@ const Portal = () => {
         setOtpError(resp.data?.error || "Invalid code. Please try again.");
       } else {
         setData(resp.data);
+        const level = resp.data?.hierarchy?.level || "individual";
+        setDrilldown({ level });
       }
     } catch {
       setOtpError("Something went wrong. Please try again.");
@@ -206,13 +232,405 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, audit_trail, meetings, family, household, household_members } = data;
+  const { contact, vineyard_accounts, storehouses, audit_trail, meetings, family, household, household_members, hierarchy } = data;
+  const portalToken = token || data.portal_token || "";
+  const hierarchyLevel = hierarchy?.level || "individual";
+
+  // Determine current view context
+  const currentHousehold = drilldown.householdId
+    ? hierarchy?.households?.find((h: any) => h.id === drilldown.householdId)
+    : null;
+  const currentMember = drilldown.memberId
+    ? (currentHousehold?.members || hierarchy?.members || []).find((m: any) => m.id === drilldown.memberId)
+    : null;
+
+  // Breadcrumb navigation
+  const renderBreadcrumb = () => {
+    if (drilldown.level === "family" && hierarchyLevel === "family") return null;
+    
+    return (
+      <div className="flex items-center gap-2 text-sm mb-4">
+        {hierarchyLevel === "family" && (drilldown.level === "household" || drilldown.level === "individual") && (
+          <button
+            onClick={() => setDrilldown({ level: "family" })}
+            className="flex items-center gap-1 text-accent hover:underline"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {family?.name || "Family"}
+          </button>
+        )}
+        {drilldown.level === "individual" && drilldown.householdId && (
+          <>
+            <span className="text-muted-foreground">/</span>
+            <button
+              onClick={() => setDrilldown({ level: "household", householdId: drilldown.householdId })}
+              className="text-accent hover:underline"
+            >
+              {currentHousehold?.label || "Household"}
+            </button>
+          </>
+        )}
+        {drilldown.level === "individual" && currentMember && (
+          <>
+            <span className="text-muted-foreground">/</span>
+            <span className="text-foreground font-medium">{currentMember.first_name} {currentMember.last_name || ""}</span>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Family Overview (drill-down landing) ───
+  const renderFamilyView = () => {
+    const households = hierarchy?.households || [];
+    
+    // Aggregate financials across all households
+    const totalAssets = households.reduce((sum: number, hh: any) => {
+      return sum + (hh.members || []).reduce((mSum: number, m: any) => {
+        const vTotal = (m.vineyard_accounts || [])
+          .filter((a: any) => a.visibility_scope !== "private")
+          .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+        const sTotal = (m.storehouses || [])
+          .filter((a: any) => a.visibility_scope !== "private")
+          .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+        return mSum + vTotal + sTotal;
+      }, 0);
+    }, 0);
+
+    return (
+      <div className="space-y-6">
+        {/* Family Summary */}
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                <Home className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground font-serif">{family?.name || "Family"}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {households.length} household{households.length !== 1 ? "s" : ""} · {households.reduce((s: number, h: any) => s + (h.members?.length || 0), 0)} members
+                </p>
+              </div>
+              <div className="ml-auto text-right">
+                <p className="text-2xl font-bold text-accent">${totalAssets.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Total Family Assets</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Household Cards */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {households.map((hh: any) => {
+            const members = hh.members || [];
+            const hhTotal = members.reduce((sum: number, m: any) => {
+              const vTotal = (m.vineyard_accounts || [])
+                .filter((a: any) => a.visibility_scope !== "private")
+                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+              const sTotal = (m.storehouses || [])
+                .filter((a: any) => a.visibility_scope !== "private")
+                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+              return sum + vTotal + sTotal;
+            }, 0);
+
+            return (
+              <button
+                key={hh.id}
+                onClick={() => setDrilldown({ level: "household", householdId: hh.id })}
+                className="text-left rounded-lg border border-border bg-card p-5 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Home className="h-4 w-4 text-accent" />
+                    <h3 className="font-semibold text-foreground font-serif">{hh.label} Household</h3>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                {hh.address && (
+                  <p className="text-xs text-muted-foreground mb-3">{hh.address}</p>
+                )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      {members.length} member{members.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">${hhTotal.toLocaleString()}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {members.slice(0, 4).map((m: any) => (
+                    <span key={m.id} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {m.first_name}
+                    </span>
+                  ))}
+                  {members.length > 4 && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      +{members.length - 4}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Household View (shows member cards) ───
+  const renderHouseholdView = () => {
+    const members = currentHousehold?.members || hierarchy?.members || [];
+    const hhLabel = currentHousehold?.label || household?.label || "Household";
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                <Home className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground font-serif">{hhLabel} Household</h2>
+                <p className="text-xs text-muted-foreground">
+                  {members.length + 1} member{members.length !== 0 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Member cards */}
+        <div className="grid gap-3">
+          {/* Self */}
+          <button
+            onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: undefined })}
+            className="text-left rounded-lg border border-accent/30 bg-accent/5 p-4 hover:bg-accent/10 transition-colors group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20">
+                  <Shield className="h-4 w-4 text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{contact.first_name} {contact.last_name || ""}</p>
+                  <p className="text-xs text-muted-foreground">{ROLE_LABELS[contact.family_role] || contact.family_role} · You</p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </button>
+
+          {members.map((m: any) => {
+            const mTotal = (m.vineyard_accounts || [])
+              .filter((a: any) => a.visibility_scope !== "private")
+              .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
+              + (m.storehouses || [])
+              .filter((a: any) => a.visibility_scope !== "private")
+              .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+
+            return (
+              <button
+                key={m.id}
+                onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: m.id })}
+                className="text-left rounded-lg border border-border bg-card p-4 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name || ""}</p>
+                      <p className="text-xs text-muted-foreground">{ROLE_LABELS[m.family_role] || m.family_role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Individual View (tasks + meetings main, territory sidebar) ───
+  const getIndividualData = () => {
+    if (currentMember) {
+      // Viewing another member's data
+      return {
+        name: `${currentMember.first_name} ${currentMember.last_name || ""}`.trim(),
+        role: currentMember.family_role,
+        vineyardAccounts: currentMember.vineyard_accounts || [],
+        memberStorehouses: currentMember.storehouses || [],
+      };
+    }
+    // Viewing self
+    return {
+      name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+      role: contact.family_role,
+      vineyardAccounts: vineyard_accounts,
+      memberStorehouses: storehouses,
+    };
+  };
+
+  const renderIndividualView = () => {
+    const ind = getIndividualData();
+    const isSelf = !currentMember;
+
+    return (
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content: Tasks & Meetings */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Tasks */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <CheckSquare className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-semibold text-foreground font-serif">Action Items</h2>
+            </div>
+            {isSelf ? (
+              <PortalTasks portalToken={portalToken} />
+            ) : (
+              <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                <CheckSquare className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">Task view is only available for your own account.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Meetings */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-semibold text-foreground font-serif">Upcoming Meetings</h2>
+            </div>
+            {isSelf ? (
+              <PortalMeetings meetings={meetings} />
+            ) : (
+              <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                <Calendar className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">Meeting schedule is only visible on your own view.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Tabs: Charter, Timeline, Reviews */}
+          <Tabs defaultValue="charter" className="w-full">
+            <TabsList className="w-full bg-muted border border-border">
+              <TabsTrigger value="charter" className="flex-1">
+                <ScrollText className="mr-1.5 h-4 w-4" />
+                Charter
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="flex-1">
+                <Clock className="mr-1.5 h-4 w-4" />
+                Timeline
+              </TabsTrigger>
+              <TabsTrigger value="reviews" className="flex-1">
+                <FileBarChart className="mr-1.5 h-4 w-4" />
+                Reviews
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="charter" className="mt-4">
+              <PortalCharter googleDriveUrl={contact.google_drive_url} />
+            </TabsContent>
+
+            <TabsContent value="timeline" className="mt-4">
+              <PortalTimeline auditTrail={audit_trail} />
+            </TabsContent>
+
+            <TabsContent value="reviews" className="mt-4">
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
+                  <FileBarChart className="h-7 w-7 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
+                <p className="text-sm text-muted-foreground max-w-md mb-1">
+                  Comprehensive AI-powered reviews of your financial territory.
+                </p>
+                <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
+                  Coming Soon
+                </span>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Sidebar: Territory (Vineyard & Storehouses) + Quick Links */}
+        <div className="space-y-4">
+          {/* Quick Links */}
+          {isSelf && (
+            <div className="flex flex-col gap-1.5">
+              {[
+                { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
+                { href: contact.ia_financial_url, label: "Accounts", icon: ShieldCheck },
+              ].map(({ href, label, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center gap-2 rounded-md border border-border px-3 py-2.5 text-sm font-medium transition-colors ${
+                    href
+                      ? "text-foreground hover:bg-muted/50"
+                      : "pointer-events-none text-muted-foreground/40"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                  {href && <ExternalLink className="ml-auto h-3 w-3 opacity-40" />}
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* Vineyard & Storehouses */}
+          <PortalTerritory
+            vineyardAccounts={ind.vineyardAccounts}
+            storehouses={ind.memberStorehouses}
+            contact={isSelf ? contact : currentMember}
+            family={family}
+            household={household}
+            householdMembers={[]}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Determine what to render based on drilldown ───
+  const renderContent = () => {
+    if (drilldown.level === "family" && hierarchyLevel === "family") {
+      return renderFamilyView();
+    }
+    if (drilldown.level === "household") {
+      return renderHouseholdView();
+    }
+    return renderIndividualView();
+  };
+
+  // Header subtitle based on current view
+  const getHeaderSubtitle = () => {
+    if (drilldown.level === "family") return family?.name ? `${family.name} — Family Overview` : "Family Overview";
+    if (drilldown.level === "household") {
+      const label = currentHousehold?.label || household?.label || "";
+      return `${label} Household`;
+    }
+    if (currentMember) return `${currentMember.first_name} ${currentMember.last_name || ""}`;
+    return family?.name ? `${family.name} — ${household?.label || ""}` : "Sovereign Financial Territory";
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6">
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/20">
@@ -223,8 +641,7 @@ const Portal = () => {
                   {contact.first_name} {contact.last_name || ""}
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  {family?.name ? `${family.name} — ` : ""}
-                  {household?.label ? `${household.label} Household` : "Sovereign Financial Territory"}
+                  {getHeaderSubtitle()}
                 </p>
               </div>
             </div>
@@ -235,127 +652,15 @@ const Portal = () => {
         </div>
       </header>
 
-      {/* Quick Links */}
-      <nav className="border-b border-border bg-muted/30">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="flex items-center gap-1 overflow-x-auto py-2">
-            <button
-              onClick={() => setActiveTab("meetings")}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              Meetings
-              {meetings.length > 0 && (
-                <span className="rounded-full bg-accent/20 px-1.5 text-[10px] font-semibold text-accent">
-                  {meetings.length}
-                </span>
-              )}
-            </button>
-            {[
-              { href: contact.sidedrawer_url, label: "Documents", icon: FolderOpen },
-              { href: contact.ia_financial_url, label: "Accounts", icon: ShieldCheck },
-            ].map(({ href, label, icon: Icon }) => (
-              <a
-                key={label}
-                href={href || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                  href
-                    ? "text-foreground/70 hover:bg-muted hover:text-foreground"
-                    : "pointer-events-none text-muted-foreground/40"
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-                {href && <ExternalLink className="h-3 w-3 opacity-40" />}
-              </a>
-            ))}
-            <button
-              onClick={() => setActiveTab("tasks")}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              Tasks
-            </button>
-            <span className="flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground/40 cursor-default">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Support
-              <span className="text-[10px]">(coming soon)</span>
-            </span>
-          </div>
-        </div>
-      </nav>
-
       {/* Content */}
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-muted border border-border">
-            <TabsTrigger value="territory" className="flex-1">
-              <Grape className="mr-1.5 h-4 w-4" />
-              Territory
-            </TabsTrigger>
-            <TabsTrigger value="charter" className="flex-1">
-              <ScrollText className="mr-1.5 h-4 w-4" />
-              Charter
-            </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex-1">
-              <Clock className="mr-1.5 h-4 w-4" />
-              Timeline
-            </TabsTrigger>
-            <TabsTrigger value="reviews" className="flex-1">
-              <FileBarChart className="mr-1.5 h-4 w-4" />
-              Reviews
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="territory" className="mt-6">
-            <PortalTerritory
-              vineyardAccounts={vineyard_accounts}
-              storehouses={storehouses}
-              contact={contact}
-              family={family}
-              household={household}
-              householdMembers={household_members}
-            />
-          </TabsContent>
-
-          <TabsContent value="meetings" className="mt-6">
-            <PortalMeetings meetings={meetings} />
-          </TabsContent>
-
-          <TabsContent value="tasks" className="mt-6">
-            <PortalTasks portalToken={token || data.portal_token || ""} />
-          </TabsContent>
-
-          <TabsContent value="charter" className="mt-6">
-            <PortalCharter googleDriveUrl={contact.google_drive_url} />
-          </TabsContent>
-
-          <TabsContent value="timeline" className="mt-6">
-            <PortalTimeline auditTrail={audit_trail} />
-          </TabsContent>
-
-          <TabsContent value="reviews" className="mt-6">
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
-                <FileBarChart className="h-7 w-7 text-accent" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-1">
-                Comprehensive AI-powered reviews of your financial territory — account statements, governance alignment, and strategic recommendations.
-              </p>
-              <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
-                Coming Soon
-              </span>
-            </div>
-          </TabsContent>
-        </Tabs>
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        {renderBreadcrumb()}
+        {renderContent()}
       </main>
 
       {/* Footer */}
       <footer className="border-t border-border mt-12">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 text-center">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 text-center">
           <p className="text-xs text-muted-foreground">
             ProsperWise Advisors — Your Personal CFO
           </p>
