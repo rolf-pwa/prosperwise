@@ -684,7 +684,26 @@ const Portal = () => {
 
         {/* Right Sidebar */}
         <div className="space-y-4">
-          {/* Charter — top of sidebar */}
+          {/* Family Tile — top of sidebar */}
+          {family && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
+                    <Home className="h-4.5 w-4.5 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground font-serif">{family.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {contact.governance_status === "stabilization" ? "Stabilization" : "Sovereign"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Charter */}
           <PortalCharter charterUrl={contact.charter_url} />
 
           {/* Quick Links */}
@@ -780,9 +799,7 @@ const Portal = () => {
                 </p>
               </div>
             </div>
-            <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent border border-accent/20">
-              {contact.governance_status === "stabilization" ? "Stabilization" : "Sovereign"}
-            </span>
+            {/* Status removed per design */}
           </div>
         </div>
       </header>
