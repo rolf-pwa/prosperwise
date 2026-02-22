@@ -564,62 +564,76 @@ const Portal = () => {
 
     return (
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content: Tasks & Meetings */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Ask for Help */}
+        {/* Main Content: Tabbed Interface */}
+        <div className="space-y-4 lg:col-span-2">
+          {/* Ask for Help — pinned above tabs */}
           {isSelf && (
             <Button
               variant="outline"
               onClick={() => setGeorgiaOpen(true)}
-              className="w-full justify-center gap-2 mb-2"
+              className="w-full justify-center gap-2"
             >
               <MessageCircle className="h-4 w-4" />
               Ask for Help
             </Button>
           )}
 
-          {/* Tasks */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <CheckSquare className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold text-foreground font-serif">Action Items</h2>
-            </div>
-            {isSelf ? (
-              <PortalTasks portalToken={portalToken} />
-            ) : (
-              <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
-                <CheckSquare className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">Task view is only available for your own account.</p>
-              </div>
-            )}
-          </div>
+          {/* Main Tabs */}
+          <Tabs defaultValue="tasks" className="w-full">
+            <TabsList className="w-full bg-muted border border-border">
+              <TabsTrigger value="tasks" className="flex-1 gap-1.5">
+                <CheckSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Action Items</span>
+                <span className="sm:hidden">Tasks</span>
+              </TabsTrigger>
+              <TabsTrigger value="requests" className="flex-1 gap-1.5">
+                <ClipboardList className="h-4 w-4" />
+                Requests
+              </TabsTrigger>
+              <TabsTrigger value="meetings" className="flex-1 gap-1.5">
+                <Calendar className="h-4 w-4" />
+                Meetings
+              </TabsTrigger>
+              <TabsTrigger value="info" className="flex-1 gap-1.5">
+                <ScrollText className="h-4 w-4" />
+                Info
+              </TabsTrigger>
+            </TabsList>
 
-          {/* My Requests */}
-          {isSelf && (
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <ClipboardList className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-foreground font-serif">My Requests</h2>
-              </div>
-              <PortalRequests
-                requests={portal_requests || []}
-                contactId={contact.id}
-                contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
-                portalToken={portalToken}
-                onUpdate={() => refreshData(portalToken)}
-              />
-            </div>
-          )}
+            {/* Action Items Tab */}
+            <TabsContent value="tasks" className="mt-4">
+              {isSelf ? (
+                <PortalTasks portalToken={portalToken} />
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                  <CheckSquare className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Task view is only available for your own account.</p>
+                </div>
+              )}
+            </TabsContent>
 
+            {/* Requests Tab */}
+            <TabsContent value="requests" className="mt-4">
+              {isSelf ? (
+                <PortalRequests
+                  requests={portal_requests || []}
+                  contactId={contact.id}
+                  contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                  portalToken={portalToken}
+                  onUpdate={() => refreshData(portalToken)}
+                />
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                  <ClipboardList className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Requests are only visible on your own view.</p>
+                </div>
+              )}
+            </TabsContent>
 
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-foreground font-serif">Upcoming Meetings</h2>
-              </div>
+            {/* Meetings Tab */}
+            <TabsContent value="meetings" className="mt-4">
               {isSelf && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2 mb-4">
                   <a
                     href="https://calendar.app.google/EwH29qfci75yedju8"
                     target="_blank"
@@ -640,55 +654,57 @@ const Portal = () => {
                   </a>
                 </div>
               )}
-            </div>
-            {isSelf ? (
-              <PortalMeetings meetings={meetings} />
-            ) : (
-              <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
-                <Calendar className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">Meeting schedule is only visible on your own view.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Tabs: Charter, Timeline, Reviews */}
-          <Tabs defaultValue="charter" className="w-full">
-            <TabsList className="w-full bg-muted border border-border">
-              <TabsTrigger value="charter" className="flex-1">
-                <ScrollText className="mr-1.5 h-4 w-4" />
-                Charter
-              </TabsTrigger>
-              <TabsTrigger value="timeline" className="flex-1">
-                <Clock className="mr-1.5 h-4 w-4" />
-                Timeline
-              </TabsTrigger>
-              <TabsTrigger value="reviews" className="flex-1">
-                <FileBarChart className="mr-1.5 h-4 w-4" />
-                Reviews
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="charter" className="mt-4">
-              <PortalCharter googleDriveUrl={contact.google_drive_url} />
-            </TabsContent>
-
-            <TabsContent value="timeline" className="mt-4">
-              <PortalTimeline auditTrail={audit_trail} />
-            </TabsContent>
-
-            <TabsContent value="reviews" className="mt-4">
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
-                  <FileBarChart className="h-7 w-7 text-accent" />
+              {isSelf ? (
+                <PortalMeetings meetings={meetings} />
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                  <Calendar className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Meeting schedule is only visible on your own view.</p>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
-                <p className="text-sm text-muted-foreground max-w-md mb-1">
-                  Comprehensive AI-powered reviews of your financial territory.
-                </p>
-                <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
-                  Coming Soon
-                </span>
-              </div>
+              )}
+            </TabsContent>
+
+            {/* Info Tab — Charter, Timeline, Reviews */}
+            <TabsContent value="info" className="mt-4 space-y-6">
+              <Tabs defaultValue="charter" className="w-full">
+                <TabsList className="w-full bg-card border border-border">
+                  <TabsTrigger value="charter" className="flex-1 gap-1.5">
+                    <ScrollText className="h-3.5 w-3.5" />
+                    Charter
+                  </TabsTrigger>
+                  <TabsTrigger value="timeline" className="flex-1 gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Timeline
+                  </TabsTrigger>
+                  <TabsTrigger value="reviews" className="flex-1 gap-1.5">
+                    <FileBarChart className="h-3.5 w-3.5" />
+                    Reviews
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="charter" className="mt-4">
+                  <PortalCharter googleDriveUrl={contact.google_drive_url} />
+                </TabsContent>
+
+                <TabsContent value="timeline" className="mt-4">
+                  <PortalTimeline auditTrail={audit_trail} />
+                </TabsContent>
+
+                <TabsContent value="reviews" className="mt-4">
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
+                      <FileBarChart className="h-7 w-7 text-accent" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mb-1">
+                      Comprehensive AI-powered reviews of your financial territory.
+                    </p>
+                    <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
+                      Coming Soon
+                    </span>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>
