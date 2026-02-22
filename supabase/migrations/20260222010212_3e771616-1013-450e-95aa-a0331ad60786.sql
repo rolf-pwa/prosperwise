@@ -1,0 +1,1 @@
+ALTER TABLE public.contacts ADD COLUMN charter_url text DEFAULT NULL;

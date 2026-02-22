@@ -685,7 +685,7 @@ const Portal = () => {
         {/* Right Sidebar */}
         <div className="space-y-4">
           {/* Charter — top of sidebar */}
-          <PortalCharter googleDriveUrl={contact.google_drive_url} />
+          <PortalCharter charterUrl={contact.charter_url} />
 
           {/* Quick Links */}
           {isSelf && (

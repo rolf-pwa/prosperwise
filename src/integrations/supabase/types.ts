@@ -20,6 +20,7 @@ export type Database = {
           accountant_name: string | null
           address: string | null
           asana_url: string | null
+          charter_url: string | null
           created_at: string
           created_by: string
           email: string | null
@@ -55,6 +56,7 @@ export type Database = {
           accountant_name?: string | null
           address?: string | null
           asana_url?: string | null
+          charter_url?: string | null
           created_at?: string
           created_by: string
           email?: string | null
@@ -90,6 +92,7 @@ export type Database = {
           accountant_name?: string | null
           address?: string | null
           asana_url?: string | null
+          charter_url?: string | null
           created_at?: string
           created_by?: string
           email?: string | null
