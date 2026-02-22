@@ -139,35 +139,28 @@ serve(async (req) => {
         expires_at: expiresAt,
       });
 
-      // Send OTP email via Resend
-      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-      
-      if (RESEND_API_KEY) {
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: "ProsperWise <onboarding@resend.dev>",
-            to: [cleanEmail],
-            subject: "Your Portal Access Code",
-            html: `
-              <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-                <h2 style="color: #1a1a2e; margin-bottom: 8px;">Sovereign Portal Access</h2>
-                <p style="color: #555; font-size: 14px;">Hi ${contact.first_name},</p>
-                <p style="color: #555; font-size: 14px;">Your one-time access code is:</p>
-                <div style="background: #f4f4f8; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
-                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a2e;">${otp}</span>
-                </div>
-                <p style="color: #888; font-size: 12px;">This code expires in 10 minutes. If you didn't request this, please ignore this email.</p>
-                <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-                <p style="color: #aaa; font-size: 11px;">ProsperWise Advisors — Your Personal CFO</p>
-              </div>
-            `,
-          }),
-        });
+      // Send OTP email via Wix triggered email relay
+      const WIX_SITE_URL = Deno.env.get("WIX_SITE_URL");
+      const WIX_OTP_SECRET = Deno.env.get("WIX_OTP_SECRET");
+
+      if (WIX_SITE_URL && WIX_OTP_SECRET) {
+        try {
+          const wixRes = await fetch(WIX_SITE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: cleanEmail,
+              code: otp,
+              secret: WIX_OTP_SECRET,
+            }),
+          });
+          if (!wixRes.ok) {
+            const errBody = await wixRes.text();
+            console.error("[WixRelay] Failed to send OTP:", wixRes.status, errBody);
+          }
+        } catch (wixErr) {
+          console.error("[WixRelay] Error calling Wix endpoint:", wixErr);
+        }
       } else {
         // Fallback: log OTP for development
         console.log(`[DEV] OTP for ${cleanEmail}: ${otp}`);
