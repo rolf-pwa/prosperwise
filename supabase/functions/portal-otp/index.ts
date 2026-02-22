@@ -150,7 +150,7 @@ serve(async (req) => {
             Authorization: `Bearer ${RESEND_API_KEY}`,
           },
           body: JSON.stringify({
-            from: "ProsperWise <portal@prosperwise.ca>",
+            from: "ProsperWise <onboarding@resend.dev>",
             to: [cleanEmail],
             subject: "Your Portal Access Code",
             html: `
