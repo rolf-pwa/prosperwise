@@ -594,9 +594,9 @@ const Portal = () => {
                 <Calendar className="h-4 w-4" />
                 Meetings
               </TabsTrigger>
-              <TabsTrigger value="info" className="flex-1 gap-1.5">
-                <ScrollText className="h-4 w-4" />
-                Info
+              <TabsTrigger value="reviews" className="flex-1 gap-1.5">
+                <FileBarChart className="h-4 w-4" />
+                Reviews
               </TabsTrigger>
             </TabsList>
 
@@ -664,53 +664,29 @@ const Portal = () => {
               )}
             </TabsContent>
 
-            {/* Info Tab — Charter, Timeline, Reviews */}
-            <TabsContent value="info" className="mt-4 space-y-6">
-              <Tabs defaultValue="charter" className="w-full">
-                <TabsList className="w-full bg-card border border-border">
-                  <TabsTrigger value="charter" className="flex-1 gap-1.5">
-                    <ScrollText className="h-3.5 w-3.5" />
-                    Charter
-                  </TabsTrigger>
-                  <TabsTrigger value="timeline" className="flex-1 gap-1.5">
-                    <Clock className="h-3.5 w-3.5" />
-                    Timeline
-                  </TabsTrigger>
-                  <TabsTrigger value="reviews" className="flex-1 gap-1.5">
-                    <FileBarChart className="h-3.5 w-3.5" />
-                    Reviews
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="charter" className="mt-4">
-                  <PortalCharter googleDriveUrl={contact.google_drive_url} />
-                </TabsContent>
-
-                <TabsContent value="timeline" className="mt-4">
-                  <PortalTimeline auditTrail={audit_trail} />
-                </TabsContent>
-
-                <TabsContent value="reviews" className="mt-4">
-                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
-                      <FileBarChart className="h-7 w-7 text-accent" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
-                    <p className="text-sm text-muted-foreground max-w-md mb-1">
-                      Comprehensive AI-powered reviews of your financial territory.
-                    </p>
-                    <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
-                      Coming Soon
-                    </span>
-                  </div>
-                </TabsContent>
-              </Tabs>
+            {/* Reviews Tab */}
+            <TabsContent value="reviews" className="mt-4">
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
+                  <FileBarChart className="h-7 w-7 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
+                <p className="text-sm text-muted-foreground max-w-md mb-1">
+                  Comprehensive AI-powered reviews of your financial territory.
+                </p>
+                <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
+                  Coming Soon
+                </span>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Right Sidebar: Territory (Vineyard & Storehouses) + Quick Links */}
+        {/* Right Sidebar */}
         <div className="space-y-4">
+          {/* Charter — top of sidebar */}
+          <PortalCharter googleDriveUrl={contact.google_drive_url} />
+
           {/* Quick Links */}
           {isSelf && (
             <div className="flex flex-col gap-1.5">
@@ -749,6 +725,15 @@ const Portal = () => {
             portalToken={portalToken}
             onScopeChange={() => refreshData(portalToken)}
           />
+
+          {/* Timeline — bottom of sidebar */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium text-muted-foreground">Timeline</h3>
+            </div>
+            <PortalTimeline auditTrail={audit_trail} />
+          </div>
         </div>
       </div>
     );
