@@ -464,59 +464,65 @@ const Portal = () => {
             </CardContent>
           </Card>
 
-          {/* Member cards */}
+          {/* Member cards — ordered: Head, Spouse, Beneficiary, Minor */}
           <div className="grid gap-3">
-            {/* Self */}
-            <button
-              onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: undefined })}
-              className="text-left rounded-lg border border-accent/30 bg-accent/5 p-4 hover:bg-accent/10 transition-colors group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20">
-                    <Shield className="h-4 w-4 text-accent" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{contact.first_name} {contact.last_name || ""}</p>
-                    <p className="text-xs text-muted-foreground">{ROLE_LABELS[contact.family_role] || contact.family_role} · You</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </button>
+            {[
+              { ...contact, _isSelf: true },
+              ...members.map((m: any) => ({ ...m, _isSelf: false })),
+            ]
+              .sort((a: any, b: any) => {
+                const order: Record<string, number> = { head_of_family: 0, spouse: 1, beneficiary: 2, minor: 3 };
+                return (order[a.family_role] ?? 4) - (order[b.family_role] ?? 4);
+              })
+              .map((m: any) => {
+                const isSelf = m._isSelf;
+                const mTotal = isSelf
+                  ? 0
+                  : (m.vineyard_accounts || [])
+                      .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
+                      .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
+                    + (m.storehouses || [])
+                      .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
+                      .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
 
-            {members.map((m: any) => {
-              const mTotal = (m.vineyard_accounts || [])
-                .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
-                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
-                + (m.storehouses || [])
-                .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
-                .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
-
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => setDrilldown({ level: "individual", householdId: drilldown.householdId, memberId: m.id })}
-                  className="text-left rounded-lg border border-border bg-card p-4 hover:border-accent/30 hover:bg-muted/30 transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() =>
+                      setDrilldown({
+                        level: "individual",
+                        householdId: drilldown.householdId,
+                        memberId: isSelf ? undefined : m.id,
+                      })
+                    }
+                    className={`text-left rounded-lg p-4 transition-colors group ${
+                      isSelf
+                        ? "border border-accent/30 bg-accent/5 hover:bg-accent/10"
+                        : "border border-border bg-card hover:border-accent/30 hover:bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isSelf ? "bg-accent/20" : "bg-muted"}`}>
+                          {isSelf ? <Shield className="h-4 w-4 text-accent" /> : <Users className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name || ""}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ROLE_LABELS[m.family_role] || m.family_role}
+                            {isSelf ? " · You" : ""}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name || ""}</p>
-                        <p className="text-xs text-muted-foreground">{ROLE_LABELS[m.family_role] || m.family_role}</p>
+                      <div className="flex items-center gap-3">
+                        {!isSelf && <span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>}
+                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })
+            }
           </div>
         </div>
 
