@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { signInWithGoogle } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Shield } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Shield, Mail, Loader2 } from "lucide-react";
 import { isAllowedDomain } from "@/lib/auth";
 
 const GoogleIcon = () => (
@@ -17,6 +21,13 @@ const GoogleIcon = () => (
 const Login = () => {
   const { user, loading } = useAuth();
 
+  // OTP state
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-primary">
@@ -25,11 +36,49 @@ const Login = () => {
     );
   }
 
-  // If already signed in, route based on domain
   if (user) {
     if (isAllowedDomain(user.email)) return <Navigate to="/dashboard" replace />;
     return <Navigate to="/portal" replace />;
   }
+
+  const handleSendOtp = async () => {
+    if (!email.trim()) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const resp = await supabase.functions.invoke("portal-otp", {
+        body: { action: "send", email: email.trim() },
+      });
+      if (resp.error) throw resp.error;
+      setOtpSent(true);
+    } catch {
+      setOtpError("Something went wrong. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const resp = await supabase.functions.invoke("portal-otp", {
+        body: { action: "verify", email: email.trim(), code: otp },
+      });
+      if (resp.error || resp.data?.error) {
+        setOtpError(resp.data?.error || "Invalid code. Please try again.");
+      } else {
+        // Store portal data and redirect
+        sessionStorage.setItem("portal_google_auth", JSON.stringify(resp.data));
+        window.location.href = "/portal";
+      }
+    } catch {
+      setOtpError("Something went wrong. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-primary">
@@ -39,17 +88,15 @@ const Login = () => {
             <Shield className="h-8 w-8 text-accent" />
           </div>
           <h1 className="text-3xl font-bold text-primary-foreground">
-            Sovereignty CRM
+            ProsperWise
           </h1>
           <p className="text-sm text-primary-foreground/60">
-            ProsperWise Advisors — Secure Access
+            Advisors &amp; Client Portal — Secure Access
           </p>
         </div>
 
-        <div className="rounded-lg border border-primary-foreground/10 bg-primary-foreground/5 p-8 backdrop-blur">
-          <p className="mb-6 text-sm text-primary-foreground/70">
-            Sign in with your Google account to continue.
-          </p>
+        <div className="rounded-lg border border-primary-foreground/10 bg-primary-foreground/5 p-8 backdrop-blur space-y-5">
+          {/* Google Sign-In */}
           <Button
             onClick={() => signInWithGoogle()}
             className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
@@ -58,10 +105,88 @@ const Login = () => {
             <GoogleIcon />
             Sign in with Google
           </Button>
-          <p className="mt-4 text-xs text-primary-foreground/40">
-            Advisors: @prosperwise.ca · Clients: your email on file
-          </p>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-primary-foreground/10" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-primary px-2 text-primary-foreground/40">or use email code</span>
+            </div>
+          </div>
+
+          {/* OTP Flow */}
+          {!otpSent ? (
+            <>
+              <div className="space-y-2 text-left">
+                <label className="text-sm font-medium text-primary-foreground/80">Email Address</label>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
+                  disabled={otpLoading}
+                  className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/30"
+                />
+              </div>
+              {otpError && <p className="text-xs text-destructive">{otpError}</p>}
+              <Button
+                onClick={handleSendOtp}
+                disabled={otpLoading || !email.trim()}
+                variant="outline"
+                className="w-full border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+                size="lg"
+              >
+                {otpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                Send Access Code
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2 text-center">
+                <Mail className="h-8 w-8 text-accent mx-auto" />
+                <p className="text-sm text-primary-foreground font-medium">Check your email</p>
+                <p className="text-xs text-primary-foreground/60">
+                  We sent a 6-digit code to <span className="font-medium text-primary-foreground">{email}</span>
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              {otpError && <p className="text-xs text-destructive text-center">{otpError}</p>}
+              <Button
+                onClick={handleVerifyOtp}
+                disabled={otpLoading || otp.length !== 6}
+                className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                size="lg"
+              >
+                {otpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Verify & Enter Portal
+              </Button>
+              <button
+                onClick={() => { setOtpSent(false); setOtp(""); setOtpError(null); }}
+                className="w-full text-xs text-primary-foreground/40 hover:text-primary-foreground transition-colors"
+              >
+                Use a different email
+              </button>
+            </>
+          )}
         </div>
+
+        <p className="text-xs text-primary-foreground/40">
+          Advisors sign in with @prosperwise.ca · Clients use Google or email code
+        </p>
       </div>
     </div>
   );
