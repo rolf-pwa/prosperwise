@@ -712,7 +712,10 @@ const Portal = () => {
                       <span className="text-[11px] font-medium text-muted-foreground">Members</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {household_members.map((m: any) => (
+                      {[...household_members].sort((a: any, b: any) => {
+                        const order: Record<string, number> = { head_of_family: 0, spouse: 1, beneficiary: 2, minor: 3 };
+                        return (order[a.family_role] ?? 4) - (order[b.family_role] ?? 4);
+                      }).map((m: any) => (
                         <span key={m.id} className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground border border-border">
                           {m.first_name} {m.last_name || ""}
                         </span>
