@@ -687,18 +687,33 @@ const Portal = () => {
           {/* Family Tile — top of sidebar */}
           {family && (
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
-                    <Home className="h-4.5 w-4.5 text-accent" />
+                    <Home className="h-5 w-5 text-accent" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-foreground font-serif">{family.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {contact.governance_status === "stabilization" ? "Stabilization" : "Sovereign"}
-                    </p>
+                    {household && (
+                      <p className="text-xs text-muted-foreground">{household.label} Household</p>
+                    )}
                   </div>
                 </div>
+                {household_members.length > 0 && (
+                  <div className="border-t border-border pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-[11px] font-medium text-muted-foreground">Members</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {household_members.map((m: any) => (
+                        <span key={m.id} className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground border border-border">
+                          {m.first_name} {m.last_name || ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

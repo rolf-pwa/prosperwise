@@ -171,53 +171,6 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
 
   return (
     <div className="space-y-6">
-      {/* Family & Household Context */}
-      {(family || household || householdMembers.length > 0) && (
-        <Card>
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                <Home className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                {family && (
-                  <h3 className="font-semibold text-foreground font-serif">{family.name}</h3>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {household?.label ? `${household.label} Household` : ""}
-                  {household?.address ? ` · ${household.address}` : ""}
-                </p>
-              </div>
-              {contact?.family_role && (
-                <span className="ml-auto rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  {ROLE_LABELS[contact.family_role] || contact.family_role}
-                </span>
-              )}
-            </div>
-
-            {householdMembers.length > 0 && (
-              <div className="border-t border-border pt-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Household Members</span>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {householdMembers.map((m: any) => (
-                    <div key={m.id} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 border border-border">
-                      <span className="text-sm text-foreground">{m.first_name} {m.last_name || ""}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {ROLE_LABELS[m.family_role] || m.family_role}
-                        {m.is_minor && " · Minor"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Vineyard Overview */}
       <Card>
         <CardHeader>
