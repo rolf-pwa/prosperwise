@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import prosperwiseLogoFull from "@/assets/prosperwise-logo-full.png";
+import prosperwiseLogoWhite from "@/assets/prosperwise-logo-white.png";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import {
@@ -96,7 +96,7 @@ export function AppSidebar() {
     <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       {/* Brand */}
       <div className="flex items-center border-b border-sidebar-border px-5 py-4">
-        <img src={prosperwiseLogoFull} alt="ProsperWise" className="h-10" />
+        <img src={prosperwiseLogoWhite} alt="ProsperWise" className="h-10" />
       </div>
 
       {/* Nav */}
