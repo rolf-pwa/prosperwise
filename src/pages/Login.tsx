@@ -30,8 +30,8 @@ const Login = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-primary">
-        <div className="animate-pulse text-primary-foreground">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-pulse text-foreground">Loading...</div>
       </div>
     );
   }
@@ -81,25 +81,26 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-primary">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="mx-4 w-full max-w-md space-y-8 text-center">
         <div className="space-y-3">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
             <Shield className="h-8 w-8 text-accent" />
           </div>
-          <h1 className="text-3xl font-bold text-primary-foreground">
-            ProsperWise
+          <h1 className="text-3xl font-bold text-foreground font-serif">
+            ProsperWise Portal
           </h1>
-          <p className="text-sm text-primary-foreground/60">
-            Advisors &amp; Client Portal — Secure Access
+          <p className="text-sm text-muted-foreground">
+            ProsperWise Advisors — Secure Access
           </p>
         </div>
 
-        <div className="rounded-lg border border-primary-foreground/10 bg-primary-foreground/5 p-8 backdrop-blur space-y-5">
+        <div className="rounded-lg border border-border bg-card p-8 text-left space-y-5">
           {/* Google Sign-In */}
           <Button
             onClick={() => signInWithGoogle()}
-            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+            variant="outline"
+            className="w-full"
             size="lg"
           >
             <GoogleIcon />
@@ -109,18 +110,21 @@ const Login = () => {
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-primary-foreground/10" />
+              <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-primary px-2 text-primary-foreground/40">or use email code</span>
+              <span className="bg-card px-2 text-muted-foreground">or use email code</span>
             </div>
           </div>
 
           {/* OTP Flow */}
           {!otpSent ? (
             <>
-              <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-primary-foreground/80">Email Address</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Email Address</label>
+                <p className="text-xs text-muted-foreground">
+                  Enter the email on file with your Personal CFO.
+                </p>
                 <Input
                   type="email"
                   placeholder="you@example.com"
@@ -128,17 +132,10 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
                   disabled={otpLoading}
-                  className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/30"
                 />
               </div>
               {otpError && <p className="text-xs text-destructive">{otpError}</p>}
-              <Button
-                onClick={handleSendOtp}
-                disabled={otpLoading || !email.trim()}
-                variant="outline"
-                className="w-full border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
-                size="lg"
-              >
+              <Button onClick={handleSendOtp} disabled={otpLoading || !email.trim()} className="w-full" size="lg">
                 {otpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                 Send Access Code
               </Button>
@@ -147,9 +144,9 @@ const Login = () => {
             <>
               <div className="space-y-2 text-center">
                 <Mail className="h-8 w-8 text-accent mx-auto" />
-                <p className="text-sm text-primary-foreground font-medium">Check your email</p>
-                <p className="text-xs text-primary-foreground/60">
-                  We sent a 6-digit code to <span className="font-medium text-primary-foreground">{email}</span>
+                <p className="text-sm text-foreground font-medium">Check your email</p>
+                <p className="text-xs text-muted-foreground">
+                  We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
                 </p>
               </div>
               <div className="flex justify-center">
@@ -165,18 +162,13 @@ const Login = () => {
                 </InputOTP>
               </div>
               {otpError && <p className="text-xs text-destructive text-center">{otpError}</p>}
-              <Button
-                onClick={handleVerifyOtp}
-                disabled={otpLoading || otp.length !== 6}
-                className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                size="lg"
-              >
+              <Button onClick={handleVerifyOtp} disabled={otpLoading || otp.length !== 6} className="w-full" size="lg">
                 {otpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Verify & Enter Portal
               </Button>
               <button
                 onClick={() => { setOtpSent(false); setOtp(""); setOtpError(null); }}
-                className="w-full text-xs text-primary-foreground/40 hover:text-primary-foreground transition-colors"
+                className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Use a different email
               </button>
@@ -184,8 +176,8 @@ const Login = () => {
           )}
         </div>
 
-        <p className="text-xs text-primary-foreground/40">
-          Advisors sign in with @prosperwise.ca · Clients use Google or email code
+        <p className="text-xs text-muted-foreground">
+          OTP code expires in 10 minutes · Max 3 requests per hour
         </p>
       </div>
     </div>
