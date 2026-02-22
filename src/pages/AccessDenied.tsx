@@ -10,11 +10,11 @@ const AccessDenied = () => {
           <ShieldX className="h-8 w-8 text-destructive" />
         </div>
         <h1 className="text-2xl font-bold text-primary-foreground">
-          Access Denied
+          No Account Found
         </h1>
         <p className="text-sm text-primary-foreground/60">
-          Only @prosperwise.ca accounts are authorized to access this system.
-          Please sign in with your ProsperWise email.
+          Your email is not associated with a ProsperWise client account.
+          Please contact your Personal CFO if you believe this is an error.
         </p>
         <Button
           onClick={() => signOut()}

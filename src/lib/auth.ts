@@ -7,7 +7,6 @@ export async function signInWithGoogle() {
   const result = await lovable.auth.signInWithOAuth("google", {
     redirect_uri: window.location.origin,
     extraParams: {
-      hd: "prosperwise.ca",
       prompt: "select_account",
     },
   });

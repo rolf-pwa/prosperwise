@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isAllowedDomain } from "@/lib/auth";
 
 /**
  * Handles the OAuth callback at the root URL.
- * When the OAuth broker redirects back with hash params (#access_token=...),
- * this component waits for Supabase to process the tokens before redirecting.
- * If there are no hash params, it immediately redirects to /dashboard.
+ * - @prosperwise.ca users → /dashboard
+ * - Other Google users → /portal (with contact lookup)
+ * - No auth hash → /dashboard (existing session) or /login
  */
 const AuthCallback = () => {
   const [ready, setReady] = useState(false);
+  const [destination, setDestination] = useState("/dashboard");
   const hasAuthHash = window.location.hash?.includes("access_token");
 
   useEffect(() => {
@@ -18,16 +20,37 @@ const AuthCallback = () => {
       return;
     }
 
-    // Wait for Supabase to process the hash tokens
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
+      async (event, session) => {
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          const email = session?.user?.email;
+          if (isAllowedDomain(email)) {
+            setDestination("/dashboard");
+          } else if (email) {
+            // Non-prosperwise user → portal client via Google
+            // Look up their contact record by email
+            try {
+              const resp = await supabase.functions.invoke("portal-otp", {
+                body: { action: "google-auth", email },
+              });
+              if (!resp.error && resp.data && !resp.data.error) {
+                // Store portal session data in sessionStorage
+                sessionStorage.setItem("portal_google_auth", JSON.stringify(resp.data));
+                setDestination("/portal");
+              } else {
+                setDestination("/access-denied");
+              }
+            } catch {
+              setDestination("/access-denied");
+            }
+          } else {
+            setDestination("/access-denied");
+          }
           setReady(true);
         }
       }
     );
 
-    // Fallback timeout in case the event never fires
     const timeout = setTimeout(() => setReady(true), 5000);
 
     return () => {
@@ -44,7 +67,7 @@ const AuthCallback = () => {
     );
   }
 
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to={destination} replace />;
 };
 
 export default AuthCallback;
