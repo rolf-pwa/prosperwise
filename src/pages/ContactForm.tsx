@@ -60,6 +60,7 @@ const ContactForm = () => {
     asana_url: "",
     ia_financial_url: "",
     google_drive_url: "",
+    charter_url: "",
   });
 
   // Household member linking
@@ -123,6 +124,7 @@ const ContactForm = () => {
         asana_url: data.asana_url || "",
         ia_financial_url: data.ia_financial_url || "",
         google_drive_url: data.google_drive_url || "",
+        charter_url: (data as any).charter_url || "",
       });
       setHouseholdMembers(
         (householdRes.data || []).map((r: any) => ({
@@ -233,6 +235,7 @@ const ContactForm = () => {
       asana_url: form.asana_url || null,
       ia_financial_url: form.ia_financial_url || null,
       google_drive_url: form.google_drive_url || null,
+      charter_url: form.charter_url || null,
     };
 
     let contactId = id;
@@ -518,6 +521,10 @@ const ContactForm = () => {
              <div>
                <Label>Google Drive Folder URL</Label>
                <Input value={form.google_drive_url} onChange={(e) => update("google_drive_url", e.target.value)} placeholder="https://drive.google.com/..." />
+             </div>
+             <div>
+               <Label>Charter URL (SideDrawer)</Label>
+               <Input value={form.charter_url} onChange={(e) => update("charter_url", e.target.value)} placeholder="https://app.sidedrawer.com/..." />
              </div>
           </CardContent>
         </Card>
