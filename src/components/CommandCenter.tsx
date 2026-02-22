@@ -91,7 +91,7 @@ export function CommandCenter() {
         </Button>
       </div>
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <AsanaInboxWidget />
+        <AsanaMyTasksWidget />
         <CalendarWidget />
         <GmailWidget />
       </div>
@@ -253,7 +253,7 @@ function extractProjectGid(asanaUrl: string | null): string | null {
   return match ? match[1] : null;
 }
 
-function AsanaInboxWidget() {
+function AsanaMyTasksWidget() {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -265,21 +265,29 @@ function AsanaInboxWidget() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const [taskRes, contactRes] = await Promise.all([
-          supabase.functions.invoke("asana-service", {
-            body: { action: "getInbox" },
-          }),
-          supabase.from("contacts").select("id, full_name, asana_url").not("asana_url", "is", null),
-        ]);
+        // Fetch contacts with Asana URLs to build project GID list
+        const contactRes = await supabase
+          .from("contacts")
+          .select("id, full_name, asana_url")
+          .not("asana_url", "is", null);
 
         const map: Record<string, { id: string; name: string }> = {};
+        const projectGids: string[] = [];
         if (contactRes.data) {
           for (const c of contactRes.data) {
             const gid = extractProjectGid(c.asana_url);
-            if (gid) map[gid] = { id: c.id, name: c.full_name };
+            if (gid) {
+              map[gid] = { id: c.id, name: c.full_name };
+              projectGids.push(gid);
+            }
           }
         }
         setContactMap(map);
+
+        // Fetch tasks assigned to me, filtered to known projects
+        const taskRes = await supabase.functions.invoke("asana-service", {
+          body: { action: "getMyTasks", project_gids: projectGids.length > 0 ? projectGids : undefined },
+        });
 
         if (taskRes.data?.data) {
           setTasks(taskRes.data.data as AsanaTask[]);
@@ -310,7 +318,7 @@ function AsanaInboxWidget() {
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Inbox className="h-4 w-4 text-sanctuary-bronze" />
-          My Inbox
+          My Tasks
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -319,9 +327,9 @@ function AsanaInboxWidget() {
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
-          <p className="text-sm text-destructive">Failed to load inbox</p>
+          <p className="text-sm text-destructive">Failed to load tasks</p>
         ) : tasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Your inbox is clear!</p>
+          <p className="text-sm text-muted-foreground">No tasks assigned to you.</p>
         ) : (
           <div className="space-y-2">
             {tasks.slice(0, 12).map((task) => {

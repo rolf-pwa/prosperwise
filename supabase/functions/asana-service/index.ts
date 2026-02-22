@@ -450,6 +450,38 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // getMyTasks – Tasks assigned to me, optionally filtered by project GIDs
+  // -------------------------------------------------------------------------
+  async getMyTasks(projectGids?: string[]) {
+    return withFailSafe("getMyTasks", async () => {
+      const fields = "name,completed,due_on,modified_at,memberships.section.name,memberships.project.gid,notes,num_subtasks,assignee.name";
+      let url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&assignee.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
+      
+      if (projectGids && projectGids.length > 0) {
+        url += `&projects.any=${projectGids.join(",")}`;
+      }
+
+      console.log("[AsanaService] GET my tasks", url);
+
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      const tasks = json.data || [];
+
+      tasks.sort((a: any, b: any) => {
+        const da = a.modified_at ? new Date(a.modified_at).getTime() : 0;
+        const db = b.modified_at ? new Date(b.modified_at).getTime() : 0;
+        return db - da;
+      });
+
+      return tasks.slice(0, 50);
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // getTaskDetail – LIVE: Fetch a single task with full details
   // -------------------------------------------------------------------------
   async getTaskDetail(taskGid: string) {
@@ -794,6 +826,12 @@ serve(async (req) => {
 
       case "getInbox": {
         result = await service.getInbox();
+        break;
+      }
+
+      case "getMyTasks": {
+        const { project_gids } = params;
+        result = await service.getMyTasks(project_gids);
         break;
       }
 
