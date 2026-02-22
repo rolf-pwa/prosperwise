@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Shield, Mail, Loader2 } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
+import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 import { isAllowedDomain } from "@/lib/auth";
 
 const GoogleIcon = () => (
@@ -84,9 +85,7 @@ const Login = () => {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="mx-4 w-full max-w-md space-y-8 text-center">
         <div className="space-y-3">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
-            <Shield className="h-8 w-8 text-accent" />
-          </div>
+          <img src={prosperwiseLogo} alt="ProsperWise" className="mx-auto h-16 w-16" />
           <h1 className="text-3xl font-bold text-foreground font-serif">
             ProsperWise Portal
           </h1>
