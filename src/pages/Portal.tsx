@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Shield, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList } from "lucide-react";
+import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList } from "lucide-react";
+import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 interface PortalData {
   portal_token?: string;
@@ -162,8 +163,8 @@ const Portal = () => {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="mx-4 w-full max-w-md space-y-8 text-center">
           <div className="space-y-3">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
-              <Shield className="h-8 w-8 text-accent" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center">
+              <img src={prosperwiseLogo} alt="ProsperWise" className="h-16 w-16" />
             </div>
             <h1 className="text-3xl font-bold text-foreground font-serif">
               Sovereign Portal
@@ -270,7 +271,7 @@ const Portal = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Shield className="h-10 w-10 text-accent animate-pulse" />
+          <img src={prosperwiseLogo} alt="ProsperWise" className="h-10 w-10 animate-pulse" />
           <p className="text-muted-foreground text-sm">Loading your Financial Territory…</p>
         </div>
       </div>
@@ -281,7 +282,7 @@ const Portal = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <Shield className="h-12 w-12 text-muted-foreground mx-auto" />
+          <img src={prosperwiseLogo} alt="ProsperWise" className="h-12 w-12 mx-auto opacity-50" />
           <h1 className="text-xl font-semibold text-foreground">Access Denied</h1>
           <p className="text-muted-foreground text-sm max-w-sm">
             {error || "This portal link is invalid or has expired. Please contact your Personal CFO for a new link."}
@@ -547,7 +548,7 @@ const Portal = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isSelf ? "bg-accent/20" : "bg-muted"}`}>
-                          {isSelf ? <Shield className="h-4 w-4 text-accent" /> : <Users className="h-4 w-4 text-muted-foreground" />}
+                          {isSelf ? <img src={prosperwiseLogo} alt="" className="h-4 w-4" /> : <Users className="h-4 w-4 text-muted-foreground" />}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">{m.first_name} {m.last_name || ""}</p>
@@ -854,9 +855,7 @@ const Portal = () => {
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/20">
-                <Shield className="h-5 w-5 text-accent" />
-              </div>
+              <img src={prosperwiseLogo} alt="ProsperWise" className="h-9 w-9" />
               <div>
                 <h1 className="text-lg font-semibold text-foreground font-serif">
                   {contact.first_name} {contact.last_name || ""}
