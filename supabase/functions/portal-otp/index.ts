@@ -273,6 +273,87 @@ serve(async (req) => {
       });
     }
 
+    if (action === "google-auth") {
+      // Google OAuth portal login — look up contact by email
+      if (!email || typeof email !== "string") {
+        return new Response(JSON.stringify({ error: "Email is required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+
+      const { data: contact } = await supabase
+        .from("contacts")
+        .select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor")
+        .ilike("email", cleanEmail)
+        .maybeSingle();
+
+      if (!contact) {
+        return new Response(JSON.stringify({ error: "No account found for this email" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Create a portal token for the session
+      const { data: newToken } = await supabase
+        .from("portal_tokens")
+        .insert({
+          contact_id: contact.id,
+          created_by: contact.id,
+        })
+        .select("token")
+        .single();
+
+      // Load portal data (same as OTP verify flow)
+      const [accountsRes, storehousesRes, auditRes] = await Promise.all([
+        supabase.from("vineyard_accounts").select("*").eq("contact_id", contact.id).order("created_at"),
+        supabase.from("storehouses").select("*").eq("contact_id", contact.id).order("storehouse_number"),
+        supabase.from("sovereignty_audit_trail").select("*").eq("contact_id", contact.id).order("created_at", { ascending: false }).limit(50),
+      ]);
+
+      let family = null;
+      let household = null;
+      let householdMembers: any[] = [];
+
+      if (contact.family_id || contact.household_id) {
+        const extraQueries: Promise<any>[] = [];
+        if (contact.family_id) {
+          extraQueries.push(supabase.from("families").select("id, name, charter_document_url, fee_tier, total_family_assets").eq("id", contact.family_id).maybeSingle());
+        } else {
+          extraQueries.push(Promise.resolve({ data: null }));
+        }
+        if (contact.household_id) {
+          extraQueries.push(supabase.from("households").select("id, label, address").eq("id", contact.household_id).maybeSingle());
+          extraQueries.push(supabase.from("contacts").select("id, first_name, last_name, family_role, is_minor").eq("household_id", contact.household_id).neq("id", contact.id));
+        } else {
+          extraQueries.push(Promise.resolve({ data: null }));
+          extraQueries.push(Promise.resolve({ data: [] }));
+        }
+        const [familyRes, householdRes, membersRes] = await Promise.all(extraQueries);
+        family = familyRes.data;
+        household = householdRes.data;
+        householdMembers = membersRes.data || [];
+      }
+
+      const hierarchy = await buildHierarchy(supabase, contact);
+
+      return new Response(JSON.stringify({
+        portal_token: newToken?.token || null,
+        contact,
+        vineyard_accounts: accountsRes.data || [],
+        storehouses: storehousesRes.data || [],
+        audit_trail: auditRes.data || [],
+        meetings: [],
+        family,
+        household,
+        household_members: householdMembers,
+        hierarchy,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Invalid action" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
