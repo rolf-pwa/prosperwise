@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
+import prosperwiseLogoFull from "@/assets/prosperwise-logo-full.png";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import {
   LayoutDashboard,
   Users,
   LogOut,
-  Shield,
+  
   Folder,
   CheckSquare,
   ShieldCheck,
@@ -94,14 +95,8 @@ export function AppSidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       {/* Brand */}
-      <div className="flex items-center gap-3 border-b border-sidebar-border px-6 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary/20">
-          <Shield className="h-5 w-5 text-sidebar-primary" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-sidebar-foreground">ProsperWise</h2>
-          <p className="text-xs text-sidebar-foreground/50">CRM</p>
-        </div>
+      <div className="flex items-center border-b border-sidebar-border px-5 py-4">
+        <img src={prosperwiseLogoFull} alt="ProsperWise" className="h-10" />
       </div>
 
       {/* Nav */}
