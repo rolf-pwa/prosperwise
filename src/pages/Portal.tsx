@@ -807,6 +807,7 @@ const Portal = () => {
         onOpenChange={setGeorgiaOpen}
         contactName={contact.first_name}
         contactId={contact.id}
+        onRequestSubmitted={() => refreshData(portalToken)}
       />
     </div>
   );

@@ -20,9 +20,10 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   contactName?: string;
   contactId?: string;
+  onRequestSubmitted?: () => void;
 }
 
-export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }: Props) {
+export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, onRequestSubmitted }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -117,6 +118,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId }
           "Your request has been submitted successfully! Your Personal CFO will review it and follow up with you shortly. Is there anything else I can help you with?",
       },
     ]);
+    onRequestSubmitted?.();
   };
 
   const handleFormCancel = () => {
