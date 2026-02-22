@@ -694,7 +694,10 @@ const Families = () => {
                               <CollapsibleContent>
                                 {/* Individual Level */}
                                 <div className="space-y-0.5">
-                                  {household.individuals.map((individual) => {
+                                  {[...household.individuals].sort((a, b) => {
+                                    const order: Record<string, number> = { head_of_family: 0, spouse: 1, beneficiary: 2, minor: 3 };
+                                    return (order[a.family_role] ?? 4) - (order[b.family_role] ?? 4);
+                                  }).map((individual) => {
                                     const RoleIcon = ROLE_ICONS[individual.family_role] || User;
                                     return (
                                       <div
