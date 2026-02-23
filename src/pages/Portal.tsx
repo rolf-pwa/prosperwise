@@ -523,12 +523,12 @@ const Portal = () => {
               })
               .map((m: any) => {
                 const isSelf = m._isSelf;
-                const mTotal = isSelf
-                  ? 0
-                  : (m.vineyard_accounts || [])
+                const mVineyard = isSelf ? vineyard_accounts : (m.vineyard_accounts || []);
+                const mStorehouses = isSelf ? storehouses : (m.storehouses || []);
+                const mTotal = mVineyard
                       .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
                       .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0)
-                    + (m.storehouses || [])
+                    + mStorehouses
                       .filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared")
                       .reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
 
@@ -562,7 +562,7 @@ const Portal = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {!isSelf && <span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>}
+                        {<span className="text-sm font-semibold text-foreground">${mTotal.toLocaleString()}</span>}
                         <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
