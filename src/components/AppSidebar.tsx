@@ -93,48 +93,62 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      {/* Brand */}
-      <div className="flex items-center border-b border-sidebar-border px-5 py-4">
-        <img src={prosperwiseLogoWhite} alt="ProsperWise" className="h-10" />
+    <aside className="flex h-screen w-72 flex-col bg-background">
+      {/* Command Navigation Header */}
+      <div className="px-6 pt-8 pb-4">
+        <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-muted-foreground/60">
+          Command Navigation
+        </p>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge, requestsBadge }: any) => (
-          <Link
-            key={to}
-            to={to}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-              location.pathname === to || location.pathname.startsWith(to + "/")
-                ? "bg-sidebar-accent text-sidebar-primary"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-            {tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0 && (
-              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
-                {pendingTasksCount > 99 ? "99+" : pendingTasksCount}
-              </span>
-            )}
-            {reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0 && (
-              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
-                {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
-              </span>
-            )}
-            {requestsBadge && openRequestsCount !== null && openRequestsCount > 0 && (
-              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/25 px-1.5 text-[10px] font-bold text-accent border border-accent/30">
-                {openRequestsCount > 99 ? "99+" : openRequestsCount}
-              </span>
-            )}
-          </Link>
-        ))}
+      <nav className="flex-1 space-y-1 px-4">
+        {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge, requestsBadge }: any) => {
+          const active = location.pathname === to || location.pathname.startsWith(to + "/");
+          return (
+            <Link
+              key={to}
+              to={to}
+              className={cn(
+                "flex items-center gap-4 rounded-lg px-5 py-4 text-[15px] font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              {label}
+              {tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0 && (
+                <span className={cn(
+                  "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/25 text-accent border border-accent/30"
+                )}>
+                  {pendingTasksCount > 99 ? "99+" : pendingTasksCount}
+                </span>
+              )}
+              {reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0 && (
+                <span className={cn(
+                  "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/25 text-accent border border-accent/30"
+                )}>
+                  {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
+                </span>
+              )}
+              {requestsBadge && openRequestsCount !== null && openRequestsCount > 0 && (
+                <span className={cn(
+                  "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/25 text-accent border border-accent/30"
+                )}>
+                  {openRequestsCount > 99 ? "99+" : openRequestsCount}
+                </span>
+              )}
+            </Link>
+          );
+        })}
 
-        <Separator className="my-3 bg-sidebar-border" />
+        <Separator className="my-4 bg-border" />
 
-        <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+        <p className="px-5 pb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/50">
           Integrations
         </p>
         {externalLinks.map(({ href, label, icon: Icon }) => (
@@ -143,33 +157,33 @@ export function AppSidebar() {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="flex items-center gap-4 rounded-lg px-5 py-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-5 w-5" />
             {label}
-            <ExternalLink className="ml-auto h-3 w-3 opacity-40" />
+            <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
           </a>
         ))}
       </nav>
 
       {/* User */}
-      <div className="border-t border-sidebar-border p-4">
+      <div className="border-t border-border p-5">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
+            <AvatarFallback className="bg-muted text-xs text-foreground">
               {user?.email?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 overflow-hidden">
-            <p className="truncate text-xs font-medium text-sidebar-foreground">
+            <p className="truncate text-xs font-medium text-foreground">
               {user?.user_metadata?.full_name || user?.email}
             </p>
-            <p className="truncate text-xs text-sidebar-foreground/50">{user?.email}</p>
+            <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
           </div>
           <button
             onClick={() => signOut()}
-            className="rounded-md p-1.5 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <LogOut className="h-4 w-4" />
           </button>
