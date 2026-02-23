@@ -59,7 +59,7 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/families", label: "Family Tree", icon: TreesIcon },
-  { to: "/contacts", label: "Contacts", icon: Users, tasksBadge: true },
+  { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/leads", label: "Discovery Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
