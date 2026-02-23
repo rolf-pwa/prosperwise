@@ -5,8 +5,6 @@ import { signOut } from "@/lib/auth";
 import {
   LayoutDashboard,
   Users,
-  LogOut,
-  
   Folder,
   CheckSquare,
   ShieldCheck,
@@ -18,10 +16,11 @@ import {
   FolderOpen,
   TreesIcon,
   UserPlus,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -146,22 +145,27 @@ export function AppSidebar() {
 
         <Separator className="my-4 bg-border" />
 
-        <p className="px-5 pb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/50">
-          Integrations
-        </p>
-        {externalLinks.map(({ href, label, icon: Icon }) => (
-          <a
-            key={href}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-4 rounded-lg px-5 py-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Icon className="h-5 w-5" />
-            {label}
-            <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
-          </a>
-        ))}
+        <Collapsible>
+          <CollapsibleTrigger className="flex w-full items-center gap-2 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+            <ChevronDown className="h-3 w-3 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+            Integrations
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-0.5">
+            {externalLinks.map(({ href, label, icon: Icon }) => (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+                <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
+              </a>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
       </nav>
 
     </aside>
