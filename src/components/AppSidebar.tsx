@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import prosperwiseLogoColor from "@/assets/prosperwise-logo-color.png";
 import { useAuth } from "@/hooks/useAuth";
-import { signOut } from "@/lib/auth";
 import {
   LayoutDashboard,
   Users,
@@ -17,12 +16,45 @@ import {
   TreesIcon,
   UserPlus,
   ChevronDown,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useEffect, useState } from "react";
+import { useEffect, useState, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+
+// Context for sidebar collapsed state
+const SidebarCollapseContext = createContext<{ collapsed: boolean; toggle: () => void }>({
+  collapsed: false,
+  toggle: () => {},
+});
+
+export function useSidebarCollapse() {
+  return useContext(SidebarCollapseContext);
+}
+
+export function SidebarCollapseProvider({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(() => {
+    const stored = localStorage.getItem("sidebar-collapsed");
+    return stored === "true";
+  });
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      localStorage.setItem("sidebar-collapsed", String(!prev));
+      return !prev;
+    });
+  };
+
+  return (
+    <SidebarCollapseContext.Provider value={{ collapsed, toggle }}>
+      {children}
+    </SidebarCollapseContext.Provider>
+  );
+}
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -45,12 +77,12 @@ const externalLinks = [
 export function AppSidebar() {
   const { user } = useAuth();
   const location = useLocation();
+  const { collapsed, toggle } = useSidebarCollapse();
   const [pendingTasksCount, setPendingTasksCount] = useState<number | null>(null);
   const [pendingReviewCount, setPendingReviewCount] = useState<number | null>(null);
   const [openRequestsCount, setOpenRequestsCount] = useState<number | null>(null);
 
   useEffect(() => {
-    // Fetch Asana pending tasks
     (async () => {
       try {
         const res = await supabase.functions.invoke("asana-service", {
@@ -60,24 +92,18 @@ export function AppSidebar() {
           const open = (res.data.data as any[]).filter((t: any) => !t.completed).length;
           setPendingTasksCount(open);
         }
-      } catch {
-        // silently fail
-      }
+      } catch {}
     })();
 
-    // Fetch pending review queue count
     (async () => {
       try {
         const { count } = await (supabase.from("review_queue" as any) as any)
           .select("id", { count: "exact", head: true })
           .eq("status", "pending");
         setPendingReviewCount(count ?? 0);
-      } catch {
-        // silently fail
-      }
+      } catch {}
     })();
 
-    // Fetch open client requests count
     (async () => {
       try {
         const { count } = await supabase
@@ -85,89 +111,132 @@ export function AppSidebar() {
           .select("id", { count: "exact", head: true })
           .in("status", ["submitted", "in_progress"]);
         setOpenRequestsCount(count ?? 0);
-      } catch {
-        // silently fail
-      }
+      } catch {}
     })();
   }, []);
 
+  const getBadgeCount = (item: any) => {
+    if (item.tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0) return pendingTasksCount;
+    if (item.reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0) return pendingReviewCount;
+    if (item.requestsBadge && openRequestsCount !== null && openRequestsCount > 0) return openRequestsCount;
+    return null;
+  };
+
   return (
-    <aside className="flex h-full w-72 flex-col bg-background">
-      {/* Logo */}
-      <div className="px-6 pt-6 pb-2">
-        <img src={prosperwiseLogoColor} alt="ProsperWise" className="h-10" />
-      </div>
+    <TooltipProvider delayDuration={0}>
+      <aside
+        className={cn(
+          "flex h-full flex-col bg-background transition-all duration-200",
+          collapsed ? "w-[68px]" : "w-72"
+        )}
+      >
+        {/* Logo + Toggle */}
+        <div className={cn("flex items-center justify-between pt-6 pb-2", collapsed ? "px-3" : "px-6")}>
+          {!collapsed && <img src={prosperwiseLogoColor} alt="ProsperWise" className="h-10" />}
+          <button
+            onClick={toggle}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            {collapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </button>
+        </div>
 
-      {/* Nav */}
-      <nav className="flex-1 space-y-1 px-4 pt-8">
-        {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge, requestsBadge }: any) => {
-          const active = location.pathname === to || location.pathname.startsWith(to + "/");
-          return (
-            <Link
-              key={to}
-              to={to}
-              className={cn(
-                "flex items-center gap-4 rounded-lg px-5 py-4 text-[15px] font-medium transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              {label}
-              {tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0 && (
-                <span className={cn(
-                  "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
-                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/25 text-accent border border-accent/30"
-                )}>
-                  {pendingTasksCount > 99 ? "99+" : pendingTasksCount}
-                </span>
-              )}
-              {reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0 && (
-                <span className={cn(
-                  "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
-                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/25 text-accent border border-accent/30"
-                )}>
-                  {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
-                </span>
-              )}
-              {requestsBadge && openRequestsCount !== null && openRequestsCount > 0 && (
-                <span className={cn(
-                  "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
-                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-accent/25 text-accent border border-accent/30"
-                )}>
-                  {openRequestsCount > 99 ? "99+" : openRequestsCount}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+        {/* Nav */}
+        <nav className="flex-1 space-y-1 px-2 pt-8">
+          {navItems.map(({ to, label, icon: Icon, ...rest }: any) => {
+            const active = location.pathname === to || location.pathname.startsWith(to + "/");
+            const badge = getBadgeCount({ ...rest });
 
-        <Separator className="my-4 bg-border" />
-
-        <Collapsible>
-          <CollapsibleTrigger className="flex w-full items-center gap-2 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-            <ChevronDown className="h-3 w-3 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
-            Integrations
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-0.5">
-            {externalLinks.map(({ href, label, icon: Icon }) => (
-              <a
-                key={href}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            const linkContent = (
+              <Link
+                key={to}
+                to={to}
+                className={cn(
+                  "flex items-center gap-4 rounded-lg transition-colors",
+                  collapsed ? "justify-center px-3 py-3" : "px-5 py-4",
+                  "text-[15px] font-medium",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
               >
-                <Icon className="h-4 w-4" />
-                {label}
-                <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
-              </a>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
-      </nav>
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && label}
+                {!collapsed && badge !== null && (
+                  <span
+                    className={cn(
+                      "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                      active
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-accent/25 text-accent border border-accent/30"
+                    )}
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
+              </Link>
+            );
 
-    </aside>
+            if (collapsed) {
+              return (
+                <Tooltip key={to}>
+                  <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    {label}
+                    {badge !== null && ` (${badge})`}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return <div key={to}>{linkContent}</div>;
+          })}
+
+          <Separator className="my-4 bg-border" />
+
+          {collapsed ? (
+            <div className="space-y-0.5">
+              {externalLinks.map(({ href, label, icon: Icon }) => (
+                <Tooltip key={href}>
+                  <TooltipTrigger asChild>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Icon className="h-4 w-4" />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{label}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          ) : (
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center gap-2 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                <ChevronDown className="h-3 w-3 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                Integrations
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5">
+                {externalLinks.map(({ href, label, icon: Icon }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 rounded-lg px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                    <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
+                  </a>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </nav>
+      </aside>
+    </TooltipProvider>
   );
 }
