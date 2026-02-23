@@ -1,13 +1,51 @@
 import { AppSidebar } from "./AppSidebar";
 import { AssistantSidebar } from "./AssistantSidebar";
+import { useAuth } from "@/hooks/useAuth";
+import { signOut } from "@/lib/auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogOut } from "lucide-react";
+import { format } from "date-fns";
+import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const today = format(new Date(), "EEEE, MMMM d, yyyy");
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <AppSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-6 py-8">{children}</div>
-      </main>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Header */}
+        <header className="flex items-center justify-between border-b border-border px-6 py-3">
+          <div className="flex items-center gap-3">
+            <img src={prosperwiseLogo} alt="ProsperWise" className="h-8" />
+            <span className="text-sm text-muted-foreground">{today}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarFallback className="bg-muted text-xs text-foreground">
+                {user?.email?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="hidden sm:block overflow-hidden">
+              <p className="truncate text-xs font-medium text-foreground">
+                {user?.user_metadata?.full_name || user?.email}
+              </p>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-6xl px-6 py-8">{children}</div>
+        </main>
+      </div>
       <AssistantSidebar />
     </div>
   );
