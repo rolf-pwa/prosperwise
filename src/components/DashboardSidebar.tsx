@@ -86,7 +86,7 @@ export function DashboardSidebar() {
   if (!stats) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {/* Total Assets */}
       <Card>
         <CardHeader className="pb-2">
@@ -102,7 +102,7 @@ export function DashboardSidebar() {
         </CardContent>
       </Card>
 
-      {/* Household Breakdown */}
+      {/* Household Total */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -110,32 +110,32 @@ export function DashboardSidebar() {
             Households
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-lg font-semibold text-foreground">
-              {stats.totalHouseholds}
-            </span>
-          </div>
-          <div className="h-px bg-border" />
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-sanctuary-green" />
-              Sovereign
-            </span>
-            <span className="text-sm font-semibold text-foreground">
-              {stats.sovereignCount}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="h-3.5 w-3.5 text-sanctuary-bronze" />
-              Stabilization
-            </span>
-            <span className="text-sm font-semibold text-foreground">
-              {stats.stabilizationCount}
-            </span>
-          </div>
+        <CardContent>
+          <p className="text-2xl font-bold text-foreground">
+            {stats.totalHouseholds}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Governance Breakdown */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <ShieldCheck className="h-4 w-4" />
+            Governance Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-6">
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-sanctuary-green" />
+            Sovereign
+            <span className="font-semibold text-foreground ml-1">{stats.sovereignCount}</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 text-sanctuary-bronze" />
+            Stabilization
+            <span className="font-semibold text-foreground ml-1">{stats.stabilizationCount}</span>
+          </span>
         </CardContent>
       </Card>
     </div>
