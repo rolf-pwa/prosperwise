@@ -1,6 +1,99 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
+
+async function getValidGoogleToken(supabase: any, userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("google_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  if (new Date(data.token_expiry) <= new Date()) {
+    try {
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          refresh_token: data.refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+      const tokens = await res.json();
+      if (tokens.error) return null;
+
+      const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+      await supabase
+        .from("google_tokens")
+        .update({ access_token: tokens.access_token, token_expiry: newExpiry })
+        .eq("user_id", userId);
+
+      return tokens.access_token;
+    } catch {
+      return null;
+    }
+  }
+
+  return data.access_token;
+}
+
+async function fetchCalendarEvents(accessToken: string, contactEmail: string): Promise<any[]> {
+  try {
+    const timeMin = new Date().toISOString();
+    const timeMax = new Date(Date.now() + 30 * 86400000).toISOString();
+
+    const calRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+      new URLSearchParams({
+        timeMin,
+        timeMax,
+        maxResults: "20",
+        singleEvents: "true",
+        orderBy: "startTime",
+        q: contactEmail,
+      }),
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    if (!calRes.ok) return [];
+
+    const data = await calRes.json();
+    return (data.items || []).filter((event: any) =>
+      event.attendees?.some((a: any) =>
+        a.email?.toLowerCase() === contactEmail.toLowerCase()
+      ) ||
+      event.organizer?.email?.toLowerCase() === contactEmail.toLowerCase() ||
+      event.creator?.email?.toLowerCase() === contactEmail.toLowerCase()
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function fetchMeetingsForContact(supabase: any, contactEmail: string | null): Promise<any[]> {
+  if (!contactEmail) return [];
+  // Try all advisors' Google tokens to find calendar events
+  const { data: tokenRows } = await supabase
+    .from("google_tokens")
+    .select("user_id")
+    .limit(5);
+  
+  for (const row of (tokenRows || [])) {
+    const googleToken = await getValidGoogleToken(supabase, row.user_id);
+    if (googleToken) {
+      const events = await fetchCalendarEvents(googleToken, contactEmail);
+      if (events.length > 0) return events;
+    }
+  }
+  return [];
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -250,13 +343,16 @@ serve(async (req) => {
       // Build hierarchy data based on role
       const hierarchy = contactRes.data ? await buildHierarchy(supabase, contactRes.data) : { level: "individual" };
 
+      // Fetch calendar meetings
+      const meetings = await fetchMeetingsForContact(supabase, contactRes.data?.email);
+
       return new Response(JSON.stringify({
         portal_token: newToken?.token || null,
         contact: contactRes.data,
         vineyard_accounts: accountsRes.data || [],
         storehouses: storehousesRes.data || [],
         audit_trail: auditRes.data || [],
-        meetings: [],
+        meetings,
         family,
         household,
         household_members: householdMembers,
@@ -331,13 +427,16 @@ serve(async (req) => {
 
       const hierarchy = await buildHierarchy(supabase, contact);
 
+      // Fetch calendar meetings
+      const meetings = await fetchMeetingsForContact(supabase, contact.email);
+
       return new Response(JSON.stringify({
         portal_token: newToken?.token || null,
         contact,
         vineyard_accounts: accountsRes.data || [],
         storehouses: storehousesRes.data || [],
         audit_trail: auditRes.data || [],
-        meetings: [],
+        meetings,
         family,
         household,
         household_members: householdMembers,
