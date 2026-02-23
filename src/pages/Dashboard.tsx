@@ -6,10 +6,7 @@ const Dashboard = () => {
   return (
     <AppLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">ProsperWise Sovereign Command Center</p>
-        </div>
+        <h1 className="text-3xl font-bold text-foreground">Command Center</h1>
 
         {/* Staff Command Bar */}
         <StaffCommandBar />

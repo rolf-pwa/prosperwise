@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import prosperwiseLogoWhite from "@/assets/prosperwise-logo-white.png";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import {
@@ -93,16 +92,9 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <aside className="flex h-screen w-72 flex-col bg-background">
-      {/* Command Navigation Header */}
-      <div className="px-6 pt-8 pb-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.25em] text-muted-foreground/60">
-          Command Navigation
-        </p>
-      </div>
-
+    <aside className="flex h-full w-72 flex-col bg-background">
       {/* Nav */}
-      <nav className="flex-1 space-y-1 px-4">
+      <nav className="flex-1 space-y-1 px-4 pt-4">
         {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge, requestsBadge }: any) => {
           const active = location.pathname === to || location.pathname.startsWith(to + "/");
           return (
@@ -166,29 +158,6 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* User */}
-      <div className="border-t border-border p-5">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback className="bg-muted text-xs text-foreground">
-              {user?.email?.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 overflow-hidden">
-            <p className="truncate text-xs font-medium text-foreground">
-              {user?.user_metadata?.full_name || user?.email}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
     </aside>
   );
 }
