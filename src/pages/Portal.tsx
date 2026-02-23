@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { signInWithGoogle } from "@/lib/auth";
@@ -64,6 +64,39 @@ const Portal = () => {
   const [otp, setOtp] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
+
+  // Inactivity timeout (5 minutes)
+  const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem("portal_google_auth");
+    supabase.auth.signOut().then(() => {
+      setData(null);
+      setEmail("");
+      setOtpSent(false);
+      setOtp("");
+      window.location.href = "/portal";
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!data) return; // Only track activity when logged in
+
+    const resetTimer = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(handleLogout, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ["mousedown", "keydown", "scroll", "touchstart", "mousemove"];
+    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer(); // start timer
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+    };
+  }, [data, handleLogout]);
 
   // Check for Google auth portal session on mount
   useEffect(() => {
@@ -872,16 +905,7 @@ const Portal = () => {
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                sessionStorage.removeItem("portal_google_auth");
-                supabase.auth.signOut().then(() => {
-                  setData(null);
-                  setEmail("");
-                  setOtpSent(false);
-                  setOtp("");
-                  window.location.href = "/portal";
-                });
-              }}
+              onClick={handleLogout}
             >
               <LogOut className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">Sign Out</span>
