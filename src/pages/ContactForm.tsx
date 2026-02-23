@@ -36,7 +36,7 @@ const ContactForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
-  const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [statementFiles, setStatementFiles] = useState<File[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
 
   const [form, setForm] = useState({
@@ -270,40 +270,39 @@ const ContactForm = () => {
     // Save household relationships
     await saveHouseholdMembers(contactId!);
 
-    // Upload statement and trigger ingestion if a file was attached
-    if (statementFile && contactId) {
-      try {
-        const filePath = `${contactId}/${Date.now()}_${statementFile.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("statement-uploads")
-          .upload(filePath, statementFile, { contentType: "application/pdf" });
+    // Upload statements and trigger ingestion for each file
+    if (statementFiles.length > 0 && contactId) {
+      setIsIngesting(true);
+      const contactName = `${form.first_name} ${form.last_name}`.trim();
 
-        if (uploadErr) {
-          toast.error("Statement upload failed: " + uploadErr.message);
-        } else {
-          setIsIngesting(true);
-          toast.success("Contact saved — ingesting statement…");
+      for (const file of statementFiles) {
+        try {
+          const filePath = `${contactId}/${Date.now()}_${file.name}`;
+          const { error: uploadErr } = await supabase.storage
+            .from("statement-uploads")
+            .upload(filePath, file, { contentType: "application/pdf" });
 
-          // Fire ingestion in background
-          const contactName = `${form.first_name} ${form.last_name}`.trim();
-          supabase.functions
-            .invoke("ingest-statement", {
-              body: { contactId, filePath, contactName },
-            })
-            .then(({ data, error }) => {
-              setIsIngesting(false);
-              if (error) {
-                toast.error("Statement ingestion failed");
-              } else {
-                toast.success(
-                  `Statement parsed — ${data?.accountsExtracted || 0} accounts sent to Review Queue`
-                );
-              }
-            });
+          if (uploadErr) {
+            toast.error(`Upload failed for ${file.name}: ${uploadErr.message}`);
+            continue;
+          }
+
+          const { data, error } = await supabase.functions.invoke("ingest-statement", {
+            body: { contactId, filePath, contactName },
+          });
+
+          if (error) {
+            toast.error(`Ingestion failed for ${file.name}`);
+          } else {
+            toast.success(
+              `${file.name} — ${data?.accountsExtracted || 0} accounts sent to Review Queue`
+            );
+          }
+        } catch {
+          toast.error(`Error processing ${file.name}`);
         }
-      } catch {
-        toast.error("Statement upload error");
       }
+      setIsIngesting(false);
     }
 
     toast.success(isEdit ? "Contact updated." : "Contact created.");
@@ -453,8 +452,8 @@ const ContactForm = () => {
 
         {/* Statement Upload */}
         <StatementUpload
-          file={statementFile}
-          onFileChange={setStatementFile}
+          files={statementFiles}
+          onFilesChange={setStatementFiles}
           isIngesting={isIngesting}
         />
 
