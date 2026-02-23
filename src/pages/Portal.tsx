@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList } from "lucide-react";
+import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut } from "lucide-react";
 import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 interface PortalData {
@@ -868,7 +868,24 @@ const Portal = () => {
                 </p>
               </div>
             </div>
-            {/* Status removed per design */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                sessionStorage.removeItem("portal_google_auth");
+                supabase.auth.signOut().then(() => {
+                  setData(null);
+                  setEmail("");
+                  setOtpSent(false);
+                  setOtp("");
+                  window.location.href = "/portal";
+                });
+              }}
+            >
+              <LogOut className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
         </div>
       </header>
