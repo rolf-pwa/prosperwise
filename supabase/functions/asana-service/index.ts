@@ -532,6 +532,11 @@ class AsanaService {
       console.log("[AsanaService] GET subtasks for", taskGid);
 
       const res = await fetch(url, { headers: this.headers() });
+      if (res.status === 404) {
+        console.warn(`[AsanaService] Parent task ${taskGid} not found (404), returning empty subtasks`);
+        await res.text(); // consume body
+        return [];
+      }
       if (!res.ok) {
         const body = await res.text();
         throw new Error(`Asana API error ${res.status}: ${body}`);
