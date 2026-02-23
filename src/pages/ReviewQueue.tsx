@@ -98,6 +98,37 @@ const ReviewQueue = () => {
       };
       if (escalatedTo) updates.escalated_to = escalatedTo;
 
+      // If approving, apply the proposed_data to the target table
+      if (status === "approved") {
+        const item = items.find((i) => i.id === id);
+        if (item?.proposed_data) {
+          const { table, action, data } = item.proposed_data as { table?: string; action?: string; data?: Record<string, any> };
+          if (table && action && data) {
+            if (action === "insert") {
+              const { error: syncErr } = await (supabase.from(table as any) as any).insert(data);
+              if (syncErr) throw new Error(`Sync failed: ${syncErr.message}`);
+            } else if (action === "update" && item.contact_id) {
+              const { error: syncErr } = await (supabase.from(table as any) as any)
+                .update(data)
+                .eq("id", item.contact_id);
+              if (syncErr) throw new Error(`Sync failed: ${syncErr.message}`);
+            }
+          }
+        }
+
+        // Also write to audit trail
+        if (user) {
+          const item = items.find((i) => i.id === id);
+          await (supabase.from("sovereignty_audit_trail") as any).insert({
+            action_type: item?.action_type || "review_approved",
+            action_description: item?.action_description || "",
+            contact_id: item?.contact_id,
+            user_id: user.id,
+            proposed_data: item?.proposed_data,
+          });
+        }
+      }
+
       const { error } = await (supabase.from("review_queue" as any) as any)
         .update(updates)
         .eq("id", id);
@@ -105,6 +136,8 @@ const ReviewQueue = () => {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["review-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["contact-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["vineyard-accounts"] });
       toast.success(`Item ${vars.status === "escalated" ? "escalated to Rolf" : vars.status}.`);
     },
     onError: (err: Error) => toast.error(err.message),
