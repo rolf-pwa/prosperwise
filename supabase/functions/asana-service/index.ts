@@ -455,29 +455,53 @@ class AsanaService {
   async getMyTasks(projectGids?: string[]) {
     return withFailSafe("getMyTasks", async () => {
       const fields = "name,completed,due_on,modified_at,memberships.section.name,memberships.project.gid,notes,num_subtasks,assignee.name";
-      let url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&assignee.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
+      let assignedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&assignee.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
+      let followedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&followers.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
       
       if (projectGids && projectGids.length > 0) {
-        url += `&projects.any=${projectGids.join(",")}`;
+        const projectFilter = `&projects.any=${projectGids.join(",")}`;
+        assignedUrl += projectFilter;
+        followedUrl += projectFilter;
       }
 
-      console.log("[AsanaService] GET my tasks", url);
+      console.log("[AsanaService] GET my tasks (assigned + collaborator)");
 
-      const res = await fetch(url, { headers: this.headers() });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`Asana API error ${res.status}: ${body}`);
+      const [assignedRes, followedRes] = await Promise.all([
+        fetch(assignedUrl, { headers: this.headers() }),
+        fetch(followedUrl, { headers: this.headers() }),
+      ]);
+
+      if (!assignedRes.ok) {
+        const body = await assignedRes.text();
+        throw new Error(`Asana API error (assigned) ${assignedRes.status}: ${body}`);
       }
-      const json = await res.json();
-      const tasks = json.data || [];
+      if (!followedRes.ok) {
+        const body = await followedRes.text();
+        throw new Error(`Asana API error (followed) ${followedRes.status}: ${body}`);
+      }
 
-      tasks.sort((a: any, b: any) => {
+      const [assignedJson, followedJson] = await Promise.all([
+        assignedRes.json(),
+        followedRes.json(),
+      ]);
+
+      // Merge & deduplicate by GID
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const task of [...(assignedJson.data || []), ...(followedJson.data || [])]) {
+        if (!seen.has(task.gid)) {
+          seen.add(task.gid);
+          merged.push(task);
+        }
+      }
+
+      merged.sort((a: any, b: any) => {
         const da = a.modified_at ? new Date(a.modified_at).getTime() : 0;
         const db = b.modified_at ? new Date(b.modified_at).getTime() : 0;
         return db - da;
       });
 
-      return tasks.slice(0, 50);
+      return merged.slice(0, 50);
     });
   }
 
