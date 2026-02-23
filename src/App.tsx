@@ -21,6 +21,7 @@ import DiscoveryEmbed from "./pages/DiscoveryEmbed";
 import Leads from "./pages/Leads";
 import ReviewQueue from "./pages/ReviewQueue";
 import Requests from "./pages/Requests";
+import Households from "./pages/Households";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/families" element={<ProtectedRoute><Families /></ProtectedRoute>} />
+            <Route path="/households" element={<ProtectedRoute><Households /></ProtectedRoute>} />
             <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
             <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
             <Route path="/review-queue" element={<ProtectedRoute><ReviewQueue /></ProtectedRoute>} />

@@ -3,6 +3,7 @@ import prosperwiseLogoColor from "@/assets/prosperwise-logo-color.png";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard,
+  Home,
   Users,
   Folder,
   CheckSquare,
@@ -59,6 +60,7 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/families", label: "Family Tree", icon: TreesIcon },
+  { to: "/households", label: "Households", icon: Home },
   { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/leads", label: "Discovery Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
