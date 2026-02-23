@@ -243,7 +243,7 @@ const ContactDetail = () => {
         <PageBreadcrumbs items={[
           { label: "Dashboard", href: "/dashboard" },
           ...(familyName ? [{ label: familyName, href: "/families" }] : []),
-          ...(householdLabel ? [{ label: householdLabel, href: "/families" }] : []),
+          ...(householdLabel ? [{ label: householdLabel, href: "/households" }] : []),
           { label: "Contacts", href: "/contacts" },
           { label: `${contact.first_name} ${contact.last_name || ""}`.trim() },
         ]} />
