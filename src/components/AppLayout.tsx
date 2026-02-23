@@ -5,7 +5,6 @@ import { signOut } from "@/lib/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
 import { format } from "date-fns";
-import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -17,10 +16,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
         <header className="flex items-center justify-between border-b border-border px-6 py-3">
-          <div className="flex items-center gap-3">
-            <img src={prosperwiseLogo} alt="ProsperWise" className="h-8" />
-            <span className="text-sm text-muted-foreground">{today}</span>
-          </div>
+          <span className="text-sm text-muted-foreground">{today}</span>
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
