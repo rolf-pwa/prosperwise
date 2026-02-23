@@ -5,27 +5,33 @@ import { Badge } from "@/components/ui/badge";
 import { FileUp, X, FileText, Loader2 } from "lucide-react";
 
 interface StatementUploadProps {
-  file: File | null;
-  onFileChange: (file: File | null) => void;
+  files: File[];
+  onFilesChange: (files: File[]) => void;
   isIngesting?: boolean;
 }
 
-export function StatementUpload({ file, onFileChange, isIngesting }: StatementUploadProps) {
+export function StatementUpload({ files, onFilesChange, isIngesting }: StatementUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped && dropped.type === "application/pdf") {
-      onFileChange(dropped);
-    }
+    const dropped = Array.from(e.dataTransfer.files).filter(
+      (f) => f.type === "application/pdf"
+    );
+    if (dropped.length) onFilesChange([...files, ...dropped]);
   }
 
   function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files?.[0];
-    if (selected) onFileChange(selected);
+    const selected = Array.from(e.target.files || []);
+    if (selected.length) onFilesChange([...files, ...selected]);
+    // Reset so the same file can be re-added
+    e.target.value = "";
+  }
+
+  function removeFile(index: number) {
+    onFilesChange(files.filter((_, i) => i !== index));
   }
 
   return (
@@ -37,13 +43,14 @@ export function StatementUpload({ file, onFileChange, isIngesting }: StatementUp
           <Badge variant="secondary" className="text-[10px] ml-auto">Optional</Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Upload a financial statement PDF. Data will be extracted by AI and routed to the Review Queue for approval.
+          Upload financial statement PDFs. Data will be extracted by AI and routed to the Review Queue for approval.
         </p>
       </CardHeader>
-      <CardContent>
-        {file ? (
-          <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3">
-            <FileText className="h-8 w-8 text-primary shrink-0" />
+      <CardContent className="space-y-3">
+        {/* File list */}
+        {files.map((file, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3">
+            <FileText className="h-6 w-6 text-primary shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">
@@ -60,37 +67,39 @@ export function StatementUpload({ file, onFileChange, isIngesting }: StatementUp
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => onFileChange(null)}
+                onClick={() => removeFile(i)}
                 className="shrink-0"
               >
                 <X className="h-4 w-4" />
               </Button>
             )}
           </div>
-        ) : (
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => inputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border-2 border-dashed p-6 transition-colors ${
-              dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-            }`}
-          >
-            <FileUp className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              Drop a PDF here or <span className="font-medium text-primary">browse</span>
-            </p>
-            <p className="text-xs text-muted-foreground/60">PDF files up to 20 MB</p>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="application/pdf"
-              onChange={handleSelect}
-              className="hidden"
-            />
-          </div>
-        )}
+        ))}
+
+        {/* Drop zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => inputRef.current?.click()}
+          className={`flex cursor-pointer flex-col items-center gap-2 rounded-md border-2 border-dashed p-6 transition-colors ${
+            dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+          }`}
+        >
+          <FileUp className="h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">
+            Drop PDFs here or <span className="font-medium text-primary">browse</span>
+          </p>
+          <p className="text-xs text-muted-foreground/60">PDF files up to 20 MB each</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/pdf"
+            multiple
+            onChange={handleSelect}
+            className="hidden"
+          />
+        </div>
       </CardContent>
     </Card>
   );
