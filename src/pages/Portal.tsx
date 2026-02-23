@@ -359,11 +359,14 @@ const Portal = () => {
       const members = householdId
         ? (hierarchy?.households?.find((h: any) => h.id === householdId)?.members || [])
         : (hierarchy?.members || []);
-      // Include self's assets too
-      const selfVineyard = vineyard_accounts.filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared");
-      const selfStorehouses = storehouses.filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared");
-      allVineyard.push(...selfVineyard);
-      allStorehouses.push(...selfStorehouses);
+      // Deduplicate: if the logged-in contact is already in members, skip adding self separately
+      const selfInMembers = members.some((m: any) => m.id === contact.id);
+      if (!selfInMembers) {
+        const selfVineyard = vineyard_accounts.filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared");
+        const selfStorehouses = storehouses.filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared");
+        allVineyard.push(...selfVineyard);
+        allStorehouses.push(...selfStorehouses);
+      }
       members.forEach((m: any) => {
         (m.vineyard_accounts || []).filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared").forEach((a: any) => allVineyard.push(a));
         (m.storehouses || []).filter((a: any) => a.visibility_scope === "household_shared" || a.visibility_scope === "family_shared").forEach((a: any) => allStorehouses.push(a));
@@ -512,7 +515,7 @@ const Portal = () => {
           <div className="grid gap-3">
             {[
               { ...contact, _isSelf: true },
-              ...members.map((m: any) => ({ ...m, _isSelf: false })),
+              ...members.filter((m: any) => m.id !== contact.id).map((m: any) => ({ ...m, _isSelf: false })),
             ]
               .sort((a: any, b: any) => {
                 const order: Record<string, number> = { head_of_family: 0, spouse: 1, beneficiary: 2, minor: 3 };
