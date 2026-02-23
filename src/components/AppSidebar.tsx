@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import prosperwiseLogoColor from "@/assets/prosperwise-logo-color.png";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import {
@@ -93,8 +94,13 @@ export function AppSidebar() {
 
   return (
     <aside className="flex h-full w-72 flex-col bg-background">
+      {/* Logo */}
+      <div className="px-6 pt-6 pb-2">
+        <img src={prosperwiseLogoColor} alt="ProsperWise" className="h-10" />
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 space-y-1 px-4 pt-4">
+      <nav className="flex-1 space-y-1 px-4 pt-8">
         {navItems.map(({ to, label, icon: Icon, tasksBadge, reviewBadge, requestsBadge }: any) => {
           const active = location.pathname === to || location.pathname.startsWith(to + "/");
           return (
