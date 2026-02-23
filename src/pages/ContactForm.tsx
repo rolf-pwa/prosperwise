@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, X, Plus, Search } from "lucide-react";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
+import { StatementUpload } from "@/components/StatementUpload";
 
 interface LinkedMember {
   relationship_id?: string;
@@ -35,6 +36,8 @@ const ContactForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [isIngesting, setIsIngesting] = useState(false);
 
   const [form, setForm] = useState({
     first_name: searchParams.get("first_name") || "",
@@ -267,6 +270,42 @@ const ContactForm = () => {
     // Save household relationships
     await saveHouseholdMembers(contactId!);
 
+    // Upload statement and trigger ingestion if a file was attached
+    if (statementFile && contactId) {
+      try {
+        const filePath = `${contactId}/${Date.now()}_${statementFile.name}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("statement-uploads")
+          .upload(filePath, statementFile, { contentType: "application/pdf" });
+
+        if (uploadErr) {
+          toast.error("Statement upload failed: " + uploadErr.message);
+        } else {
+          setIsIngesting(true);
+          toast.success("Contact saved — ingesting statement…");
+
+          // Fire ingestion in background
+          const contactName = `${form.first_name} ${form.last_name}`.trim();
+          supabase.functions
+            .invoke("ingest-statement", {
+              body: { contactId, filePath, contactName },
+            })
+            .then(({ data, error }) => {
+              setIsIngesting(false);
+              if (error) {
+                toast.error("Statement ingestion failed");
+              } else {
+                toast.success(
+                  `Statement parsed — ${data?.accountsExtracted || 0} accounts sent to Review Queue`
+                );
+              }
+            });
+        }
+      } catch {
+        toast.error("Statement upload error");
+      }
+    }
+
     toast.success(isEdit ? "Contact updated." : "Contact created.");
     navigate(`/contacts/${contactId}`);
     setSaving(false);
@@ -411,6 +450,13 @@ const ContactForm = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Statement Upload */}
+        <StatementUpload
+          file={statementFile}
+          onFileChange={setStatementFile}
+          isIngesting={isIngesting}
+        />
 
         {/* The Vineyard */}
         <Card>
