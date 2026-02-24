@@ -75,6 +75,27 @@ serve(async (req) => {
 
     if (insertError) throw insertError;
 
+    // If client sent a message, create in-app notification for staff
+    if (sender_type === "client") {
+      // Get contact info for the notification
+      const { data: requestData2 } = await supabase
+        .from("portal_requests")
+        .select("contact_id, request_type, contacts(full_name)")
+        .eq("id", request_id)
+        .maybeSingle();
+
+      const contactName = (requestData2 as any)?.contacts?.full_name || "A client";
+      const requestType = (requestData2 as any)?.request_type || "request";
+
+      await supabase.from("staff_notifications").insert({
+        title: `${contactName} replied to a ${requestType} request`,
+        body: content.length > 100 ? content.substring(0, 100) + "…" : content,
+        link: "/requests",
+        contact_id: (requestData2 as any)?.contact_id || null,
+        source_type: "request_message",
+      });
+    }
+
     // Send notification email (non-blocking)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

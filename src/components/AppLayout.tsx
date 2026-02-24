@@ -5,6 +5,7 @@ import { signOut } from "@/lib/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from "lucide-react";
 import { format } from "date-fns";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="flex items-center justify-between border-b border-border px-6 py-3">
             <span className="text-sm text-muted-foreground">{today}</span>
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.user_metadata?.avatar_url} />
                 <AvatarFallback className="bg-muted text-xs text-foreground">
