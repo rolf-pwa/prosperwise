@@ -20,6 +20,49 @@ const STATUS_LABELS: Record<string, string> = {
   resolved: "Resolved",
 };
 
+// ── Wix relay helper ──
+async function sendViaWix(payload: {
+  email: string;
+  subject: string;
+  message: string;
+  event_type: string;
+  [key: string]: string;
+}): Promise<{ sent: boolean; reason?: string }> {
+  const WIX_SITE_URL = Deno.env.get("WIX_SITE_URL");
+  const WIX_OTP_SECRET = Deno.env.get("WIX_OTP_SECRET");
+
+  if (!WIX_SITE_URL || !WIX_OTP_SECRET) {
+    console.warn("[Notify] Wix secrets missing, cannot send email");
+    return { sent: false, reason: "no_wix_config" };
+  }
+
+  const baseUrl = WIX_SITE_URL.replace(/\/sendOtp\/?$/, "");
+  const notifyUrl = `${baseUrl}/sendNotification`;
+
+  console.log(`[Notify] Sending ${payload.event_type} notification to ${payload.email} via ${notifyUrl}`);
+
+  try {
+    const wixRes = await fetch(notifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, secret: WIX_OTP_SECRET }),
+    });
+
+    const wixBody = await wixRes.text();
+    console.log(`[Notify] Wix response: ${wixRes.status} ${wixBody}`);
+
+    if (!wixRes.ok) {
+      console.error("[Notify] Wix relay failed:", wixRes.status, wixBody);
+      return { sent: false, reason: "wix_error" };
+    }
+
+    return { sent: true };
+  } catch (wixErr) {
+    console.error("[Notify] Error calling Wix:", wixErr);
+    return { sent: false, reason: "wix_error" };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -31,8 +74,69 @@ serve(async (req) => {
   );
 
   try {
-    const { request_id, event_type } = await req.json();
-    // event_type: "new" | "status_update" | "message"
+    const body = await req.json();
+    const { notify_type } = body;
+    // notify_type: "request" (default) | "task"
+
+    // ─── Task notifications ───
+    if (notify_type === "task") {
+      const { contact_id, task_name, task_event } = body;
+      // task_event: "comment" | "completed" | "reopened" | "updated"
+
+      if (!contact_id || !task_name) {
+        return new Response(JSON.stringify({ error: "contact_id and task_name required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: contact } = await supabase
+        .from("contacts")
+        .select("email, first_name, full_name")
+        .eq("id", contact_id)
+        .maybeSingle();
+
+      if (!contact?.email) {
+        console.log("[Notify] No email for contact, skipping task notification");
+        return new Response(JSON.stringify({ sent: false, reason: "no_email" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const cleanEmail = contact.email.trim().toLowerCase();
+      const firstName = contact.first_name || "there";
+
+      let subject = "";
+      let message = "";
+
+      if (task_event === "comment") {
+        subject = `New comment on: ${task_name}`;
+        message = `Hi ${firstName},\n\nA new comment has been added to your action item "${task_name}".\n\nLog in to your portal to view the details.\n\nThank you,\nProsperWise Team`;
+      } else if (task_event === "completed") {
+        subject = `Action item completed: ${task_name}`;
+        message = `Hi ${firstName},\n\nYour action item "${task_name}" has been marked as complete.\n\nLog in to your portal to review.\n\nThank you,\nProsperWise Team`;
+      } else if (task_event === "reopened") {
+        subject = `Action item reopened: ${task_name}`;
+        message = `Hi ${firstName},\n\nYour action item "${task_name}" has been reopened.\n\nLog in to your portal for details.\n\nThank you,\nProsperWise Team`;
+      } else {
+        subject = `Update on: ${task_name}`;
+        message = `Hi ${firstName},\n\nYour action item "${task_name}" has been updated.\n\nLog in to your portal to view the changes.\n\nThank you,\nProsperWise Team`;
+      }
+
+      const result = await sendViaWix({
+        email: cleanEmail,
+        subject,
+        message,
+        event_type: `task_${task_event}`,
+      });
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Portal request notifications (default) ───
+    const { request_id, event_type } = body;
 
     if (!request_id) {
       return new Response(JSON.stringify({ error: "request_id is required" }), {
@@ -41,7 +145,6 @@ serve(async (req) => {
       });
     }
 
-    // Fetch the portal request with contact info
     const { data: portalRequest, error: fetchErr } = await supabase
       .from("portal_requests")
       .select("*, contact:contacts(id, email, first_name, full_name)")
@@ -68,7 +171,6 @@ serve(async (req) => {
     const requestType = TYPE_LABELS[portalRequest.request_type] || portalRequest.request_type;
     const status = STATUS_LABELS[portalRequest.status] || portalRequest.status;
 
-    // Build subject and message based on event type
     let subject = "";
     let message = "";
 
@@ -86,57 +188,16 @@ serve(async (req) => {
       message = `Hi ${contact.first_name || "there"},\n\nThere's an update on your ${requestType} request.\n\nCurrent status: ${status}\n\nThank you,\nProsperWise Team`;
     }
 
-    // Send via Wix triggered email relay
-    const WIX_SITE_URL = Deno.env.get("WIX_SITE_URL");
-    const WIX_OTP_SECRET = Deno.env.get("WIX_OTP_SECRET");
+    const result = await sendViaWix({
+      email: cleanEmail,
+      subject,
+      message,
+      request_type: requestType,
+      status,
+      event_type,
+    });
 
-    if (!WIX_SITE_URL || !WIX_OTP_SECRET) {
-      console.warn("[Notify] Wix secrets missing, cannot send email");
-      return new Response(JSON.stringify({ sent: false, reason: "no_wix_config" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Use a different Wix endpoint for notifications
-    // The base URL should be like https://www.site.com/_functions/sendOtp
-    // We'll call https://www.site.com/_functions/sendNotification
-    const baseUrl = WIX_SITE_URL.replace(/\/sendOtp\/?$/, "");
-    const notifyUrl = `${baseUrl}/sendNotification`;
-
-    console.log(`[Notify] Sending ${event_type} notification to ${cleanEmail} via ${notifyUrl}`);
-
-    try {
-      const wixRes = await fetch(notifyUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: cleanEmail,
-          subject,
-          message,
-          request_type: requestType,
-          status,
-          event_type,
-          secret: WIX_OTP_SECRET,
-        }),
-      });
-
-      const wixBody = await wixRes.text();
-      console.log(`[Notify] Wix response: ${wixRes.status} ${wixBody}`);
-
-      if (!wixRes.ok) {
-        console.error("[Notify] Wix relay failed:", wixRes.status, wixBody);
-        return new Response(JSON.stringify({ sent: false, reason: "wix_error" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } catch (wixErr) {
-      console.error("[Notify] Error calling Wix:", wixErr);
-      return new Response(JSON.stringify({ sent: false, reason: "wix_error" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ sent: true }), {
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -74,6 +74,15 @@ interface VisibilityFieldInfo {
 
 interface Props {
   asanaUrl: string | null;
+  contactId?: string;
+}
+
+// Helper to fire task notification (non-blocking)
+function notifyTaskUpdate(contactId: string | undefined, taskName: string, taskEvent: string) {
+  if (!contactId) return;
+  supabase.functions.invoke("notify-portal-request", {
+    body: { notify_type: "task", contact_id: contactId, task_name: taskName, task_event: taskEvent },
+  }).catch((e) => console.error("[Notify] Task notification error:", e));
 }
 
 // ── URL Helpers ──
@@ -446,7 +455,7 @@ function TaskRow({
 }
 
 // ── Main Component ──
-export function ContactTaskList({ asanaUrl }: Props) {
+export function ContactTaskList({ asanaUrl, contactId }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [members, setMembers] = useState<AsanaMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -762,6 +771,7 @@ export function ContactTaskList({ asanaUrl }: Props) {
               onUpdated={handleTaskUpdated}
               onClose={() => setSelectedTask(null)}
               onSubtaskCreated={fetchTasks}
+              contactId={contactId}
             />
           )}
         </SheetContent>
@@ -943,6 +953,7 @@ function TaskDetailPanel({
   onUpdated,
   onClose,
   onSubtaskCreated,
+  contactId,
 }: {
   task: AsanaTask;
   members: AsanaMember[];
@@ -950,6 +961,7 @@ function TaskDetailPanel({
   onUpdated: (t: AsanaTask) => void;
   onClose: () => void;
   onSubtaskCreated?: () => void;
+  contactId?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(task.name);
@@ -1039,6 +1051,7 @@ function TaskDetailPanel({
         ...updates,
         assignee: assigneeMember ? { gid: assigneeMember.gid, name: assigneeMember.name } : updates.assignee === null ? null : task.assignee,
       });
+      notifyTaskUpdate(contactId, task.name, "updated");
       toast.success("Task updated.");
       setEditing(false);
     } catch (e: any) {
@@ -1063,6 +1076,7 @@ function TaskDetailPanel({
       if (res.data?.error) throw new Error(res.data.error);
 
       onUpdated({ ...task, completed: newCompleted });
+      notifyTaskUpdate(contactId, task.name, newCompleted ? "completed" : "reopened");
       toast.success(newCompleted ? "Task completed." : "Task reopened.");
     } catch (e: any) {
       toast.error(e.message || "Failed to update task.");
@@ -1095,6 +1109,7 @@ function TaskDetailPanel({
         },
       ]);
       setNewComment("");
+      notifyTaskUpdate(contactId, task.name, "comment");
       toast.success("Comment posted.");
     } catch (e: any) {
       toast.error(e.message || "Failed to post comment.");
