@@ -98,13 +98,17 @@ export function PortalTaskConversation({ taskGid, portalToken, clientName }: Pro
             </p>
           </div>
         ) : (
-          stories.map((story) => {
-            const isClient = clientName && story.created_by?.name?.toLowerCase() === clientName.toLowerCase();
+        stories.map((story) => {
+            // Detect portal-sent comments prefixed with [ClientName]: 
+            const prefixMatch = story.text.match(/^\[(.+?)\]:\s/);
+            const isClient = !!prefixMatch;
+            const displayName = isClient ? prefixMatch![1] : (story.created_by?.name || "Unknown");
+            const displayText = isClient ? story.text.replace(/^\[.+?\]:\s/, "") : story.text;
             return (
               <div key={story.gid} className="flex flex-col gap-1">
                 <div className={`flex items-center gap-2 ${isClient ? 'justify-end' : ''}`}>
                   <span className="text-xs font-semibold text-foreground">
-                    {story.created_by?.name || "Unknown"}
+                    {displayName}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {new Date(story.created_at).toLocaleDateString("en-US", {
@@ -120,7 +124,7 @@ export function PortalTaskConversation({ taskGid, portalToken, clientName }: Pro
                     ? 'bg-[hsl(38_40%_92%)] border border-[hsl(38_30%_78%)] text-foreground ml-auto'
                     : 'bg-muted border border-border text-foreground'
                 }`}>
-                  {story.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                  {displayText.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
                     /^https?:\/\//.test(part) ? (
                       <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 underline break-all">
                         {part}

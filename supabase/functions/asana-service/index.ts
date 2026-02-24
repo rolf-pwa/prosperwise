@@ -904,7 +904,22 @@ serve(async (req) => {
             );
           }
         }
-        result = await service.postTaskComment(tGid, text);
+        // If portal user, prefix the comment with their name so it's identifiable
+        let commentText = text;
+        if (portalContext) {
+          const supabaseAdmin0 = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          );
+          const { data: cd } = await supabaseAdmin0
+            .from("contacts")
+            .select("full_name")
+            .eq("id", portalContext.contactId)
+            .maybeSingle();
+          const cName = cd?.full_name || "Client";
+          commentText = `[${cName}]: ${text}`;
+        }
+        result = await service.postTaskComment(tGid, commentText);
 
         // If portal user posted a comment, create in-app notification for staff
         if (portalContext) {
