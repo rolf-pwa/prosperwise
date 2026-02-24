@@ -250,8 +250,18 @@ interface AsanaTask {
 
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
-  const match = asanaUrl.match(/app\.asana\.com\/0\/(\d+)/);
+  // Match /0/[id], /project/[id], /0/[id]/[task_id], /project/[id]/list/[task_id]
+  const match = asanaUrl.match(/app\.asana\.com\/(?:0|project)\/(\d+)/);
   return match ? match[1] : null;
+}
+
+function extractTaskGid(asanaUrl: string | null): string | null {
+  if (!asanaUrl) return null;
+  // Match /task/[id] or /0/[proj]/[task_id] (second segment)
+  const taskMatch = asanaUrl.match(/\/task\/(\d+)/);
+  if (taskMatch) return taskMatch[1];
+  const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
+  return twoSegment ? twoSegment[1] : null;
 }
 
 function AsanaMyTasksWidget() {
@@ -276,10 +286,14 @@ function AsanaMyTasksWidget() {
         const projectGids: string[] = [];
         if (contactRes.data) {
           for (const c of contactRes.data) {
-            const gid = extractProjectGid(c.asana_url);
-            if (gid) {
-              map[gid] = { id: c.id, name: c.full_name };
-              projectGids.push(gid);
+            const projGid = extractProjectGid(c.asana_url);
+            if (projGid) {
+              map[projGid] = { id: c.id, name: c.full_name };
+              projectGids.push(projGid);
+            }
+            const taskGid = extractTaskGid(c.asana_url);
+            if (taskGid) {
+              map[taskGid] = { id: c.id, name: c.full_name };
             }
           }
         }
@@ -301,10 +315,13 @@ function AsanaMyTasksWidget() {
   }, []);
 
   function getLinkedContact(task: AsanaTask) {
+    // Check project memberships
     for (const m of task.memberships || []) {
       const gid = m.project?.gid;
       if (gid && contactMap[gid]) return contactMap[gid];
     }
+    // Check if the task GID itself is a linked parent task
+    if (contactMap[task.gid]) return contactMap[task.gid];
     return null;
   }
 
