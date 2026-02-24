@@ -217,7 +217,7 @@ serve(async (req) => {
         .eq("email", cleanEmail)
         .gte("created_at", oneHourAgo);
 
-      if ((count ?? 0) >= 10) { // Temporarily raised from 3 for testing
+      if ((count ?? 0) >= 3) {
         return new Response(JSON.stringify({ sent: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
