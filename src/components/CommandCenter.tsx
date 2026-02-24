@@ -334,6 +334,9 @@ function AsanaMyTasksWidget() {
     const linked = getLinkedContact(task);
     if (linked) {
       navigate(`/contacts/${linked.id}`);
+    } else {
+      // No linked contact — fall back to opening in Asana
+      window.open(`https://app.asana.com/0/0/${task.gid}/f`, "_blank");
     }
   };
 
