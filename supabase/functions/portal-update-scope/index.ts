@@ -10,24 +10,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { portal_token, asset_id, asset_table, new_scope } = await req.json();
+    const body = await req.json();
+    const { portal_token, action } = body;
 
-    if (!portal_token || !asset_id || !asset_table || !new_scope) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Validate table and scope
-    if (!["vineyard_accounts", "storehouses"].includes(asset_table)) {
-      return new Response(JSON.stringify({ error: "Invalid table" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!["private", "household_shared", "family_shared"].includes(new_scope)) {
-      return new Response(JSON.stringify({ error: "Invalid scope" }), {
+    if (!portal_token) {
+      return new Response(JSON.stringify({ error: "Missing portal_token" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -50,6 +37,56 @@ serve(async (req) => {
     if (tokenError || !portalToken) {
       return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
         status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Toggle notifications ──
+    if (action === "toggle_notifications") {
+      const { enabled } = body;
+      if (typeof enabled !== "boolean") {
+        return new Response(JSON.stringify({ error: "enabled (boolean) required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: updateErr } = await supabase
+        .from("contacts")
+        .update({ email_notifications_enabled: enabled })
+        .eq("id", portalToken.contact_id);
+
+      if (updateErr) {
+        return new Response(JSON.stringify({ error: "Failed to update" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, enabled }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Update asset scope (default) ──
+    const { asset_id, asset_table, new_scope } = body;
+
+    if (!asset_id || !asset_table || !new_scope) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!["vineyard_accounts", "storehouses"].includes(asset_table)) {
+      return new Response(JSON.stringify({ error: "Invalid table" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!["private", "household_shared", "family_shared"].includes(new_scope)) {
+      return new Response(JSON.stringify({ error: "Invalid scope" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

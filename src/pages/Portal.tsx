@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut } from "lucide-react";
+import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff } from "lucide-react";
 import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 interface PortalData {
@@ -57,6 +57,8 @@ const Portal = () => {
   // Drill-down state
   const [drilldown, setDrilldown] = useState<DrilldownState>({ level: "individual" });
   const [georgiaOpen, setGeorgiaOpen] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [togglingNotif, setTogglingNotif] = useState(false);
 
   // OTP login state
   const [email, setEmail] = useState("");
@@ -97,8 +99,31 @@ const Portal = () => {
       events.forEach((e) => window.removeEventListener(e, resetTimer));
     };
   }, [data, handleLogout]);
+  // Sync notification preference from data
+  useEffect(() => {
+    if (data?.contact?.email_notifications_enabled !== undefined) {
+      setNotificationsEnabled(data.contact.email_notifications_enabled);
+    }
+  }, [data?.contact?.email_notifications_enabled]);
 
-  // Check for Google auth portal session on mount
+  const handleToggleNotifications = async () => {
+    if (!data?.portal_token) return;
+    setTogglingNotif(true);
+    try {
+      const newVal = !notificationsEnabled;
+      const res = await supabase.functions.invoke("portal-update-scope", {
+        body: { portal_token: data.portal_token, action: "toggle_notifications", enabled: newVal },
+      });
+      if (res.error || res.data?.error) throw new Error(res.data?.error || "Failed");
+      setNotificationsEnabled(newVal);
+    } catch {
+      // revert on error
+    } finally {
+      setTogglingNotif(false);
+    }
+  };
+
+
   useEffect(() => {
     if (token || data) return;
     const stored = sessionStorage.getItem("portal_google_auth");
@@ -901,15 +926,31 @@ const Portal = () => {
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4 mr-1.5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={handleToggleNotifications}
+                disabled={togglingNotif}
+                title={notificationsEnabled ? "Email notifications on" : "Email notifications off"}
+              >
+                {notificationsEnabled ? (
+                  <Bell className="h-4 w-4" />
+                ) : (
+                  <BellOff className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
