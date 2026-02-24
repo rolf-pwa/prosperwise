@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -258,6 +259,7 @@ function AsanaMyTasksWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [contactMap, setContactMap] = useState<Record<string, { id: string; name: string }>>({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -265,7 +267,6 @@ function AsanaMyTasksWidget() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        // Fetch contacts with Asana URLs to build project GID list
         const contactRes = await supabase
           .from("contacts")
           .select("id, full_name, asana_url")
@@ -284,7 +285,6 @@ function AsanaMyTasksWidget() {
         }
         setContactMap(map);
 
-        // Fetch tasks assigned to me, filtered to known projects
         const taskRes = await supabase.functions.invoke("asana-service", {
           body: { action: "getMyTasks", project_gids: projectGids.length > 0 ? projectGids : undefined },
         });
@@ -313,6 +313,13 @@ function AsanaMyTasksWidget() {
     return section || null;
   }
 
+  const handleTaskClick = (task: AsanaTask) => {
+    const linked = getLinkedContact(task);
+    if (linked) {
+      navigate(`/contacts/${linked.id}`);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -336,12 +343,10 @@ function AsanaMyTasksWidget() {
               const linked = getLinkedContact(task);
               const section = getSectionLabel(task);
               return (
-                <a
+                <button
                   key={task.gid}
-                  href={`https://app.asana.com/0/0/${task.gid}/f`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+                  onClick={() => handleTaskClick(task)}
+                  className="flex w-full items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50 text-left"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{task.name}</p>
@@ -366,7 +371,7 @@ function AsanaMyTasksWidget() {
                       {section}
                     </Badge>
                   )}
-                </a>
+                </button>
               );
             })}
           </div>
