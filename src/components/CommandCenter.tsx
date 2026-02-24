@@ -308,7 +308,7 @@ function AsanaMyTasksWidget() {
             if (!a.due_on && !b.due_on) return 0;
             if (!a.due_on) return 1;
             if (!b.due_on) return -1;
-            return new Date(b.due_on).getTime() - new Date(a.due_on).getTime();
+            return new Date(a.due_on).getTime() - new Date(b.due_on).getTime();
           });
           setTasks(sorted);
         }
