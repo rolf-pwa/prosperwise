@@ -75,6 +75,21 @@ serve(async (req) => {
 
     if (insertError) throw insertError;
 
+    // Send notification email (non-blocking)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Notify the other party: if advisor sent, notify client; if client sent, skip (staff sees in CRM)
+    if (sender_type === "advisor") {
+      fetch(`${supabaseUrl}/functions/v1/notify-portal-request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ request_id, event_type: "message" }),
+      }).catch((e) => console.error("[Notify] Fire-and-forget error:", e));
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

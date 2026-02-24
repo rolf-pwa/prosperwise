@@ -102,6 +102,12 @@ export function PortalRequestsWidget() {
         .update(updates)
         .eq("id", selected.id);
       if (err) throw err;
+
+      // Fire notification email (non-blocking)
+      supabase.functions.invoke("notify-portal-request", {
+        body: { request_id: selected.id, event_type: "status_update" },
+      }).catch((e) => console.error("[Notify] Error:", e));
+
       toast.success(`Request marked as ${status}`);
       setSelected(null);
       fetchRequests();

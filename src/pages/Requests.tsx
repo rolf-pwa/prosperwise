@@ -164,6 +164,11 @@ const Requests = () => {
           .eq("id", selected.id);
       }
 
+      // Notify client of new message (non-blocking)
+      supabase.functions.invoke("notify-portal-request", {
+        body: { request_id: selected.id, event_type: "message" },
+      }).catch((e) => console.error("[Notify] Error:", e));
+
       setReplyText("");
       toast.success("Reply sent to client");
       // Refresh to get updated messages
