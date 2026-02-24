@@ -905,6 +905,39 @@ serve(async (req) => {
           }
         }
         result = await service.postTaskComment(tGid, text);
+
+        // If portal user posted a comment, create in-app notification for staff
+        if (portalContext) {
+          try {
+            const supabaseAdmin = createClient(
+              Deno.env.get("SUPABASE_URL")!,
+              Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            );
+            // Get contact name
+            const { data: contactData } = await supabaseAdmin
+              .from("contacts")
+              .select("full_name")
+              .eq("id", portalContext.contactId)
+              .maybeSingle();
+            // Get task name
+            let taskName = tGid;
+            try {
+              const taskDetail = await service.getTaskDetail(tGid);
+              taskName = taskDetail?.name || tGid;
+            } catch {}
+
+            const contactName = contactData?.full_name || "A client";
+            await supabaseAdmin.from("staff_notifications").insert({
+              title: `${contactName} commented on "${taskName}"`,
+              body: text.length > 100 ? text.substring(0, 100) + "…" : text,
+              link: `/contacts/${portalContext.contactId}`,
+              contact_id: portalContext.contactId,
+              source_type: "task_comment",
+            });
+          } catch (notifErr) {
+            console.error("[AsanaService] Failed to create staff notification:", notifErr);
+          }
+        }
         break;
       }
 

@@ -694,6 +694,47 @@ export type Database = {
           },
         ]
       }
+      staff_notifications: {
+        Row: {
+          body: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          link: string | null
+          read: boolean
+          source_type: string
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          source_type?: string
+          title: string
+        }
+        Update: {
+          body?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          source_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_notifications_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storehouse_rules: {
         Row: {
           created_at: string

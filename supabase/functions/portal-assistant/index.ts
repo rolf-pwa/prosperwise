@@ -145,6 +145,26 @@ serve(async (req) => {
         );
       }
 
+      // Create in-app notification for staff
+      try {
+        const { data: contactInfo } = await supabase
+          .from("contacts")
+          .select("full_name")
+          .eq("id", requestData.contact_id)
+          .maybeSingle();
+        const contactName = contactInfo?.full_name || "A client";
+        const typeLabel = requestData.request_type?.replace(/_/g, " ") || "request";
+        await supabase.from("staff_notifications").insert({
+          title: `${contactName} submitted a new ${typeLabel} request`,
+          body: requestData.request_description?.substring(0, 100) || null,
+          link: "/requests",
+          contact_id: requestData.contact_id,
+          source_type: "new_request",
+        });
+      } catch (notifErr) {
+        console.error("[PortalAssistant] Failed to create staff notification:", notifErr);
+      }
+
       // Fire notification email (non-blocking)
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
