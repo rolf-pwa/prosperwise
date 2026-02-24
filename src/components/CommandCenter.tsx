@@ -304,7 +304,13 @@ function AsanaMyTasksWidget() {
         });
 
         if (taskRes.data?.data) {
-          setTasks(taskRes.data.data as AsanaTask[]);
+          const sorted = (taskRes.data.data as AsanaTask[]).sort((a, b) => {
+            if (!a.due_on && !b.due_on) return 0;
+            if (!a.due_on) return 1;
+            if (!b.due_on) return -1;
+            return new Date(b.due_on).getTime() - new Date(a.due_on).getTime();
+          });
+          setTasks(sorted);
         }
       } catch {
         setError(true);
