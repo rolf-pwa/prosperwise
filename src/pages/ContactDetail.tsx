@@ -553,7 +553,7 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
             {/* Tasks */}
-            <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} />
+            <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
             {/* Vineyard & Storehouses */}
             <Card>
               <CardHeader>

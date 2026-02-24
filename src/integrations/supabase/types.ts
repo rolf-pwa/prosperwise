@@ -797,6 +797,38 @@ export type Database = {
           },
         ]
       }
+      task_collaborators: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          tagged_by: string
+          task_gid: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          tagged_by: string
+          task_gid: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          tagged_by?: string
+          task_gid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_collaborators_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vineyard_accounts: {
         Row: {
           account_name: string

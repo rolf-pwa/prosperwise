@@ -561,6 +561,27 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
+  // addFollowers – Add collaborators/followers to a task
+  // -------------------------------------------------------------------------
+  async addFollowers(taskGid: string, followerGids: string[]) {
+    return withFailSafe("addFollowers", async () => {
+      const url = `${ASANA_BASE_URL}/tasks/${taskGid}/addFollowers`;
+      console.log("[AsanaService] POST addFollowers", taskGid, followerGids);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({ data: { followers: followerGids } }),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        console.warn(`[AsanaService] addFollowers warning: ${body}`);
+        // Non-fatal: Asana follower GIDs may not match contact IDs
+      }
+      return { ok: true };
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // verifyTaskIsSubtaskOf – Privacy guardrail for task-based access
   // -------------------------------------------------------------------------
   async verifyTaskIsSubtaskOf(taskGid: string, parentTaskGid: string): Promise<boolean> {
@@ -733,6 +754,37 @@ serve(async (req) => {
         break;
 
       case "getTasksForProject": {
+        // Helper: filter to client-visible tasks
+        const filterVisible = (tasks: any[]) =>
+          tasks.filter((task: any) => {
+            const customFields = task.custom_fields || [];
+            return customFields.some(
+              (cf: any) =>
+                (cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility")) &&
+                cf.enum_value?.name === "Client Visible",
+            );
+          });
+
+        // Helper: fetch tagged tasks for a contact and merge
+        const fetchTaggedTasks = async (contactId: string) => {
+          const supabaseAdmin = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          );
+          const { data: tagged } = await supabaseAdmin
+            .from("task_collaborators")
+            .select("task_gid")
+            .eq("contact_id", contactId);
+          const gids = (tagged || []).map((r: any) => r.task_gid);
+          if (gids.length === 0) return [];
+          const details = await Promise.all(
+            gids.slice(0, 20).map(async (gid: string) => {
+              try { return await service.getTaskDetail(gid); } catch { return null; }
+            }),
+          );
+          return details.filter(Boolean);
+        };
+
         // Task-based portal path: fetch parent task + subtasks
         if (portalContext?.isTaskBased && portalContext.asanaTaskGid) {
           const parentTaskGid = portalContext.asanaTaskGid;
@@ -741,17 +793,20 @@ serve(async (req) => {
             service.getSubtasks(parentTaskGid),
           ]);
 
-          // Combine parent + subtasks, apply visibility filter for portal
           const allTasks = [parentTask, ...subtasks].filter(Boolean);
-          const visibleTasks = allTasks.filter((task: any) => {
-            const customFields = task.custom_fields || [];
-            const isVisible = customFields.some(
-              (cf: any) =>
-                (cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility")) &&
-                cf.enum_value?.name === "Client Visible",
-            );
-            return isVisible;
-          });
+          let visibleTasks = filterVisible(allTasks);
+
+          // Merge tagged tasks
+          const taggedTasks = await fetchTaggedTasks(portalContext.contactId);
+          const taggedVisible = filterVisible(taggedTasks);
+          const seenGids = new Set(visibleTasks.map((t: any) => t.gid));
+          for (const t of taggedVisible) {
+            if (!seenGids.has(t.gid)) {
+              visibleTasks.push(t);
+              seenGids.add(t.gid);
+            }
+          }
+
           result = visibleTasks;
           break;
         }
@@ -766,16 +821,20 @@ serve(async (req) => {
         }
         const allTasks = await service.getTasksForProject(projectGid);
 
-        // Portal users only see tasks marked "Client Visible" via PW_Visibility custom field
         if (portalContext) {
-          const visibleTasks = (allTasks as any[]).filter((task: any) => {
-            const customFields = task.custom_fields || [];
-            return customFields.some(
-              (cf: any) =>
-                (cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility")) &&
-                cf.enum_value?.name === "Client Visible",
-            );
-          });
+          let visibleTasks = filterVisible(allTasks as any[]);
+
+          // Merge tagged tasks
+          const taggedTasks = await fetchTaggedTasks(portalContext.contactId);
+          const taggedVisible = filterVisible(taggedTasks);
+          const seenGids = new Set(visibleTasks.map((t: any) => t.gid));
+          for (const t of taggedVisible) {
+            if (!seenGids.has(t.gid)) {
+              visibleTasks.push(t);
+              seenGids.add(t.gid);
+            }
+          }
+
           result = visibleTasks;
         } else {
           result = allTasks;
@@ -862,6 +921,129 @@ serve(async (req) => {
       case "getMyTasks": {
         const { project_gids } = params;
         result = await service.getMyTasks(project_gids);
+        break;
+      }
+
+      case "tagCollaborators": {
+        // Tag household members on a task: persist to task_collaborators + optionally add as Asana followers
+        const { task_gid: tagTaskGid, contact_ids, asana_follower_gids } = params;
+        if (!tagTaskGid || !contact_ids || !Array.isArray(contact_ids)) {
+          return new Response(
+            JSON.stringify({ error: "task_gid and contact_ids[] are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const supabaseAdmin = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        // Get current user ID from auth header
+        const authHeader2 = req.headers.get("Authorization");
+        let userId = "system";
+        if (authHeader2) {
+          const sb2 = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_ANON_KEY")!,
+            { global: { headers: { Authorization: authHeader2 } } },
+          );
+          const { data: userData } = await sb2.auth.getUser();
+          userId = userData?.user?.id || "system";
+        }
+        // Upsert into task_collaborators
+        const rows = contact_ids.map((cid: string) => ({
+          task_gid: tagTaskGid,
+          contact_id: cid,
+          tagged_by: userId,
+        }));
+        const { error: insertErr } = await supabaseAdmin
+          .from("task_collaborators")
+          .upsert(rows, { onConflict: "task_gid,contact_id" });
+        if (insertErr) {
+          console.error("[AsanaService] tagCollaborators insert error:", insertErr);
+        }
+        // Optionally add Asana followers
+        if (asana_follower_gids && asana_follower_gids.length > 0) {
+          await service.addFollowers(tagTaskGid, asana_follower_gids);
+        }
+        result = { tagged: contact_ids.length };
+        break;
+      }
+
+      case "untagCollaborator": {
+        const { task_gid: untagTaskGid, contact_id: untagContactId } = params;
+        if (!untagTaskGid || !untagContactId) {
+          return new Response(
+            JSON.stringify({ error: "task_gid and contact_id are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const supabaseAdmin2 = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        await supabaseAdmin2
+          .from("task_collaborators")
+          .delete()
+          .eq("task_gid", untagTaskGid)
+          .eq("contact_id", untagContactId);
+        result = { untagged: true };
+        break;
+      }
+
+      case "getTaggedTasks": {
+        // Fetch task GIDs where a contact is tagged, then fetch details from Asana
+        const { contact_id: taggedContactId } = params;
+        if (!taggedContactId) {
+          return new Response(
+            JSON.stringify({ error: "contact_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const supabaseAdmin3 = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        const { data: tagged } = await supabaseAdmin3
+          .from("task_collaborators")
+          .select("task_gid")
+          .eq("contact_id", taggedContactId);
+        const taskGids = (tagged || []).map((r: any) => r.task_gid);
+        if (taskGids.length === 0) {
+          result = [];
+          break;
+        }
+        // Fetch each task detail in parallel (max 20 to avoid overload)
+        const limitedGids = taskGids.slice(0, 20);
+        const taskDetails = await Promise.all(
+          limitedGids.map(async (gid: string) => {
+            try {
+              return await service.getTaskDetail(gid);
+            } catch {
+              return null;
+            }
+          }),
+        );
+        result = taskDetails.filter(Boolean);
+        break;
+      }
+
+      case "getCollaboratorsForTask": {
+        const { task_gid: collabTaskGid } = params;
+        if (!collabTaskGid) {
+          return new Response(
+            JSON.stringify({ error: "task_gid is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const supabaseAdmin4 = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        const { data: collabs } = await supabaseAdmin4
+          .from("task_collaborators")
+          .select("contact_id")
+          .eq("task_gid", collabTaskGid);
+        result = (collabs || []).map((r: any) => r.contact_id);
         break;
       }
 
