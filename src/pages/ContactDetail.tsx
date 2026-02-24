@@ -21,6 +21,8 @@ import {
   Trash2,
   X,
   Users,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 import { toast } from "sonner";
@@ -273,6 +275,23 @@ const ContactDetail = () => {
           </div>
           <div className="flex items-center gap-2">
             <PortalMagicLinkButton contactId={id!} />
+            <Button
+              variant="outline"
+              size="icon"
+              title={contact.email_notifications_enabled !== false ? "Email notifications on" : "Email notifications off"}
+              onClick={async () => {
+                const newVal = contact.email_notifications_enabled === false;
+                await supabase.from("contacts").update({ email_notifications_enabled: newVal }).eq("id", id);
+                setContact((prev: any) => prev ? { ...prev, email_notifications_enabled: newVal } : prev);
+                toast.success(newVal ? "Notifications enabled" : "Notifications disabled");
+              }}
+            >
+              {contact.email_notifications_enabled !== false ? (
+                <Bell className="h-4 w-4" />
+              ) : (
+                <BellOff className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}

@@ -24,6 +24,7 @@ export type Database = {
           created_at: string
           created_by: string
           email: string | null
+          email_notifications_enabled: boolean
           executor_firm: string | null
           executor_name: string | null
           family_id: string | null
@@ -60,6 +61,7 @@ export type Database = {
           created_at?: string
           created_by: string
           email?: string | null
+          email_notifications_enabled?: boolean
           executor_firm?: string | null
           executor_name?: string | null
           family_id?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           email?: string | null
+          email_notifications_enabled?: boolean
           executor_firm?: string | null
           executor_name?: string | null
           family_id?: string | null

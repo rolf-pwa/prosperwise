@@ -92,13 +92,20 @@ serve(async (req) => {
 
       const { data: contact } = await supabase
         .from("contacts")
-        .select("email, first_name, full_name")
+        .select("email, first_name, full_name, email_notifications_enabled")
         .eq("id", contact_id)
         .maybeSingle();
 
       if (!contact?.email) {
         console.log("[Notify] No email for contact, skipping task notification");
         return new Response(JSON.stringify({ sent: false, reason: "no_email" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!contact.email_notifications_enabled) {
+        console.log("[Notify] Notifications disabled for contact, skipping");
+        return new Response(JSON.stringify({ sent: false, reason: "notifications_disabled" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -147,7 +154,7 @@ serve(async (req) => {
 
     const { data: portalRequest, error: fetchErr } = await supabase
       .from("portal_requests")
-      .select("*, contact:contacts(id, email, first_name, full_name)")
+      .select("*, contact:contacts(id, email, first_name, full_name, email_notifications_enabled)")
       .eq("id", request_id)
       .single();
 
@@ -163,6 +170,13 @@ serve(async (req) => {
     if (!contact?.email) {
       console.log("[Notify] No email for contact, skipping notification");
       return new Response(JSON.stringify({ sent: false, reason: "no_email" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!contact.email_notifications_enabled) {
+      console.log("[Notify] Notifications disabled for contact, skipping");
+      return new Response(JSON.stringify({ sent: false, reason: "notifications_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
