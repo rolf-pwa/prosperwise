@@ -112,10 +112,10 @@ export function PortalTaskConversation({ taskGid, portalToken }: Props) {
                   })}
                 </span>
               </div>
-              <div className="rounded-lg bg-slate-900 text-slate-100 px-4 py-3 text-sm leading-relaxed max-w-[90%] whitespace-pre-wrap break-words">
+              <div className="rounded-lg bg-muted border border-border text-foreground px-4 py-3 text-sm leading-relaxed max-w-[90%] whitespace-pre-wrap break-words">
                 {story.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
                   /^https?:\/\//.test(part) ? (
-                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline break-all">
+                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 underline break-all">
                       {part}
                     </a>
                   ) : (
@@ -147,7 +147,7 @@ export function PortalTaskConversation({ taskGid, portalToken }: Props) {
             onClick={handleSend}
             disabled={!message.trim() || sending}
             size="icon"
-            className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white h-[44px] w-[44px]"
+            className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground h-[44px] w-[44px]"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
