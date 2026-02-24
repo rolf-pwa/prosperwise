@@ -100,12 +100,16 @@ const Contacts = () => {
           </div>
           <div className="flex items-center gap-2">
             <ContactCsvImport onImported={fetchContacts} />
-            <Button asChild className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90">
-              <Link to="/contacts/new">
+            <Link to="/contacts/new">
+              <Button
+                type="button"
+                className="bg-sanctuary-bronze text-sanctuary-charcoal hover:bg-sanctuary-bronze/90"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 New Contact
-              </Link>
-            </Button>
+              </Button>
+            </Link>
           </div>
         </div>
 
