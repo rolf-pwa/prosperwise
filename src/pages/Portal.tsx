@@ -132,8 +132,7 @@ const Portal = () => {
         const parsed = JSON.parse(stored);
         if (parsed?.contact) {
           setData(parsed);
-          const level = parsed?.hierarchy?.level || "individual";
-          setDrilldown({ level });
+          setDrilldown({ level: "individual" });
           sessionStorage.removeItem("portal_google_auth");
         }
       } catch {}
@@ -164,9 +163,7 @@ const Portal = () => {
           setError(resp.data?.error || "Invalid link");
         } else {
           setData(resp.data);
-          // Set initial drilldown level based on hierarchy
-          const level = resp.data?.hierarchy?.level || "individual";
-          setDrilldown({ level });
+          setDrilldown({ level: "individual" });
         }
       } catch {
         setError("Unable to load portal");
@@ -205,8 +202,7 @@ const Portal = () => {
         setOtpError(resp.data?.error || "Invalid code. Please try again.");
       } else {
         setData(resp.data);
-        const level = resp.data?.hierarchy?.level || "individual";
-        setDrilldown({ level });
+        setDrilldown({ level: "individual" });
       }
     } catch {
       setOtpError("Something went wrong. Please try again.");
