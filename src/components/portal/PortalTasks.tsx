@@ -22,6 +22,7 @@ interface AsanaTask {
 
 interface Props {
   portalToken: string;
+  clientName?: string;
 }
 
 type TaskCategory = "new" | "ongoing";
@@ -83,7 +84,7 @@ function TaskCard({ task, onClick }: { task: AsanaTask; onClick: () => void }) {
   );
 }
 
-export function PortalTasks({ portalToken }: Props) {
+export function PortalTasks({ portalToken, clientName }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -248,6 +249,7 @@ export function PortalTasks({ portalToken }: Props) {
             <PortalTaskConversation
               taskGid={selectedTask.gid}
               portalToken={portalToken}
+              clientName={clientName}
             />
           )}
         </SheetContent>
