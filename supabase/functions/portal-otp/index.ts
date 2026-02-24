@@ -202,11 +202,12 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!contact) {
-        // Don't reveal whether email exists — always say "sent"
+        console.log(`[OTP] No contact found for email: ${cleanEmail} — returning silent success`);
         return new Response(JSON.stringify({ sent: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      console.log(`[OTP] Contact found: ${contact.id} (${contact.first_name}) for ${cleanEmail}`);
 
       // Rate limit: max 3 OTPs per email per hour
       const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
@@ -237,25 +238,30 @@ serve(async (req) => {
       const WIX_OTP_SECRET = Deno.env.get("WIX_OTP_SECRET");
 
       if (WIX_SITE_URL && WIX_OTP_SECRET) {
+        console.log(`[OTP] Wix relay URL: ${WIX_SITE_URL}`);
+        console.log(`[OTP] Sending OTP to Wix for ${cleanEmail}, code length: ${otp.length}`);
         try {
+          const wixPayload = JSON.stringify({
+            email: cleanEmail,
+            code: otp,
+            secret: WIX_OTP_SECRET,
+          });
+          console.log(`[OTP] Wix payload: ${wixPayload}`);
           const wixRes = await fetch(WIX_SITE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: cleanEmail,
-              code: otp,
-              secret: WIX_OTP_SECRET,
-            }),
+            body: wixPayload,
           });
+          const wixBody = await wixRes.text();
+          console.log(`[OTP] Wix response status: ${wixRes.status}, body: ${wixBody}`);
           if (!wixRes.ok) {
-            const errBody = await wixRes.text();
-            console.error("[WixRelay] Failed to send OTP:", wixRes.status, errBody);
+            console.error("[WixRelay] Failed to send OTP:", wixRes.status, wixBody);
           }
         } catch (wixErr) {
           console.error("[WixRelay] Error calling Wix endpoint:", wixErr);
         }
       } else {
-        // Fallback: log OTP for development
+        console.warn(`[OTP] Wix secrets missing! WIX_SITE_URL=${!!WIX_SITE_URL}, WIX_OTP_SECRET=${!!WIX_OTP_SECRET}`);
         console.log(`[DEV] OTP for ${cleanEmail}: ${otp}`);
       }
 
