@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { Progress } from "@/components/ui/progress";
+import { HouseholdTaskRollup } from "@/components/HouseholdTaskRollup";
 import {
   Home,
   User,
@@ -84,7 +85,7 @@ const HouseholdDetail = () => {
       { data: contacts },
     ] = await Promise.all([
       supabase.from("families").select("name").eq("id", hh.family_id).single(),
-      supabase.from("contacts").select("id, first_name, last_name, family_role, email, is_minor").eq("household_id", id),
+      supabase.from("contacts").select("id, first_name, last_name, family_role, email, is_minor, asana_url").eq("household_id", id),
     ]);
 
     setFamilyName(family?.name || "Unknown");
@@ -259,6 +260,9 @@ const HouseholdDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Household Actions Rollup */}
+        <HouseholdTaskRollup members={members} />
 
         {/* The Vineyard */}
         <Card>

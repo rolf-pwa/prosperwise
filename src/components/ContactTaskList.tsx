@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   CheckSquare,
   Loader2,
@@ -72,9 +73,17 @@ interface VisibilityFieldInfo {
   clientVisibleGid: string;
 }
 
+interface HouseholdMemberInfo {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  family_role: string;
+}
+
 interface Props {
   asanaUrl: string | null;
   contactId?: string;
+  householdMembers?: HouseholdMemberInfo[];
 }
 
 // Helper to fire task notification (non-blocking)
@@ -455,7 +464,7 @@ function TaskRow({
 }
 
 // ── Main Component ──
-export function ContactTaskList({ asanaUrl, contactId }: Props) {
+export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [members, setMembers] = useState<AsanaMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -772,6 +781,7 @@ export function ContactTaskList({ asanaUrl, contactId }: Props) {
               onClose={() => setSelectedTask(null)}
               onSubtaskCreated={fetchTasks}
               contactId={contactId}
+              householdMembers={householdMembers}
             />
           )}
         </SheetContent>
@@ -954,6 +964,7 @@ function TaskDetailPanel({
   onClose,
   onSubtaskCreated,
   contactId,
+  householdMembers = [],
 }: {
   task: AsanaTask;
   members: AsanaMember[];
@@ -962,12 +973,17 @@ function TaskDetailPanel({
   onClose: () => void;
   onSubtaskCreated?: () => void;
   contactId?: string;
+  householdMembers?: HouseholdMemberInfo[];
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(task.name);
   const [editNotes, setEditNotes] = useState(task.notes || "");
   const [editDueOn, setEditDueOn] = useState(task.due_on || "");
   const [editAssignee, setEditAssignee] = useState(task.assignee?.gid || "");
+
+  const [taggedContactIds, setTaggedContactIds] = useState<string[]>([]);
+  const [taggingLoading, setTaggingLoading] = useState(false);
+  const [tagSaving, setTagSaving] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [comments, setComments] = useState<AsanaComment[]>([]);
@@ -992,6 +1008,42 @@ function TaskDetailPanel({
     setEditing(false);
     setShowAddSubtask(false);
   }, [task.gid, task.name, task.notes, task.due_on, task.assignee?.gid]);
+
+  // Fetch tagged household members for this task
+  useEffect(() => {
+    if (householdMembers.length === 0) return;
+    setTaggingLoading(true);
+    supabase.functions.invoke("asana-service", {
+      body: { action: "getCollaboratorsForTask", task_gid: task.gid },
+    }).then((res) => {
+      if (!res.error && Array.isArray(res.data?.data)) {
+        setTaggedContactIds(res.data.data);
+      }
+    }).finally(() => setTaggingLoading(false));
+  }, [task.gid, householdMembers.length]);
+
+  const handleToggleTag = async (memberId: string, checked: boolean) => {
+    setTagSaving(true);
+    try {
+      if (checked) {
+        await supabase.functions.invoke("asana-service", {
+          body: { action: "tagCollaborators", task_gid: task.gid, contact_ids: [memberId] },
+        });
+        setTaggedContactIds((prev) => [...prev, memberId]);
+        toast.success("Household member tagged.");
+      } else {
+        await supabase.functions.invoke("asana-service", {
+          body: { action: "untagCollaborator", task_gid: task.gid, contact_id: memberId },
+        });
+        setTaggedContactIds((prev) => prev.filter((id) => id !== memberId));
+        toast.success("Household member untagged.");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update tagging.");
+    } finally {
+      setTagSaving(false);
+    }
+  };
 
   // Fetch comments + subtasks
   useEffect(() => {
@@ -1261,6 +1313,46 @@ function TaskDetailPanel({
           />
         )}
       </div>
+
+      {/* Tag Household Members */}
+      {householdMembers.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+            <Users className="h-3 w-3" />
+            Tag Household Members
+          </div>
+          {taggingLoading ? (
+            <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+          ) : (
+            <div className="space-y-1.5">
+              {householdMembers.map((hm) => {
+                const isTagged = taggedContactIds.includes(hm.id);
+                return (
+                  <label
+                    key={hm.id}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <Checkbox
+                      checked={isTagged}
+                      disabled={tagSaving}
+                      onCheckedChange={(checked) => handleToggleTag(hm.id, !!checked)}
+                    />
+                    <span className="text-sm text-foreground">
+                      {hm.first_name} {hm.last_name || ""}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground capitalize ml-auto">
+                      {hm.family_role.replace(/_/g, " ")}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-[10px] text-muted-foreground">
+            Tagged members will see this task in their portal Action Items.
+          </p>
+        </div>
+      )}
 
       {/* Subtasks */}
       <div className="space-y-2">
