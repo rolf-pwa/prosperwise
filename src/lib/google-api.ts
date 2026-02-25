@@ -132,3 +132,37 @@ export async function createGmailDraft(to: string, subject: string, body: string
   if (!res.ok) throw new Error(data.error || "Failed to create draft");
   return data;
 }
+
+// --- Google Chat ---
+
+export async function listChatSpaces(pageToken?: string) {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ action: "list-spaces", pageSize: "50" });
+  if (pageToken) params.set("pageToken", pageToken);
+  const res = await fetch(`${FUNCTIONS_URL}/google-chat?${params}`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to list spaces");
+  return data;
+}
+
+export async function listChatMessages(space: string, pageToken?: string) {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ action: "list-messages", space });
+  if (pageToken) params.set("pageToken", pageToken);
+  const res = await fetch(`${FUNCTIONS_URL}/google-chat?${params}`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to list messages");
+  return data;
+}
+
+export async function sendChatMessage(space: string, text: string) {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${FUNCTIONS_URL}/google-chat?action=send-message`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ space, text }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to send message");
+  return data;
+}
