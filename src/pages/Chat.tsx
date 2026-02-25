@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useGoogleStatus } from "@/hooks/useGoogle";
 import { listChatSpaces, listChatMessages, sendChatMessage, listChatMembers, resolveChatMembers } from "@/lib/google-api";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useConnectGoogle } from "@/hooks/useGoogle";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatSpace {
   name: string;
@@ -60,6 +61,11 @@ const Chat = () => {
     setLoadingSpaces(true);
     setError(null);
     try {
+      // Get current user's Google provider ID to exclude from DM labels
+      const { data: { session } } = await supabase.auth.getSession();
+      const myGoogleId = session?.user?.user_metadata?.provider_id;
+      const myMemberKey = myGoogleId ? `users/${myGoogleId}` : null;
+
       const data = await listChatSpaces();
       const loadedSpaces: ChatSpace[] = data.spaces || [];
       setSpaces(loadedSpaces);
@@ -100,15 +106,16 @@ const Chat = () => {
         }
       }
 
-      // Step 3: Map resolved names back to spaces
+      // Step 3: Map resolved names back to spaces, excluding current user
       const names: Record<string, string> = {};
       for (const s of dmSpaces) {
         const memberIds = spaceMemberMap[s.name] || [];
-        const memberNames = memberIds
+        const otherNames = memberIds
+          .filter((id) => id !== myMemberKey)
           .map((id) => resolvedNames[id])
           .filter(Boolean);
-        names[s.name] = memberNames.length > 0
-          ? memberNames.join(", ")
+        names[s.name] = otherNames.length > 0
+          ? otherNames.join(", ")
           : "Direct Message";
       }
       setDmNames(names);
