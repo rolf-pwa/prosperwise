@@ -19,6 +19,7 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeft,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +60,7 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/chat", label: "Google Chat", icon: MessageSquare },
   { to: "/families", label: "Family Tree", icon: TreesIcon },
   { to: "/households", label: "Households", icon: Home },
   { to: "/contacts", label: "Contacts", icon: Users },
