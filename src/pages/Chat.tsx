@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useGoogleStatus } from "@/hooks/useGoogle";
-import { listChatSpaces, listChatMessages, sendChatMessage } from "@/lib/google-api";
+import { listChatSpaces, listChatMessages, sendChatMessage, listChatMembers, resolveChatMembers } from "@/lib/google-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -64,38 +64,52 @@ const Chat = () => {
       const loadedSpaces: ChatSpace[] = data.spaces || [];
       setSpaces(loadedSpaces);
 
-      // Resolve DM names by fetching latest message from each DM
+      // Resolve DM names via People API
       const dmSpaces = loadedSpaces.filter(
         (s) => s.type === "DM" || s.spaceType === "DIRECT_MESSAGE"
       );
-      const nameResults = await Promise.allSettled(
+
+      // Step 1: Get members of each DM space
+      const allMemberIds = new Set<string>();
+      const spaceMemberMap: Record<string, string[]> = {};
+
+      await Promise.allSettled(
         dmSpaces.map(async (s) => {
           try {
-            const msgData = await listChatMessages(s.name);
-            const msgs = msgData.messages || [];
-            // Find a message from someone other than "me" or just use the first sender
-            const senderNames = new Set<string>();
-            for (const msg of msgs) {
-              if (msg.sender?.displayName) {
-                senderNames.add(msg.sender.displayName);
-              }
-            }
-            // Remove empty and pick a meaningful name
-            senderNames.delete("");
-            if (senderNames.size > 0) {
-              return { spaceName: s.name, displayName: Array.from(senderNames).join(", ") };
-            }
-            return { spaceName: s.name, displayName: "Direct Message" };
+            const membersData = await listChatMembers(s.name);
+            const members = membersData.memberships || [];
+            const ids = members
+              .map((m: any) => m.member?.name)
+              .filter(Boolean) as string[];
+            spaceMemberMap[s.name] = ids;
+            ids.forEach((id: string) => allMemberIds.add(id));
           } catch {
-            return { spaceName: s.name, displayName: "Direct Message" };
+            spaceMemberMap[s.name] = [];
           }
         })
       );
-      const names: Record<string, string> = {};
-      for (const result of nameResults) {
-        if (result.status === "fulfilled") {
-          names[result.value.spaceName] = result.value.displayName;
+
+      // Step 2: Resolve all unique member IDs via People API in one batch
+      let resolvedNames: Record<string, string> = {};
+      if (allMemberIds.size > 0) {
+        try {
+          const result = await resolveChatMembers(Array.from(allMemberIds));
+          resolvedNames = result.resolved || {};
+        } catch (e) {
+          console.warn("Failed to resolve member names:", e);
         }
+      }
+
+      // Step 3: Map resolved names back to spaces
+      const names: Record<string, string> = {};
+      for (const s of dmSpaces) {
+        const memberIds = spaceMemberMap[s.name] || [];
+        const memberNames = memberIds
+          .map((id) => resolvedNames[id])
+          .filter(Boolean);
+        names[s.name] = memberNames.length > 0
+          ? memberNames.join(", ")
+          : "Direct Message";
       }
       setDmNames(names);
     } catch (e: any) {
