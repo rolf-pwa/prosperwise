@@ -70,16 +70,34 @@ const Chat = () => {
       );
       const nameResults = await Promise.allSettled(
         dmSpaces.map(async (s) => {
-          const membersData = await listChatMembers(s.name);
-          const members = membersData.memberships || [];
-          // Find the non-self human member
-          const otherMember = members.find(
-            (m: any) => m.member?.type === "HUMAN" && m.member?.displayName
-          );
-          return {
-            spaceName: s.name,
-            displayName: otherMember?.member?.displayName || "Direct Message",
-          };
+          try {
+            const membersData = await listChatMembers(s.name);
+            const members = membersData.memberships || [];
+            // For bot DMs, find the bot; for human DMs, find the other human
+            const botMember = members.find(
+              (m: any) => m.member?.type === "BOT" && m.member?.displayName
+            );
+            const humanMembers = members.filter(
+              (m: any) => m.member?.type === "HUMAN" && m.member?.displayName
+            );
+            // If it's a bot DM, show the bot name
+            if (s.singleUserBotDm && botMember) {
+              return { spaceName: s.name, displayName: botMember.member.displayName };
+            }
+            // For human DMs with 2 members, pick the other person
+            // (we can't easily filter "self" without user ID, so show all names if >1)
+            if (humanMembers.length === 1) {
+              return { spaceName: s.name, displayName: humanMembers[0].member.displayName };
+            }
+            if (humanMembers.length > 1) {
+              // Show all human names (one will be you)
+              const names = humanMembers.map((m: any) => m.member.displayName).join(", ");
+              return { spaceName: s.name, displayName: names };
+            }
+            return { spaceName: s.name, displayName: "Direct Message" };
+          } catch {
+            return { spaceName: s.name, displayName: "Direct Message" };
+          }
         })
       );
       const names: Record<string, string> = {};
