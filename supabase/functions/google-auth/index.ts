@@ -18,6 +18,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/chat.spaces.readonly",
   "https://www.googleapis.com/auth/chat.messages",
+  "https://www.googleapis.com/auth/chat.memberships.readonly",
 ].join(" ");
 
 serve(async (req) => {
