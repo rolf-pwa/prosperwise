@@ -175,3 +175,15 @@ export async function listChatMembers(space: string) {
   if (!res.ok) throw new Error(data.error || "Failed to list members");
   return data;
 }
+
+export async function resolveChatMembers(memberIds: string[]) {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${FUNCTIONS_URL}/google-chat?action=resolve-members`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ memberIds }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to resolve members");
+  return data as { resolved: Record<string, string> };
+}

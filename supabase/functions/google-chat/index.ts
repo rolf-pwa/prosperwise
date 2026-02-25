@@ -183,6 +183,43 @@ serve(async (req) => {
       });
     }
 
+    // --- Resolve member names via People API ---
+    if (action === "resolve-members") {
+      const { memberIds } = await req.json();
+      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return new Response(JSON.stringify({ resolved: {} }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const resolved: Record<string, string> = {};
+
+      // memberIds are like "users/123456" - use People API to get names
+      await Promise.allSettled(
+        memberIds.map(async (memberId: string) => {
+          try {
+            // Extract the user ID number from "users/123456789"
+            const userId = memberId.replace("users/", "");
+            const res = await fetch(
+              `https://people.googleapis.com/v1/people/${userId}?personFields=names`,
+              { headers: gHeaders }
+            );
+            if (res.ok) {
+              const person = await res.json();
+              const name = person.names?.[0]?.displayName;
+              if (name) resolved[memberId] = name;
+            }
+          } catch {
+            // skip
+          }
+        })
+      );
+
+      return new Response(JSON.stringify({ resolved }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Invalid action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
