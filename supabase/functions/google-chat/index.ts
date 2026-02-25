@@ -183,7 +183,7 @@ serve(async (req) => {
       });
     }
 
-    // --- Resolve member names via People API ---
+    // --- Resolve member names via Workspace Directory API ---
     if (action === "resolve-members") {
       const { memberIds } = await req.json();
       if (!Array.isArray(memberIds) || memberIds.length === 0) {
@@ -194,23 +194,40 @@ serve(async (req) => {
 
       const resolved: Record<string, string> = {};
 
-      // memberIds are like "users/123456" - use People API to get names
+      // memberIds are like "users/123456" — use Directory API to look up names
       await Promise.allSettled(
         memberIds.map(async (memberId: string) => {
           try {
-            // Extract the user ID number from "users/123456789"
             const userId = memberId.replace("users/", "");
+            // Try People API with directory source
             const res = await fetch(
-              `https://people.googleapis.com/v1/people/${userId}?personFields=names`,
+              `https://people.googleapis.com/v1/people/${userId}?personFields=names&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE`,
               { headers: gHeaders }
             );
             if (res.ok) {
               const person = await res.json();
               const name = person.names?.[0]?.displayName;
-              if (name) resolved[memberId] = name;
+              if (name) {
+                resolved[memberId] = name;
+                return;
+              }
             }
-          } catch {
-            // skip
+            // Fallback: try Admin Directory API
+            const adminRes = await fetch(
+              `https://admin.googleapis.com/admin/directory/v1/users/${userId}`,
+              { headers: gHeaders }
+            );
+            if (adminRes.ok) {
+              const user = await adminRes.json();
+              const name = user.name?.fullName;
+              if (name) {
+                resolved[memberId] = name;
+                return;
+              }
+            }
+            console.log(`Could not resolve ${memberId}: People=${res.status}, Admin=${adminRes.status}`);
+          } catch (e) {
+            console.error(`Error resolving ${memberId}:`, e);
           }
         })
       );
