@@ -119,7 +119,7 @@ const Chat = () => {
       <AppLayout>
         <div className="flex flex-col items-center justify-center gap-4 py-20">
           <MessageSquare className="h-12 w-12 text-muted-foreground" />
-          <h1 className="text-2xl font-bold text-foreground">Google Chat</h1>
+          <h1 className="text-2xl font-bold text-foreground">Chat</h1>
           <p className="text-muted-foreground">Connect your Google Workspace account to access Chat.</p>
           <Button onClick={() => connectGoogle.mutate()} disabled={connectGoogle.isPending}>
             {connectGoogle.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -136,7 +136,7 @@ const Chat = () => {
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <MessageSquare className="h-6 w-6" />
-            Google Chat
+            Chat
           </h1>
           <Button variant="ghost" size="sm" onClick={loadSpaces} disabled={loadingSpaces}>
             <RefreshCw className={cn("h-4 w-4", loadingSpaces && "animate-spin")} />
