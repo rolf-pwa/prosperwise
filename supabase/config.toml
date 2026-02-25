@@ -36,5 +36,3 @@ verify_jwt = false
 [functions.ingest-statement]
 verify_jwt = false
 
-[functions.google-chat]
-verify_jwt = false
