@@ -23,7 +23,7 @@ import ReviewQueue from "./pages/ReviewQueue";
 import Requests from "./pages/Requests";
 import Households from "./pages/Households";
 import HouseholdDetail from "./pages/HouseholdDetail";
-import Chat from "./pages/Chat";
+
 
 const queryClient = new QueryClient();
 
@@ -44,7 +44,7 @@ const App = () => (
             <Route path="/portal/:token" element={<Portal />} />
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+            
             <Route path="/families" element={<ProtectedRoute><Families /></ProtectedRoute>} />
             <Route path="/households" element={<ProtectedRoute><Households /></ProtectedRoute>} />
             <Route path="/households/:id" element={<ProtectedRoute><HouseholdDetail /></ProtectedRoute>} />
