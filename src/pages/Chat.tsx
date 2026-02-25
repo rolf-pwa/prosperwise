@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useGoogleStatus } from "@/hooks/useGoogle";
-import { listChatSpaces, listChatMessages, sendChatMessage } from "@/lib/google-api";
+import { listChatSpaces, listChatMessages, sendChatMessage, listChatMembers } from "@/lib/google-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,6 +34,7 @@ const Chat = () => {
   const { data: googleStatus, isLoading: statusLoading } = useGoogleStatus();
   const connectGoogle = useConnectGoogle();
   const [spaces, setSpaces] = useState<ChatSpace[]>([]);
+  const [dmNames, setDmNames] = useState<Record<string, string>>({});
   const [selectedSpace, setSelectedSpace] = useState<ChatSpace | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -60,7 +61,34 @@ const Chat = () => {
     setError(null);
     try {
       const data = await listChatSpaces();
-      setSpaces(data.spaces || []);
+      const loadedSpaces: ChatSpace[] = data.spaces || [];
+      setSpaces(loadedSpaces);
+
+      // Resolve DM names in parallel
+      const dmSpaces = loadedSpaces.filter(
+        (s) => s.type === "DM" || s.spaceType === "DIRECT_MESSAGE"
+      );
+      const nameResults = await Promise.allSettled(
+        dmSpaces.map(async (s) => {
+          const membersData = await listChatMembers(s.name);
+          const members = membersData.memberships || [];
+          // Find the non-self human member
+          const otherMember = members.find(
+            (m: any) => m.member?.type === "HUMAN" && m.member?.displayName
+          );
+          return {
+            spaceName: s.name,
+            displayName: otherMember?.member?.displayName || "Direct Message",
+          };
+        })
+      );
+      const names: Record<string, string> = {};
+      for (const result of nameResults) {
+        if (result.status === "fulfilled") {
+          names[result.value.spaceName] = result.value.displayName;
+        }
+      }
+      setDmNames(names);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -102,6 +130,11 @@ const Chat = () => {
     if (space.type === "DM" || space.spaceType === "DIRECT_MESSAGE") return <User className="h-4 w-4" />;
     if (space.type === "ROOM" || space.spaceType === "SPACE") return <Users className="h-4 w-4" />;
     return <Hash className="h-4 w-4" />;
+  }
+
+  function getSpaceDisplayName(space: ChatSpace) {
+    if (space.displayName) return space.displayName;
+    return dmNames[space.name] || "Direct Message";
   }
 
   if (statusLoading) {
@@ -182,7 +215,7 @@ const Chat = () => {
                     >
                       {getSpaceIcon(space)}
                       <span className="truncate font-medium">
-                        {space.displayName || "Direct Message"}
+                        {getSpaceDisplayName(space)}
                       </span>
                     </button>
                   ))}
@@ -199,7 +232,7 @@ const Chat = () => {
                 <div className="flex items-center gap-3 border-b border-border px-6 py-3">
                   {getSpaceIcon(selectedSpace)}
                   <h2 className="font-semibold text-foreground">
-                    {selectedSpace.displayName || "Direct Message"}
+                    {getSpaceDisplayName(selectedSpace)}
                   </h2>
                   <Badge variant="secondary" className="text-[10px]">
                     {selectedSpace.spaceType || selectedSpace.type}
@@ -252,7 +285,7 @@ const Chat = () => {
                     <Input
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder={`Message ${selectedSpace.displayName || "this space"}...`}
+                      placeholder={`Message ${getSpaceDisplayName(selectedSpace)}...`}
                       className="flex-1"
                       disabled={sending}
                     />
