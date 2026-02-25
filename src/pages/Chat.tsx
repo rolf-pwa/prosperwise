@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useGoogleStatus } from "@/hooks/useGoogle";
-import { listChatSpaces, listChatMessages, sendChatMessage, listChatMembers, resolveChatMembers } from "@/lib/google-api";
+import { listChatSpaces, listChatMessages, sendChatMessage, listChatMembers } from "@/lib/google-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -70,54 +70,31 @@ const Chat = () => {
       const loadedSpaces: ChatSpace[] = data.spaces || [];
       setSpaces(loadedSpaces);
 
-      // Resolve DM names via People API
+      // Resolve DM names from membership displayNames directly
       const dmSpaces = loadedSpaces.filter(
         (s) => s.type === "DM" || s.spaceType === "DIRECT_MESSAGE"
       );
 
-      // Step 1: Get members of each DM space
-      const allMemberIds = new Set<string>();
-      const spaceMemberMap: Record<string, string[]> = {};
-
+      const names: Record<string, string> = {};
       await Promise.allSettled(
         dmSpaces.map(async (s) => {
           try {
             const membersData = await listChatMembers(s.name);
             const members = membersData.memberships || [];
-            const ids = members
-              .map((m: any) => m.member?.name)
-              .filter(Boolean) as string[];
-            spaceMemberMap[s.name] = ids;
-            ids.forEach((id: string) => allMemberIds.add(id));
+            // Each membership has member.name (e.g. "users/123") and member.displayName
+            const otherNames = members
+              .filter((m: any) => {
+                const memberName = m.member?.name;
+                return memberName && memberName !== myMemberKey;
+              })
+              .map((m: any) => m.member?.displayName)
+              .filter(Boolean);
+            names[s.name] = otherNames.length > 0 ? otherNames.join(", ") : "Direct Message";
           } catch {
-            spaceMemberMap[s.name] = [];
+            names[s.name] = "Direct Message";
           }
         })
       );
-
-      // Step 2: Resolve all unique member IDs via People API in one batch
-      let resolvedNames: Record<string, string> = {};
-      if (allMemberIds.size > 0) {
-        try {
-          const result = await resolveChatMembers(Array.from(allMemberIds));
-          resolvedNames = result.resolved || {};
-        } catch (e) {
-          console.warn("Failed to resolve member names:", e);
-        }
-      }
-
-      // Step 3: Map resolved names back to spaces, excluding current user
-      const names: Record<string, string> = {};
-      for (const s of dmSpaces) {
-        const memberIds = spaceMemberMap[s.name] || [];
-        const otherNames = memberIds
-          .filter((id) => id !== myMemberKey)
-          .map((id) => resolvedNames[id])
-          .filter(Boolean);
-        names[s.name] = otherNames.length > 0
-          ? otherNames.join(", ")
-          : "Direct Message";
-      }
       setDmNames(names);
     } catch (e: any) {
       setError(e.message);
