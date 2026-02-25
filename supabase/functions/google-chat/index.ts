@@ -166,6 +166,23 @@ serve(async (req) => {
       });
     }
 
+    // --- List Members of a Space ---
+    if (action === "list-members") {
+      const spaceName = url.searchParams.get("space");
+      if (!spaceName) throw new Error("Missing 'space' parameter");
+
+      const res = await fetch(
+        `https://chat.googleapis.com/v1/${spaceName}/members`,
+        { headers: gHeaders }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data));
+
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Invalid action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

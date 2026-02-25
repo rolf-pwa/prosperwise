@@ -166,3 +166,12 @@ export async function sendChatMessage(space: string, text: string) {
   if (!res.ok) throw new Error(data.error || "Failed to send message");
   return data;
 }
+
+export async function listChatMembers(space: string) {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ action: "list-members", space });
+  const res = await fetch(`${FUNCTIONS_URL}/google-chat?${params}`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to list members");
+  return data;
+}
