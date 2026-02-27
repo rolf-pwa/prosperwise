@@ -566,7 +566,7 @@ const ContactDetail = () => {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="comms" className="space-y-6 mt-4">
-                <ContactCalendar contactEmail={contact.email} />
+                <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
                 <ContactEmails contactEmail={contact.email} />
               </TabsContent>
               <TabsContent value="assistant" className="space-y-4 mt-4">

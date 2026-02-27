@@ -8,9 +8,14 @@ import { format } from "date-fns";
 
 interface ContactCalendarProps {
   contactEmail: string | null;
+  contactName?: string;
 }
 
-export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
+export function ContactCalendar({ contactEmail, contactName }: ContactCalendarProps) {
+  const appointmentParams = new URLSearchParams();
+  if (contactName) appointmentParams.set("name", contactName);
+  if (contactEmail) appointmentParams.set("email", contactEmail);
+  const qs = appointmentParams.toString() ? `?${appointmentParams.toString()}` : "";
   const { data: status } = useGoogleStatus();
   const { now, sixMonthsOut } = useMemo(() => ({
     now: new Date().toISOString(),
@@ -73,7 +78,7 @@ export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
         </CardTitle>
         <div className="flex items-center gap-1">
           <a
-            href="https://calendar.app.google/Xq8tAmJBkmGExrRD8"
+            href={`https://calendar.app.google/Xq8tAmJBkmGExrRD8${qs}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -83,7 +88,7 @@ export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
             </Button>
           </a>
           <a
-            href="https://calendar.app.google/uKiwTrDfYH2pJV4V7"
+            href={`https://calendar.app.google/uKiwTrDfYH2pJV4V7${qs}`}
             target="_blank"
             rel="noopener noreferrer"
           >
