@@ -60,10 +60,18 @@ export function PortalMagicLinkButton({ contactId }: Props) {
   const viewPortal = async () => {
     if (!user) return;
     setViewLoading(true);
+    // Open window synchronously to avoid popup blocker
+    const newWindow = window.open("about:blank", "_blank");
     try {
       const token = await getOrCreateToken(contactId, user.id);
-      window.open(`/portal/${token}`, "_blank");
+      if (newWindow) {
+        newWindow.location.href = `/portal/${token}`;
+      } else {
+        // Fallback: navigate in current tab
+        window.location.href = `/portal/${token}`;
+      }
     } catch {
+      if (newWindow) newWindow.close();
       toast.error("Failed to open portal.");
     } finally {
       setViewLoading(false);
