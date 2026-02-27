@@ -524,6 +524,33 @@ export type Database = {
           },
         ]
       }
+      marketing_updates: {
+        Row: {
+          created_at: string
+          id: string
+          published_by: string
+          target_governance_status: string
+          title: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          published_by: string
+          target_governance_status?: string
+          title: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          published_by?: string
+          target_governance_status?: string
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
       portal_otps: {
         Row: {
           code: string

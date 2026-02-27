@@ -76,6 +76,59 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { notify_type } = body;
+
+    // ─── Marketing update notifications ───
+    if (notify_type === "marketing_update") {
+      const { title, url, target_governance_status } = body;
+      if (!title || !url) {
+        return new Response(JSON.stringify({ error: "title and url required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Fetch targeted contacts
+      let query = supabase
+        .from("contacts")
+        .select("id, email, first_name, email_notifications_enabled")
+        .not("email", "is", null)
+        .eq("email_notifications_enabled", true);
+
+      if (target_governance_status && target_governance_status !== "all") {
+        query = query.eq("governance_status", target_governance_status);
+      }
+
+      const { data: contacts } = await query;
+      let sent = 0;
+
+      for (const c of contacts || []) {
+        if (!c.email) continue;
+        const cleanEmail = c.email.trim().toLowerCase();
+        const firstName = c.first_name || "there";
+
+        // Insert staff notification
+        await supabase.from("staff_notifications").insert({
+          title: `Update sent: ${title}`,
+          body: `Notification sent to ${cleanEmail}`,
+          contact_id: c.id,
+          source_type: "marketing_update",
+          link: url,
+        });
+
+        await sendViaWix({
+          email: cleanEmail,
+          subject: `New update from ProsperWise: ${title}`,
+          message: `Hi ${firstName},\n\nThere's a new update available for you.\n\n${title}\n\nView it here: ${url}\n\nYou can also log in to your portal to see all updates.\n\nThank you,\nProsperWise Team`,
+          event_type: "marketing_update",
+        });
+        sent++;
+      }
+
+      return new Response(JSON.stringify({ sent, total: (contacts || []).length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // notify_type: "request" (default) | "task"
 
     // ─── Task notifications ───
