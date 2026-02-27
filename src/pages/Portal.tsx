@@ -61,6 +61,9 @@ const Portal = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [togglingNotif, setTogglingNotif] = useState(false);
 
+  // Unread update count — must be called unconditionally (Rules of Hooks)
+  const unreadUpdateCount = useUnreadUpdateCount(data?.contact?.governance_status ?? "", data?.contact?.id ?? "");
+
   // OTP login state
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -666,7 +669,7 @@ const Portal = () => {
     };
   };
 
-  const unreadUpdateCount = useUnreadUpdateCount(data.contact.governance_status, data.contact.id);
+  // unreadUpdateCount is already declared at the top level
 
   const renderIndividualView = () => {
     const ind = getIndividualData();
