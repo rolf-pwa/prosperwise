@@ -247,6 +247,32 @@ serve(async (req) => {
     // Build hierarchy data based on role
     const hierarchy = contactRes.data ? await buildHierarchy(supabase, contactRes.data) : { level: "individual" };
 
+    // Fetch corporations via shareholders for all household members + self
+    let corporations: any[] = [];
+    const allMemberIds = [contactId, ...householdMembers.map((m: any) => m.id)];
+    const { data: shareholders } = await supabase
+      .from("shareholders")
+      .select("contact_id, corporation_id, ownership_percentage, share_class, role_title")
+      .in("contact_id", allMemberIds)
+      .eq("is_active", true);
+
+    if (shareholders && shareholders.length > 0) {
+      const corpIds = [...new Set(shareholders.map((s: any) => s.corporation_id))];
+      const [corpsRes, corpVineyardRes] = await Promise.all([
+        supabase.from("corporations").select("id, name, corporation_type, jurisdiction").in("id", corpIds),
+        supabase.from("corporate_vineyard_accounts").select("*").in("corporation_id", corpIds),
+      ]);
+
+      corporations = (corpsRes.data || []).map((corp: any) => ({
+        ...corp,
+        shareholders: shareholders.filter((s: any) => s.corporation_id === corp.id),
+        vineyard_accounts: (corpVineyardRes.data || []).filter((v: any) => v.corporation_id === corp.id),
+        total_assets: (corpVineyardRes.data || [])
+          .filter((v: any) => v.corporation_id === corp.id)
+          .reduce((sum: number, v: any) => sum + (Number(v.current_value) || 0), 0),
+      }));
+    }
+
     // Fetch calendar events if contact has an email
     let meetings: any[] = [];
     const contactEmail = contactRes.data?.email;
@@ -268,6 +294,7 @@ serve(async (req) => {
       household,
       household_members: householdMembers,
       hierarchy,
+      corporations,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
