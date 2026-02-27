@@ -23,7 +23,8 @@ import ReviewQueue from "./pages/ReviewQueue";
 import Requests from "./pages/Requests";
 import Households from "./pages/Households";
 import HouseholdDetail from "./pages/HouseholdDetail";
-
+import Corporations from "./pages/Corporations";
+import CorporationDetail from "./pages/CorporationDetail";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,8 @@ const App = () => (
             <Route path="/families" element={<ProtectedRoute><Families /></ProtectedRoute>} />
             <Route path="/households" element={<ProtectedRoute><Households /></ProtectedRoute>} />
             <Route path="/households/:id" element={<ProtectedRoute><HouseholdDetail /></ProtectedRoute>} />
+            <Route path="/corporations" element={<ProtectedRoute><Corporations /></ProtectedRoute>} />
+            <Route path="/corporations/:id" element={<ProtectedRoute><CorporationDetail /></ProtectedRoute>} />
             <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
             <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
             <Route path="/review-queue" element={<ProtectedRoute><ReviewQueue /></ProtectedRoute>} />
