@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Plus, Search, Users, DollarSign } from "lucide-react";
+import { Building2, Plus, Search, Users, DollarSign, ChevronRight, ChevronDown, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -33,6 +33,14 @@ interface Corporation {
   fiscal_year_end: string | null;
   shareholder_count: number;
   total_assets: number;
+  children?: Corporation[];
+  ownership_percentage?: number;
+}
+
+interface CorporateShareholder {
+  parent_corporation_id: string;
+  child_corporation_id: string;
+  ownership_percentage: number;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -52,6 +60,7 @@ const Corporations = () => {
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("opco");
   const [newJurisdiction, setNewJurisdiction] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const fetchCorps = useCallback(async () => {
     const { data: corpData } = await (supabase.from("corporations" as any) as any)
@@ -62,12 +71,15 @@ const Corporations = () => {
 
     const corpIds = (corpData as any[]).map((c: any) => c.id);
     
-    const [shareholdersRes, assetsRes] = await Promise.all([
+    const [shareholdersRes, assetsRes, corpShareholdersRes] = await Promise.all([
       corpIds.length > 0
         ? (supabase.from("shareholders" as any) as any).select("corporation_id").in("corporation_id", corpIds)
         : Promise.resolve({ data: [] }),
       corpIds.length > 0
         ? (supabase.from("corporate_vineyard_accounts" as any) as any).select("corporation_id, current_value").in("corporation_id", corpIds)
+        : Promise.resolve({ data: [] }),
+      corpIds.length > 0
+        ? (supabase.from("corporate_shareholders" as any) as any).select("parent_corporation_id, child_corporation_id, ownership_percentage").in("parent_corporation_id", corpIds)
         : Promise.resolve({ data: [] }),
     ]);
 
@@ -81,17 +93,38 @@ const Corporations = () => {
       assetTotals[a.corporation_id] = (assetTotals[a.corporation_id] || 0) + Number(a.current_value || 0);
     });
 
-    const mapped: Corporation[] = (corpData as any[]).map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      corporation_type: c.corporation_type,
-      jurisdiction: c.jurisdiction,
-      fiscal_year_end: c.fiscal_year_end,
-      shareholder_count: shareholderCounts[c.id] || 0,
-      total_assets: assetTotals[c.id] || 0,
-    }));
+    const corpShareholderLinks = (corpShareholdersRes.data || []) as CorporateShareholder[];
 
-    setCorps(mapped);
+    // Build a map of all corps
+    const corpMap: Record<string, Corporation> = {};
+    (corpData as any[]).forEach((c: any) => {
+      corpMap[c.id] = {
+        id: c.id,
+        name: c.name,
+        corporation_type: c.corporation_type,
+        jurisdiction: c.jurisdiction,
+        fiscal_year_end: c.fiscal_year_end,
+        shareholder_count: shareholderCounts[c.id] || 0,
+        total_assets: assetTotals[c.id] || 0,
+      };
+    });
+
+    // Identify child IDs (corps that are subsidiaries of another corp)
+    const childIds = new Set<string>();
+    corpShareholderLinks.forEach((link) => {
+      childIds.add(link.child_corporation_id);
+      const parent = corpMap[link.parent_corporation_id];
+      const child = corpMap[link.child_corporation_id];
+      if (parent && child) {
+        if (!parent.children) parent.children = [];
+        parent.children.push({ ...child, ownership_percentage: link.ownership_percentage });
+      }
+    });
+
+    // Top-level = corps that are NOT children of another corp
+    const topLevel = Object.values(corpMap).filter((c) => !childIds.has(c.id));
+
+    setCorps(topLevel);
     setLoading(false);
   }, []);
 
@@ -118,9 +151,11 @@ const Corporations = () => {
     }
   };
 
-  const filtered = corps.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = corps.filter((c) => {
+    const q = search.toLowerCase();
+    return c.name.toLowerCase().includes(q) ||
+      c.children?.some((ch) => ch.name.toLowerCase().includes(q));
+  });
 
   return (
     <AppLayout>
@@ -164,34 +199,78 @@ const Corporations = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((corp) => (
-              <Link key={corp.id} to={`/corporations/${corp.id}`}>
-                <Card className="hover:border-accent/40 transition-colors cursor-pointer h-full">
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-accent" />
-                        <h3 className="font-semibold text-foreground">{corp.name}</h3>
+              <div key={corp.id} className="space-y-2">
+                <Link to={`/corporations/${corp.id}`}>
+                  <Card className="hover:border-accent/40 transition-colors cursor-pointer h-full">
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-5 w-5 text-accent" />
+                          <h3 className="font-semibold text-foreground">{corp.name}</h3>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          {TYPE_LABELS[corp.corporation_type] || corp.corporation_type}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-[10px]">
-                        {TYPE_LABELS[corp.corporation_type] || corp.corporation_type}
-                      </Badge>
-                    </div>
-                    {corp.jurisdiction && (
-                      <p className="text-xs text-muted-foreground">{corp.jurisdiction}</p>
-                    )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />
-                        {corp.shareholder_count} shareholder{corp.shareholder_count !== 1 ? "s" : ""}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="h-3.5 w-3.5" />
-                        ${corp.total_assets.toLocaleString()}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                      {corp.jurisdiction && (
+                        <p className="text-xs text-muted-foreground">{corp.jurisdiction}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" />
+                          {corp.shareholder_count} shareholder{corp.shareholder_count !== 1 ? "s" : ""}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <DollarSign className="h-3.5 w-3.5" />
+                          ${corp.total_assets.toLocaleString()}
+                        </span>
+                      </div>
+                      {/* Subsidiaries toggle */}
+                      {corp.children && corp.children.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setExpanded((prev) => ({ ...prev, [corp.id]: !prev[corp.id] }));
+                          }}
+                          className="flex items-center gap-1 text-[11px] font-medium text-accent hover:underline pt-1"
+                        >
+                          {expanded[corp.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          <GitBranch className="h-3 w-3" />
+                          {corp.children.length} subsidiar{corp.children.length === 1 ? "y" : "ies"}
+                        </button>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+                {/* Nested subsidiaries */}
+                {expanded[corp.id] && corp.children?.map((child) => (
+                  <Link key={child.id} to={`/corporations/${child.id}`}>
+                    <Card className="ml-6 border-l-2 border-accent/30 hover:border-accent/50 transition-colors cursor-pointer">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-accent/70" />
+                            <h4 className="font-medium text-sm text-foreground">{child.name}</h4>
+                          </div>
+                          <Badge variant="outline" className="text-[10px]">
+                            {TYPE_LABELS[child.corporation_type] || child.corporation_type}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                          {child.ownership_percentage != null && (
+                            <span className="font-medium text-accent/80">{child.ownership_percentage}% owned</span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />
+                            ${child.total_assets.toLocaleString()}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
             ))}
           </div>
         )}
