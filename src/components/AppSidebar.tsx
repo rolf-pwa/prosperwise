@@ -20,6 +20,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Building2,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -67,6 +68,7 @@ const navItems = [
   { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
+  { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
 ];
 
 const externalLinks = [
