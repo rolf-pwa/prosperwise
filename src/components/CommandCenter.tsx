@@ -15,6 +15,7 @@ import {
   useCalendarEvents,
   useGmailMessages,
 } from "@/hooks/useGoogle";
+import { MarketingUpdateWidget } from "@/components/MarketingUpdateWidget";
 
 export function CommandCenter() {
   const { data: status, isLoading: statusLoading } = useGoogleStatus();
@@ -95,6 +96,7 @@ export function CommandCenter() {
         <AsanaMyTasksWidget />
         <CalendarWidget />
         <GmailWidget />
+        <MarketingUpdateWidget />
       </div>
     </div>
   );

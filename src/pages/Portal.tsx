@@ -8,6 +8,7 @@ import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { PortalTasks } from "@/components/portal/PortalTasks";
+import { PortalUpdates } from "@/components/portal/PortalUpdates";
 import { PortalGeorgiaChat } from "@/components/portal/PortalGeorgiaChat";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -710,7 +711,10 @@ const Portal = () => {
             {/* Action Items Tab */}
             <TabsContent value="tasks" className="mt-4">
               {isSelf ? (
-                <PortalTasks portalToken={portalToken} clientName={`${contact.first_name} ${contact.last_name || ""}`.trim()} />
+                <div className="space-y-8">
+                  <PortalUpdates governanceStatus={contact.governance_status} />
+                  <PortalTasks portalToken={portalToken} clientName={`${contact.first_name} ${contact.last_name || ""}`.trim()} />
+                </div>
               ) : (
                 <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
                   <CheckSquare className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
