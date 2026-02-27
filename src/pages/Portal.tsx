@@ -666,6 +666,8 @@ const Portal = () => {
     };
   };
 
+  const unreadUpdateCount = useUnreadUpdateCount(data.contact.governance_status, data.contact.id);
+
   const renderIndividualView = () => {
     const ind = getIndividualData();
     const isSelf = !currentMember;
@@ -697,6 +699,11 @@ const Portal = () => {
               <TabsTrigger value="updates" className="flex-1 gap-1.5 relative">
                 <Megaphone className="h-4 w-4" />
                 Updates
+                {unreadUpdateCount > 0 && (
+                  <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground px-1">
+                    {unreadUpdateCount > 99 ? "99+" : unreadUpdateCount}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger value="requests" className="flex-1 gap-1.5">
                 <ClipboardList className="h-4 w-4" />
