@@ -100,8 +100,11 @@ const CorporationDetail = () => {
 
   // Add shareholder dialog
   const [showAddShareholder, setShowAddShareholder] = useState(false);
+  const [shareholderType, setShareholderType] = useState<"individual" | "corporation">("individual");
   const [allContacts, setAllContacts] = useState<any[]>([]);
+  const [availableCorpsForShareholder, setAvailableCorpsForShareholder] = useState<any[]>([]);
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [selectedCorpShareholderId, setSelectedCorpShareholderId] = useState("");
   const [ownershipPct, setOwnershipPct] = useState("0");
   const [shareClass, setShareClass] = useState("Common");
   const [roleTitle, setRoleTitle] = useState("");
@@ -233,10 +236,19 @@ const CorporationDetail = () => {
   };
 
   const openAddShareholder = async () => {
-    const { data } = await supabase.from("contacts").select("id, full_name, email").order("full_name");
-    const existingIds = new Set(shareholders.map((s) => s.contact_id));
-    setAllContacts((data || []).filter((c: any) => !existingIds.has(c.id)));
+    const [contactsRes, corpsRes] = await Promise.all([
+      supabase.from("contacts").select("id, full_name, email").order("full_name"),
+      (supabase.from("corporations" as any) as any).select("id, name, corporation_type").order("name"),
+    ]);
+    const existingContactIds = new Set(shareholders.map((s) => s.contact_id));
+    const existingCorpIds = new Set(parentCorps.map((p) => p.parent_corporation_id));
+    setAllContacts((contactsRes.data || []).filter((c: any) => !existingContactIds.has(c.id)));
+    setAvailableCorpsForShareholder(
+      ((corpsRes.data || []) as any[]).filter((c: any) => c.id !== id && !existingCorpIds.has(c.id))
+    );
+    setShareholderType("individual");
     setSelectedContactId("");
+    setSelectedCorpShareholderId("");
     setOwnershipPct("0");
     setShareClass("Common");
     setRoleTitle("");
@@ -244,17 +256,31 @@ const CorporationDetail = () => {
   };
 
   const addShareholder = async () => {
-    if (!selectedContactId || !id) return;
-    const { error } = await (supabase.from("shareholders" as any) as any)
-      .insert({
-        contact_id: selectedContactId,
-        corporation_id: id,
-        ownership_percentage: Number(ownershipPct) || 0,
-        share_class: shareClass || "Common",
-        role_title: roleTitle || null,
-      });
-    if (error) toast.error("Failed to add shareholder.");
-    else { toast.success("Shareholder added."); setShowAddShareholder(false); fetchData(); }
+    if (!id) return;
+    if (shareholderType === "individual") {
+      if (!selectedContactId) return;
+      const { error } = await (supabase.from("shareholders" as any) as any)
+        .insert({
+          contact_id: selectedContactId,
+          corporation_id: id,
+          ownership_percentage: Number(ownershipPct) || 0,
+          share_class: shareClass || "Common",
+          role_title: roleTitle || null,
+        });
+      if (error) toast.error("Failed to add shareholder.");
+      else { toast.success("Shareholder added."); setShowAddShareholder(false); fetchData(); }
+    } else {
+      if (!selectedCorpShareholderId) return;
+      const { error } = await (supabase.from("corporate_shareholders" as any) as any)
+        .insert({
+          parent_corporation_id: selectedCorpShareholderId,
+          child_corporation_id: id,
+          ownership_percentage: Number(ownershipPct) || 0,
+          share_class: shareClass || "Common",
+        });
+      if (error) toast.error("Failed to add corporate shareholder.");
+      else { toast.success("Corporate shareholder added."); setShowAddShareholder(false); fetchData(); }
+    }
   };
 
   const removeShareholder = async (shareholderId: string) => {
@@ -380,38 +406,65 @@ const CorporationDetail = () => {
               </Button>
             </CardHeader>
             <CardContent className="space-y-2">
-              {shareholders.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No shareholders linked.</p>
-              ) : (
-                shareholders.map((sh) => (
-                  <div key={sh.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent">
-                        <User className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <Link to={`/contacts/${sh.contact_id}`} className="text-sm font-medium text-foreground hover:text-accent transition-colors">
-                          {sh.contact_name}
-                        </Link>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-0.5">
-                            <Percent className="h-3 w-3" /> {sh.ownership_percentage}%
-                          </span>
-                          {sh.share_class && <span>· {sh.share_class}</span>}
-                          {sh.role_title && <span>· {sh.role_title}</span>}
-                          {sh.family_name && (
-                            <Badge variant="outline" className="text-[9px] ml-1">
-                              <Crown className="h-2.5 w-2.5 mr-0.5" /> {sh.family_name}
-                            </Badge>
-                          )}
-                        </div>
+              {/* Corporate shareholders (HoldCos etc.) */}
+              {parentCorps.map((p) => (
+                <div key={`corp-${p.id}`} className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <Link to={`/corporations/${p.parent_corporation_id}`} className="text-sm font-medium text-foreground hover:text-accent transition-colors">
+                        {p.corp_name}
+                      </Link>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-0.5">
+                          <Percent className="h-3 w-3" /> {p.ownership_percentage}%
+                        </span>
+                        {p.share_class && <span>· {p.share_class}</span>}
+                        <Badge variant="outline" className="text-[9px] ml-1">{TYPE_LABELS[p.corp_type] || p.corp_type}</Badge>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeShareholder(sh.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
-                ))
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeCorpLink(p.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Individual shareholders */}
+              {shareholders.map((sh) => (
+                <div key={`ind-${sh.id}`} className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <Link to={`/contacts/${sh.contact_id}`} className="text-sm font-medium text-foreground hover:text-accent transition-colors">
+                        {sh.contact_name}
+                      </Link>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-0.5">
+                          <Percent className="h-3 w-3" /> {sh.ownership_percentage}%
+                        </span>
+                        {sh.share_class && <span>· {sh.share_class}</span>}
+                        {sh.role_title && <span>· {sh.role_title}</span>}
+                        {sh.family_name && (
+                          <Badge variant="outline" className="text-[9px] ml-1">
+                            <Crown className="h-2.5 w-2.5 mr-0.5" /> {sh.family_name}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeShareholder(sh.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+
+              {shareholders.length === 0 && parentCorps.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No shareholders linked.</p>
               )}
             </CardContent>
           </Card>
@@ -427,47 +480,24 @@ const CorporationDetail = () => {
               </Button>
             </CardHeader>
             <CardContent className="space-y-2">
-              {parentCorps.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Owned By</p>
-                  {parentCorps.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-2.5 mb-1">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <Link to={`/corporations/${p.parent_corporation_id}`} className="text-sm font-medium hover:text-accent transition-colors">
-                          {p.corp_name}
-                        </Link>
-                        <Badge variant="outline" className="text-[9px]">{TYPE_LABELS[p.corp_type] || p.corp_type}</Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{p.ownership_percentage}%</span>
+              {subsidiaries.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No subsidiaries linked.</p>
+              ) : (
+                subsidiaries.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-accent" />
+                      <Link to={`/corporations/${s.child_corporation_id}`} className="text-sm font-medium hover:text-accent transition-colors">
+                        {s.corp_name}
+                      </Link>
+                      <Badge variant="outline" className="text-[9px]">{TYPE_LABELS[s.corp_type] || s.corp_type}</Badge>
+                      <span className="text-xs text-muted-foreground">{s.ownership_percentage}%</span>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {subsidiaries.length === 0 && parentCorps.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No corporate links.</p>
-              ) : subsidiaries.length === 0 ? null : (
-                <>
-                  {parentCorps.length > 0 && (
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Owns</p>
-                  )}
-                  {subsidiaries.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-accent" />
-                        <Link to={`/corporations/${s.child_corporation_id}`} className="text-sm font-medium hover:text-accent transition-colors">
-                          {s.corp_name}
-                        </Link>
-                        <Badge variant="outline" className="text-[9px]">{TYPE_LABELS[s.corp_type] || s.corp_type}</Badge>
-                        <span className="text-xs text-muted-foreground">{s.ownership_percentage}%</span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeCorpLink(s.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeCorpLink(s.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>
@@ -507,15 +537,26 @@ const CorporationDetail = () => {
               )}
 
               {/* Pro-rata shareholder breakdown */}
-              {totalAssets > 0 && shareholders.length > 0 && (
+              {totalAssets > 0 && (shareholders.length > 0 || parentCorps.length > 0) && (
                 <div className="mt-4 pt-4 border-t border-border">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                     Pro-Rata Sovereign Stakes
                   </p>
+                  {parentCorps.map((p) => {
+                    const proRata = totalAssets * (p.ownership_percentage / 100);
+                    return (
+                      <div key={`pr-corp-${p.id}`} className="flex items-center justify-between py-1 text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Building2 className="h-3 w-3" /> {p.corp_name} ({p.ownership_percentage}%)
+                        </span>
+                        <span className="font-medium">${proRata.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      </div>
+                    );
+                  })}
                   {shareholders.map((sh) => {
                     const proRata = totalAssets * (sh.ownership_percentage / 100);
                     return (
-                      <div key={sh.id} className="flex items-center justify-between py-1 text-xs">
+                      <div key={`pr-ind-${sh.id}`} className="flex items-center justify-between py-1 text-xs">
                         <span className="text-muted-foreground">{sh.contact_name} ({sh.ownership_percentage}%)</span>
                         <span className="font-medium">${proRata.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                       </div>
@@ -565,19 +606,48 @@ const CorporationDetail = () => {
               <DialogTitle>Add Shareholder</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
+              {/* Shareholder type toggle */}
               <div>
-                <label className="text-sm font-medium">Contact</label>
-                <Select value={selectedContactId} onValueChange={setSelectedContactId}>
-                  <SelectTrigger><SelectValue placeholder="Select a contact…" /></SelectTrigger>
+                <label className="text-sm font-medium">Type</label>
+                <Select value={shareholderType} onValueChange={(v: "individual" | "corporation") => { setShareholderType(v); setSelectedContactId(""); setSelectedCorpShareholderId(""); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {allContacts.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.full_name}{c.email ? ` (${c.email})` : ""}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="individual">Individual (Contact)</SelectItem>
+                    <SelectItem value="corporation">Corporation (HoldCo, etc.)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {shareholderType === "individual" ? (
+                <div>
+                  <label className="text-sm font-medium">Contact</label>
+                  <Select value={selectedContactId} onValueChange={setSelectedContactId}>
+                    <SelectTrigger><SelectValue placeholder="Select a contact…" /></SelectTrigger>
+                    <SelectContent>
+                      {allContacts.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.full_name}{c.email ? ` (${c.email})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-sm font-medium">Corporation</label>
+                  <Select value={selectedCorpShareholderId} onValueChange={setSelectedCorpShareholderId}>
+                    <SelectTrigger><SelectValue placeholder="Select a corporation…" /></SelectTrigger>
+                    <SelectContent>
+                      {availableCorpsForShareholder.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name} ({TYPE_LABELS[c.corporation_type] || c.corporation_type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium">Ownership %</label>
@@ -588,14 +658,21 @@ const CorporationDetail = () => {
                   <Input value={shareClass} onChange={(e) => setShareClass(e.target.value)} placeholder="Common" />
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">Role / Title</label>
-                <Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Director, President" />
-              </div>
+              {shareholderType === "individual" && (
+                <div>
+                  <label className="text-sm font-medium">Role / Title</label>
+                  <Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Director, President" />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddShareholder(false)}>Cancel</Button>
-              <Button onClick={addShareholder} disabled={!selectedContactId}>Add Shareholder</Button>
+              <Button
+                onClick={addShareholder}
+                disabled={shareholderType === "individual" ? !selectedContactId : !selectedCorpShareholderId}
+              >
+                Add Shareholder
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
