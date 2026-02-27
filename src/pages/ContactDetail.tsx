@@ -48,7 +48,7 @@ import { Bot } from "lucide-react";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
 import { AssetContainer, type AssetAccount, type MoveTarget } from "@/components/AssetContainer";
-import { Grape } from "lucide-react";
+import { Grape, Building2 } from "lucide-react";
 import { ContactTaskList } from "@/components/ContactTaskList";
 
 interface Storehouse {
@@ -111,6 +111,24 @@ const ContactDetail = () => {
   const [newAccountValue, setNewAccountValue] = useState("");
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [corporateStakes, setCorporateStakes] = useState<Array<{
+    corporation_id: string;
+    corporation_name: string;
+    corporation_type: string;
+    ownership_percentage: number;
+    share_class: string | null;
+    role_title: string | null;
+    total_assets: number;
+    pro_rata: number;
+    subsidiaries: Array<{
+      child_id: string;
+      child_name: string;
+      child_type: string;
+      parent_ownership_pct: number;
+      child_total_assets: number;
+      indirect_pro_rata: number;
+    }>;
+  }>>([]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -174,6 +192,76 @@ const ContactDetail = () => {
         map[name] = match ? { id: match.id, full_name: match.full_name } : null;
       });
       setProfessionalContacts(map);
+    }
+
+    // Fetch corporate stakes for this contact
+    const { data: shareholdings } = await supabase
+      .from("shareholders")
+      .select("corporation_id, ownership_percentage, share_class, role_title")
+      .eq("contact_id", id)
+      .eq("is_active", true);
+
+    if (shareholdings && shareholdings.length > 0) {
+      const corpIds = shareholdings.map((s) => s.corporation_id);
+      const [corpsRes, assetsRes, subsRes] = await Promise.all([
+        supabase.from("corporations").select("id, name, corporation_type").in("id", corpIds),
+        supabase.from("corporate_vineyard_accounts").select("corporation_id, current_value").in("corporation_id", corpIds),
+        supabase.from("corporate_shareholders").select("parent_corporation_id, child_corporation_id, ownership_percentage").in("parent_corporation_id", corpIds),
+      ]);
+
+      // Get subsidiary corp details & assets
+      const childIds = (subsRes.data || []).map((s) => s.child_corporation_id);
+      let childCorps: any[] = [];
+      let childAssets: any[] = [];
+      if (childIds.length > 0) {
+        const [cc, ca] = await Promise.all([
+          supabase.from("corporations").select("id, name, corporation_type").in("id", childIds),
+          supabase.from("corporate_vineyard_accounts").select("corporation_id, current_value").in("corporation_id", childIds),
+        ]);
+        childCorps = cc.data || [];
+        childAssets = ca.data || [];
+      }
+
+      const stakes = shareholdings.map((sh) => {
+        const corp = (corpsRes.data || []).find((c) => c.id === sh.corporation_id);
+        const totalAssets = (assetsRes.data || [])
+          .filter((a) => a.corporation_id === sh.corporation_id)
+          .reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
+        const proRata = totalAssets * (sh.ownership_percentage / 100);
+
+        const subs = (subsRes.data || [])
+          .filter((s) => s.parent_corporation_id === sh.corporation_id)
+          .map((s) => {
+            const child = childCorps.find((c) => c.id === s.child_corporation_id);
+            const childTotal = childAssets
+              .filter((a) => a.corporation_id === s.child_corporation_id)
+              .reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
+            const indirectPct = (sh.ownership_percentage / 100) * (s.ownership_percentage / 100);
+            return {
+              child_id: s.child_corporation_id,
+              child_name: child?.name || "Unknown",
+              child_type: child?.corporation_type || "other",
+              parent_ownership_pct: s.ownership_percentage,
+              child_total_assets: childTotal,
+              indirect_pro_rata: childTotal * indirectPct,
+            };
+          });
+
+        return {
+          corporation_id: sh.corporation_id,
+          corporation_name: corp?.name || "Unknown",
+          corporation_type: corp?.corporation_type || "other",
+          ownership_percentage: sh.ownership_percentage,
+          share_class: sh.share_class,
+          role_title: sh.role_title,
+          total_assets: totalAssets,
+          pro_rata: proRata,
+          subsidiaries: subs,
+        };
+      });
+      setCorporateStakes(stakes);
+    } else {
+      setCorporateStakes([]);
     }
 
     setLoading(false);
@@ -552,6 +640,59 @@ const ContactDetail = () => {
                 )}
               </CardContent>
             </Card>
+            {/* Corporate Stakes */}
+            {corporateStakes.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-sanctuary-bronze" />
+                    Corporate Stakes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {corporateStakes.map((stake) => {
+                    const totalIndirect = stake.subsidiaries.reduce((s, sub) => s + sub.indirect_pro_rata, 0);
+                    const totalStake = stake.pro_rata + totalIndirect;
+                    return (
+                      <div key={stake.corporation_id} className="rounded-md border p-3 space-y-2">
+                        <Link
+                          to={`/corporations/${stake.corporation_id}`}
+                          className="flex items-center justify-between hover:underline"
+                        >
+                          <span className="font-medium text-sm">{stake.corporation_name}</span>
+                          <Badge variant="outline" className="text-[10px] uppercase">{stake.corporation_type}</Badge>
+                        </Link>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{stake.ownership_percentage}% {stake.share_class || "Common"}</span>
+                          {stake.role_title && <span>{stake.role_title}</span>}
+                        </div>
+                        {/* Direct pro-rata */}
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Direct Stake</span>
+                          <span className="font-medium">${stake.pro_rata.toLocaleString()}</span>
+                        </div>
+                        {/* Indirect via subsidiaries */}
+                        {stake.subsidiaries.map((sub) => (
+                          <div key={sub.child_id} className="flex justify-between text-xs pl-3 border-l-2 border-border">
+                            <Link to={`/corporations/${sub.child_id}`} className="text-muted-foreground hover:underline">
+                              via {sub.child_name} ({stake.ownership_percentage}% × {sub.parent_ownership_pct}%)
+                            </Link>
+                            <span className="font-medium">${sub.indirect_pro_rata.toLocaleString()}</span>
+                          </div>
+                        ))}
+                        {/* Total */}
+                        {totalStake > 0 && (
+                          <div className="flex justify-between text-xs font-semibold border-t pt-1 border-border">
+                            <span>Sovereign Stake</span>
+                            <span className="text-sanctuary-bronze">${totalStake.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
             {/* Tasks */}
             <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
             {/* Vineyard & Storehouses */}
