@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff, Megaphone, Building2 } from "lucide-react";
+import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ChevronDown, ChevronRight, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff, Megaphone, Building2 } from "lucide-react";
 import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 interface PortalData {
@@ -61,6 +61,7 @@ const Portal = () => {
   const [georgiaOpen, setGeorgiaOpen] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [togglingNotif, setTogglingNotif] = useState(false);
+  const [expandedCorps, setExpandedCorps] = useState<Set<string>>(new Set());
 
   // Unread update count — must be called unconditionally (Rules of Hooks)
   const unreadUpdateCount = useUnreadUpdateCount(data?.contact?.governance_status ?? "", data?.contact?.id ?? "");
@@ -640,10 +641,20 @@ const Portal = () => {
               </div>
               {corporations.map((corp: any) => {
                 const TYPE_LABELS: Record<string, string> = { opco: "Operating Co", holdco: "Holding Co", trust: "Trust", partnership: "Partnership", other: "Entity" };
+                const isExpanded = expandedCorps.has(corp.id);
+                const toggleCorp = () => {
+                  setExpandedCorps(prev => {
+                    const next = new Set(prev);
+                    if (next.has(corp.id)) next.delete(corp.id);
+                    else next.add(corp.id);
+                    return next;
+                  });
+                };
                 return (
-                  <div
+                  <button
                     key={corp.id}
-                    className="rounded-lg border border-border bg-card p-4 space-y-2"
+                    onClick={toggleCorp}
+                    className="w-full text-left rounded-lg border border-border bg-card p-4 space-y-2 hover:border-primary/30 hover:bg-muted/30 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -658,26 +669,45 @@ const Portal = () => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-foreground">${(corp.total_assets || 0).toLocaleString()}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">${(corp.total_assets || 0).toLocaleString()}</span>
+                        {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      </div>
                     </div>
-                    {/* Shareholders in this household */}
-                    <div className="pl-11 space-y-0.5">
-                      {corp.shareholders.map((sh: any) => {
-                        const memberName = sh.contact_id === contact.id
-                          ? `${contact.first_name} ${contact.last_name || ""}`.trim()
-                          : (() => {
-                              const m = household_members.find((m: any) => m.id === sh.contact_id);
-                              return m ? `${m.first_name} ${m.last_name || ""}`.trim() : "Member";
-                            })();
-                        return (
-                          <p key={sh.contact_id} className="text-xs text-muted-foreground">
-                            {memberName} — {sh.ownership_percentage}% {sh.share_class || ""}
-                            {sh.role_title ? ` · ${sh.role_title}` : ""}
-                          </p>
-                        );
-                      })}
-                    </div>
-                  </div>
+                    {isExpanded && (
+                      <div className="space-y-2 pt-1">
+                        {/* Shareholders */}
+                        <div className="pl-11 space-y-0.5">
+                          {corp.shareholders.map((sh: any) => {
+                            const memberName = sh.contact_id === contact.id
+                              ? `${contact.first_name} ${contact.last_name || ""}`.trim()
+                              : (() => {
+                                  const m = household_members.find((m: any) => m.id === sh.contact_id);
+                                  return m ? `${m.first_name} ${m.last_name || ""}`.trim() : "Member";
+                                })();
+                            return (
+                              <p key={sh.contact_id} className="text-xs text-muted-foreground">
+                                {memberName} — {sh.ownership_percentage}% {sh.share_class || ""}
+                                {sh.role_title ? ` · ${sh.role_title}` : ""}
+                              </p>
+                            );
+                          })}
+                        </div>
+                        {/* Corporate Vineyard Accounts */}
+                        {(corp.vineyard_accounts || []).length > 0 && (
+                          <div className="pl-11 space-y-1 border-t border-border/50 pt-2">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Accounts</p>
+                            {corp.vineyard_accounts.map((acc: any) => (
+                              <div key={acc.id} className="flex items-center justify-between text-xs">
+                                <span className="text-foreground/80">{acc.account_name}</span>
+                                <span className="font-medium text-foreground">${(Number(acc.current_value) || 0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </button>
                 );
               })}
             </div>
