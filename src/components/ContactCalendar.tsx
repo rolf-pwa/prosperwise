@@ -3,7 +3,7 @@ import { useCalendarEvents } from "@/hooks/useGoogle";
 import { useGoogleStatus } from "@/hooks/useGoogle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, MapPin, Video } from "lucide-react";
 import { format } from "date-fns";
 
 interface ContactCalendarProps {
@@ -71,18 +71,28 @@ export function ContactCalendar({ contactEmail }: ContactCalendarProps) {
           <Calendar className="h-4 w-4" />
           Upcoming Events
         </CardTitle>
-        {contactEmail && (
+        <div className="flex items-center gap-1">
           <a
-            href={`https://calendar.google.com/calendar/r/eventedit?add=${encodeURIComponent(contactEmail)}`}
+            href="https://calendar.app.google/Xq8tAmJBkmGExrRD8"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Button variant="ghost" size="sm">
-              <Plus className="mr-1 h-3 w-3" />
-              New
+            <Button variant="ghost" size="sm" className="gap-1">
+              <MapPin className="h-3 w-3" />
+              In Person
             </Button>
           </a>
-        )}
+          <a
+            href="https://calendar.app.google/uKiwTrDfYH2pJV4V7"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="ghost" size="sm" className="gap-1">
+              <Video className="h-3 w-3" />
+              Video
+            </Button>
+          </a>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
