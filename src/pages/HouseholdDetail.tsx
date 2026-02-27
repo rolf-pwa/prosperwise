@@ -23,6 +23,7 @@ import {
   Lock,
   ArrowLeft,
   MapPin,
+  Building2,
 } from "lucide-react";
 
 const ROLE_ICONS: Record<string, typeof Crown> = {
@@ -46,6 +47,14 @@ const STOREHOUSE_CONFIG = [
   { num: 4, name: "The Vault", subtitle: "Legacy Trust", icon: Lock },
 ];
 
+const TYPE_LABELS: Record<string, string> = {
+  opco: "OpCo",
+  holdco: "HoldCo",
+  trust: "Trust",
+  partnership: "Partnership",
+  other: "Entity",
+};
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-CA", {
     style: "currency",
@@ -63,6 +72,7 @@ const HouseholdDetail = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [vineyardAccounts, setVineyardAccounts] = useState<any[]>([]);
   const [storehouses, setStorehouses] = useState<any[]>([]);
+  const [corporations, setCorporations] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -93,12 +103,32 @@ const HouseholdDetail = () => {
 
     const memberIds = (contacts || []).map((c: any) => c.id);
     if (memberIds.length > 0) {
-      const [{ data: vine }, { data: store }] = await Promise.all([
+      const [{ data: vine }, { data: store }, { data: shareholders }] = await Promise.all([
         supabase.from("vineyard_accounts").select("*").in("contact_id", memberIds),
         supabase.from("storehouses").select("*").in("contact_id", memberIds),
+        supabase.from("shareholders").select("contact_id, corporation_id, ownership_percentage, share_class, role_title").in("contact_id", memberIds).eq("is_active", true),
       ]);
       setVineyardAccounts(vine || []);
       setStorehouses(store || []);
+
+      // Fetch corporations and their vineyard accounts
+      if (shareholders && shareholders.length > 0) {
+        const corpIds = [...new Set(shareholders.map((s: any) => s.corporation_id))];
+        const [{ data: corps }, { data: corpVineyard }] = await Promise.all([
+          supabase.from("corporations").select("id, name, corporation_type, jurisdiction").in("id", corpIds),
+          supabase.from("corporate_vineyard_accounts").select("*").in("corporation_id", corpIds),
+        ]);
+
+        const enrichedCorps = (corps || []).map((corp: any) => ({
+          ...corp,
+          shareholders: shareholders.filter((s: any) => s.corporation_id === corp.id),
+          vineyard_accounts: (corpVineyard || []).filter((v: any) => v.corporation_id === corp.id),
+          total_assets: (corpVineyard || [])
+            .filter((v: any) => v.corporation_id === corp.id)
+            .reduce((sum: number, v: any) => sum + (Number(v.current_value) || 0), 0),
+        }));
+        setCorporations(enrichedCorps);
+      }
     }
 
     setLoading(false);
@@ -135,6 +165,10 @@ const HouseholdDetail = () => {
   );
   const totalStorehouses = storehouses.reduce(
     (sum, s) => sum + (Number(s.current_value) || 0),
+    0
+  );
+  const totalCorpAssets = corporations.reduce(
+    (sum, c) => sum + (c.total_assets || 0),
     0
   );
 
@@ -184,14 +218,14 @@ const HouseholdDetail = () => {
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-foreground">
-              {formatCurrency(totalVineyard + totalStorehouses)}
+              {formatCurrency(totalVineyard + totalStorehouses + totalCorpAssets)}
             </p>
             <p className="text-xs text-muted-foreground">Total Assets</p>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={`grid grid-cols-1 gap-4 ${corporations.length > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -207,7 +241,7 @@ const HouseholdDetail = () => {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Grape className="h-4 w-4" />
-                Vineyard
+                Portfolio Assets
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -225,6 +259,19 @@ const HouseholdDetail = () => {
               <p className="text-2xl font-bold text-accent">{formatCurrency(totalStorehouses)}</p>
             </CardContent>
           </Card>
+          {corporations.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Building2 className="h-4 w-4" />
+                  Corp Assets
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(totalCorpAssets)}</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Members */}
@@ -377,6 +424,85 @@ const HouseholdDetail = () => {
             })}
           </CardContent>
         </Card>
+
+        {/* Corporate Holdings */}
+        {corporations.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-serif">Corporate Holdings</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {corporations.length} entit{corporations.length === 1 ? "y" : "ies"}
+                  </p>
+                </div>
+                <div className="ml-auto text-right">
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(totalCorpAssets)}</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {corporations.map((corp: any) => (
+                <div key={corp.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/corporations/${corp.id}`}
+                        className="text-sm font-medium text-foreground hover:underline flex items-center gap-1.5"
+                      >
+                        {corp.name}
+                        <Badge variant="outline" className="text-[9px] uppercase">
+                          {TYPE_LABELS[corp.corporation_type] || corp.corporation_type}
+                        </Badge>
+                      </Link>
+                      {corp.jurisdiction && (
+                        <span className="text-xs text-muted-foreground">· {corp.jurisdiction}</span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatCurrency(corp.total_assets || 0)}
+                    </span>
+                  </div>
+
+                  {/* Shareholders from this household */}
+                  <div className="pl-6 space-y-0.5">
+                    {corp.shareholders.map((sh: any) => {
+                      const member = members.find((m: any) => m.id === sh.contact_id);
+                      const name = member ? `${member.first_name} ${member.last_name || ""}`.trim() : "Member";
+                      return (
+                        <p key={sh.contact_id} className="text-xs text-muted-foreground">
+                          {name} — {sh.ownership_percentage}% {sh.share_class || "Common"}
+                          {sh.role_title ? ` · ${sh.role_title}` : ""}
+                        </p>
+                      );
+                    })}
+                  </div>
+
+                  {/* Corporate vineyard accounts */}
+                  {(corp.vineyard_accounts || []).map((acc: any) => (
+                    <div
+                      key={acc.id}
+                      className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-foreground/80">{acc.account_name}</span>
+                        <span className="text-sm font-medium text-foreground">
+                          {formatCurrency(Number(acc.current_value) || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {(corp.vineyard_accounts || []).length === 0 && (
+                    <p className="text-xs text-muted-foreground pl-6">No corporate accounts configured</p>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );
