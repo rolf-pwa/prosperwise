@@ -356,75 +356,6 @@ const HouseholdDetail = () => {
           </CardContent>
         </Card>
 
-        {/* The Storehouses */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                <Landmark className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-serif">The Storehouses</CardTitle>
-                <p className="text-xs text-muted-foreground">Strategic Asset Allocation</p>
-              </div>
-              <div className="ml-auto text-right">
-                <p className="text-2xl font-bold text-accent">{formatCurrency(totalStorehouses)}</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {STOREHOUSE_CONFIG.map(({ num, name, subtitle, icon: Icon }) => {
-              const accounts = storehouses.filter((s) => s.storehouse_number === num);
-              const total = accounts.reduce((sum, s) => sum + (Number(s.current_value) || 0), 0);
-              const targetTotal = accounts.reduce((sum, s) => sum + (Number(s.target_value) || 0), 0);
-              const pct = targetTotal > 0 ? Math.min((total / targetTotal) * 100, 100) : 0;
-
-              return (
-                <div key={num} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-accent" />
-                      <h4 className="text-sm font-medium text-foreground">{name}</h4>
-                      <span className="text-xs text-muted-foreground">· {subtitle}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{formatCurrency(total)}</span>
-                  </div>
-                  {accounts.length > 0 ? (
-                    <>
-                      {targetTotal > 0 && (
-                        <div className="space-y-1">
-                          <Progress value={pct} className="h-1.5 bg-muted [&>div]:bg-accent" />
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>{Math.round(pct)}% funded</span>
-                            <span>Target: {formatCurrency(targetTotal)}</span>
-                          </div>
-                        </div>
-                      )}
-                      {accounts.map((acc: any) => (
-                        <div
-                          key={acc.id}
-                          className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-foreground/80">
-                              {acc.label || acc.asset_type || acc.notes || "Account"}
-                            </span>
-                            <span className="text-sm font-medium text-foreground">
-                              {formatCurrency(Number(acc.current_value) || 0)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground pl-6">No accounts configured</p>
-                  )}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-
         {/* Corporate Holdings */}
         {corporations.length > 0 && (
           <Card>
@@ -503,6 +434,75 @@ const HouseholdDetail = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* The Storehouses */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                <Landmark className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-serif">The Storehouses</CardTitle>
+                <p className="text-xs text-muted-foreground">Strategic Asset Allocation</p>
+              </div>
+              <div className="ml-auto text-right">
+                <p className="text-2xl font-bold text-accent">{formatCurrency(totalStorehouses)}</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {STOREHOUSE_CONFIG.map(({ num, name, subtitle, icon: Icon }) => {
+              const accounts = storehouses.filter((s) => s.storehouse_number === num);
+              const total = accounts.reduce((sum, s) => sum + (Number(s.current_value) || 0), 0);
+              const targetTotal = accounts.reduce((sum, s) => sum + (Number(s.target_value) || 0), 0);
+              const pct = targetTotal > 0 ? Math.min((total / targetTotal) * 100, 100) : 0;
+
+              return (
+                <div key={num} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-accent" />
+                      <h4 className="text-sm font-medium text-foreground">{name}</h4>
+                      <span className="text-xs text-muted-foreground">· {subtitle}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">{formatCurrency(total)}</span>
+                  </div>
+                  {accounts.length > 0 ? (
+                    <>
+                      {targetTotal > 0 && (
+                        <div className="space-y-1">
+                          <Progress value={pct} className="h-1.5 bg-muted [&>div]:bg-accent" />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{Math.round(pct)}% funded</span>
+                            <span>Target: {formatCurrency(targetTotal)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {accounts.map((acc: any) => (
+                        <div
+                          key={acc.id}
+                          className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-foreground/80">
+                              {acc.label || acc.asset_type || acc.notes || "Account"}
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {formatCurrency(Number(acc.current_value) || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground pl-6">No accounts configured</p>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );
