@@ -524,6 +524,42 @@ export type Database = {
           },
         ]
       }
+      marketing_update_reads: {
+        Row: {
+          contact_id: string
+          id: string
+          read_at: string
+          update_id: string
+        }
+        Insert: {
+          contact_id: string
+          id?: string
+          read_at?: string
+          update_id: string
+        }
+        Update: {
+          contact_id?: string
+          id?: string
+          read_at?: string
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_update_reads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_update_reads_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_updates: {
         Row: {
           created_at: string

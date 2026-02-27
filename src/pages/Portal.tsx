@@ -8,14 +8,14 @@ import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
 import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { PortalTasks } from "@/components/portal/PortalTasks";
-import { PortalUpdates } from "@/components/portal/PortalUpdates";
+import { PortalUpdates, useUnreadUpdateCount } from "@/components/portal/PortalUpdates";
 import { PortalGeorgiaChat } from "@/components/portal/PortalGeorgiaChat";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff } from "lucide-react";
+import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff, Megaphone } from "lucide-react";
 import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 interface PortalData {
@@ -694,6 +694,10 @@ const Portal = () => {
                 <span className="hidden sm:inline">Action Items</span>
                 <span className="sm:hidden">Tasks</span>
               </TabsTrigger>
+              <TabsTrigger value="updates" className="flex-1 gap-1.5 relative">
+                <Megaphone className="h-4 w-4" />
+                Updates
+              </TabsTrigger>
               <TabsTrigger value="requests" className="flex-1 gap-1.5">
                 <ClipboardList className="h-4 w-4" />
                 Requests
@@ -711,14 +715,23 @@ const Portal = () => {
             {/* Action Items Tab */}
             <TabsContent value="tasks" className="mt-4">
               {isSelf ? (
-                <div className="space-y-8">
-                  <PortalUpdates governanceStatus={contact.governance_status} />
-                  <PortalTasks portalToken={portalToken} clientName={`${contact.first_name} ${contact.last_name || ""}`.trim()} />
-                </div>
+                <PortalTasks portalToken={portalToken} clientName={`${contact.first_name} ${contact.last_name || ""}`.trim()} />
               ) : (
                 <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
                   <CheckSquare className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground">Task view is only available for your own account.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Updates Tab */}
+            <TabsContent value="updates" className="mt-4">
+              {isSelf ? (
+                <PortalUpdates governanceStatus={contact.governance_status} contactId={contact.id} portalToken={portalToken} />
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                  <Megaphone className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Updates are only visible on your own view.</p>
                 </div>
               )}
             </TabsContent>
