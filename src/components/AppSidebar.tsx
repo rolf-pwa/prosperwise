@@ -19,6 +19,7 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeft,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -61,6 +62,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/families", label: "Families", icon: TreesIcon },
   { to: "/households", label: "Households", icon: Home },
+  { to: "/corporations", label: "Corporations", icon: Building2 },
   { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },

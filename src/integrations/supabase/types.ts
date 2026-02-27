@@ -143,6 +143,92 @@ export type Database = {
           },
         ]
       }
+      corporate_vineyard_accounts: {
+        Row: {
+          account_name: string
+          account_number: string | null
+          account_type: string
+          corporation_id: string
+          created_at: string
+          current_value: number | null
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number?: string | null
+          account_type?: string
+          corporation_id: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string | null
+          account_type?: string
+          corporation_id?: string
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_vineyard_accounts_corporation_id_fkey"
+            columns: ["corporation_id"]
+            isOneToOne: false
+            referencedRelation: "corporations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      corporations: {
+        Row: {
+          asana_project_url: string | null
+          corporation_type: Database["public"]["Enums"]["corporation_type"]
+          created_at: string
+          created_by: string
+          fiscal_year_end: string | null
+          id: string
+          jurisdiction: string | null
+          name: string
+          notes: string | null
+          sidedrawer_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          asana_project_url?: string | null
+          corporation_type?: Database["public"]["Enums"]["corporation_type"]
+          created_at?: string
+          created_by: string
+          fiscal_year_end?: string | null
+          id?: string
+          jurisdiction?: string | null
+          name: string
+          notes?: string | null
+          sidedrawer_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asana_project_url?: string | null
+          corporation_type?: Database["public"]["Enums"]["corporation_type"]
+          created_at?: string
+          created_by?: string
+          fiscal_year_end?: string | null
+          id?: string
+          jurisdiction?: string | null
+          name?: string
+          notes?: string | null
+          sidedrawer_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discovery_leads: {
         Row: {
           anxiety_anchor: string | null
@@ -653,6 +739,57 @@ export type Database = {
           },
         ]
       }
+      shareholders: {
+        Row: {
+          contact_id: string
+          corporation_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          ownership_percentage: number
+          role_title: string | null
+          share_class: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          corporation_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          ownership_percentage?: number
+          role_title?: string | null
+          share_class?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          corporation_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          ownership_percentage?: number
+          role_title?: string | null
+          share_class?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shareholders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shareholders_corporation_id_fkey"
+            columns: ["corporation_id"]
+            isOneToOne: false
+            referencedRelation: "corporations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sovereignty_audit_trail: {
         Row: {
           action_description: string
@@ -970,6 +1107,7 @@ export type Database = {
     }
     Enums: {
       charter_alignment: "aligned" | "misaligned" | "pending_review"
+      corporation_type: "opco" | "holdco" | "trust" | "partnership" | "other"
       family_role: "head_of_family" | "spouse" | "beneficiary" | "minor"
       fee_tier: "sovereign" | "legacy" | "dynasty"
       fiduciary_entity: "pws" | "pwa"
@@ -1104,6 +1242,7 @@ export const Constants = {
   public: {
     Enums: {
       charter_alignment: ["aligned", "misaligned", "pending_review"],
+      corporation_type: ["opco", "holdco", "trust", "partnership", "other"],
       family_role: ["head_of_family", "spouse", "beneficiary", "minor"],
       fee_tier: ["sovereign", "legacy", "dynasty"],
       fiduciary_entity: ["pws", "pwa"],
