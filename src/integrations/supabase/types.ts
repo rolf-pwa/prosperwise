@@ -143,6 +143,54 @@ export type Database = {
           },
         ]
       }
+      corporate_shareholders: {
+        Row: {
+          child_corporation_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          ownership_percentage: number
+          parent_corporation_id: string
+          share_class: string | null
+          updated_at: string
+        }
+        Insert: {
+          child_corporation_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          ownership_percentage?: number
+          parent_corporation_id: string
+          share_class?: string | null
+          updated_at?: string
+        }
+        Update: {
+          child_corporation_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          ownership_percentage?: number
+          parent_corporation_id?: string
+          share_class?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_shareholders_child_corporation_id_fkey"
+            columns: ["child_corporation_id"]
+            isOneToOne: false
+            referencedRelation: "corporations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_shareholders_parent_corporation_id_fkey"
+            columns: ["parent_corporation_id"]
+            isOneToOne: false
+            referencedRelation: "corporations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_vineyard_accounts: {
         Row: {
           account_name: string

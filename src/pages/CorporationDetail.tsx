@@ -44,6 +44,7 @@ import {
   Percent,
   Crown,
   ExternalLink,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,12 +77,25 @@ interface CorpAccount {
   notes: string | null;
 }
 
+interface CorpLink {
+  id: string;
+  child_corporation_id: string;
+  parent_corporation_id: string;
+  ownership_percentage: number;
+  share_class: string | null;
+  notes: string | null;
+  corp_name: string;
+  corp_type: string;
+}
+
 const CorporationDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [corp, setCorp] = useState<any>(null);
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [accounts, setAccounts] = useState<CorpAccount[]>([]);
+  const [subsidiaries, setSubsidiaries] = useState<CorpLink[]>([]);
+  const [parentCorps, setParentCorps] = useState<CorpLink[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Add shareholder dialog
@@ -97,6 +111,13 @@ const CorporationDetail = () => {
   const [newAccName, setNewAccName] = useState("");
   const [newAccType, setNewAccType] = useState("Portfolio");
   const [newAccValue, setNewAccValue] = useState("");
+
+  // Add subsidiary dialog
+  const [showAddSubsidiary, setShowAddSubsidiary] = useState(false);
+  const [allCorps, setAllCorps] = useState<any[]>([]);
+  const [selectedChildCorpId, setSelectedChildCorpId] = useState("");
+  const [corpOwnershipPct, setCorpOwnershipPct] = useState("0");
+  const [corpShareClass, setCorpShareClass] = useState("Common");
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -156,6 +177,42 @@ const CorporationDetail = () => {
       setShareholders([]);
     }
 
+    // Fetch corp-to-corp links (this corp as parent = subsidiaries, as child = parent corps)
+    const [subsRes, parentRes] = await Promise.all([
+      (supabase.from("corporate_shareholders" as any) as any).select("*").eq("parent_corporation_id", id),
+      (supabase.from("corporate_shareholders" as any) as any).select("*").eq("child_corporation_id", id),
+    ]);
+
+    const allCorpIds = new Set<string>();
+    ((subsRes.data || []) as any[]).forEach((s: any) => allCorpIds.add(s.child_corporation_id));
+    ((parentRes.data || []) as any[]).forEach((s: any) => allCorpIds.add(s.parent_corporation_id));
+
+    let corpNameMap: Record<string, any> = {};
+    if (allCorpIds.size > 0) {
+      const { data: corpNames } = await (supabase.from("corporations" as any) as any)
+        .select("id, name, corporation_type")
+        .in("id", Array.from(allCorpIds));
+      ((corpNames || []) as any[]).forEach((c: any) => { corpNameMap[c.id] = c; });
+    }
+
+    setSubsidiaries(
+      ((subsRes.data || []) as any[]).map((s: any) => ({
+        ...s,
+        ownership_percentage: Number(s.ownership_percentage),
+        corp_name: corpNameMap[s.child_corporation_id]?.name || "Unknown",
+        corp_type: corpNameMap[s.child_corporation_id]?.corporation_type || "",
+      }))
+    );
+
+    setParentCorps(
+      ((parentRes.data || []) as any[]).map((s: any) => ({
+        ...s,
+        ownership_percentage: Number(s.ownership_percentage),
+        corp_name: corpNameMap[s.parent_corporation_id]?.name || "Unknown",
+        corp_type: corpNameMap[s.parent_corporation_id]?.corporation_type || "",
+      }))
+    );
+
     setLoading(false);
   }, [id, navigate]);
 
@@ -204,6 +261,35 @@ const CorporationDetail = () => {
     const { error } = await (supabase.from("shareholders" as any) as any).delete().eq("id", shareholderId);
     if (error) toast.error("Failed to remove shareholder.");
     else { toast.success("Shareholder removed."); fetchData(); }
+  };
+
+  const openAddSubsidiary = async () => {
+    const { data } = await (supabase.from("corporations" as any) as any).select("id, name, corporation_type").order("name");
+    const existingIds = new Set([id, ...subsidiaries.map((s) => s.child_corporation_id)]);
+    setAllCorps((data || []).filter((c: any) => !existingIds.has(c.id)));
+    setSelectedChildCorpId("");
+    setCorpOwnershipPct("0");
+    setCorpShareClass("Common");
+    setShowAddSubsidiary(true);
+  };
+
+  const addSubsidiary = async () => {
+    if (!selectedChildCorpId || !id) return;
+    const { error } = await (supabase.from("corporate_shareholders" as any) as any)
+      .insert({
+        parent_corporation_id: id,
+        child_corporation_id: selectedChildCorpId,
+        ownership_percentage: Number(corpOwnershipPct) || 0,
+        share_class: corpShareClass || "Common",
+      });
+    if (error) toast.error("Failed to add subsidiary link.");
+    else { toast.success("Subsidiary linked."); setShowAddSubsidiary(false); fetchData(); }
+  };
+
+  const removeCorpLink = async (linkId: string) => {
+    const { error } = await (supabase.from("corporate_shareholders" as any) as any).delete().eq("id", linkId);
+    if (error) toast.error("Failed to remove link.");
+    else { toast.success("Link removed."); fetchData(); }
   };
 
   const addAccount = async () => {
@@ -330,7 +416,62 @@ const CorporationDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Corporate Vineyard */}
+          {/* Corporate Holdings (Subsidiaries this corp owns) */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <GitBranch className="h-5 w-5 text-accent" /> Subsidiaries
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={openAddSubsidiary} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Link
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {parentCorps.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Owned By</p>
+                  {parentCorps.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-2.5 mb-1">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <Link to={`/corporations/${p.parent_corporation_id}`} className="text-sm font-medium hover:text-accent transition-colors">
+                          {p.corp_name}
+                        </Link>
+                        <Badge variant="outline" className="text-[9px]">{TYPE_LABELS[p.corp_type] || p.corp_type}</Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{p.ownership_percentage}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {subsidiaries.length === 0 && parentCorps.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No corporate links.</p>
+              ) : subsidiaries.length === 0 ? null : (
+                <>
+                  {parentCorps.length > 0 && (
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Owns</p>
+                  )}
+                  {subsidiaries.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-accent" />
+                        <Link to={`/corporations/${s.child_corporation_id}`} className="text-sm font-medium hover:text-accent transition-colors">
+                          {s.corp_name}
+                        </Link>
+                        <Badge variant="outline" className="text-[9px]">{TYPE_LABELS[s.corp_type] || s.corp_type}</Badge>
+                        <span className="text-xs text-muted-foreground">{s.ownership_percentage}%</span>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeCorpLink(s.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -484,6 +625,44 @@ const CorporationDetail = () => {
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddAccount(false)}>Cancel</Button>
               <Button onClick={addAccount} disabled={!newAccName.trim()}>Add Account</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Subsidiary Dialog */}
+        <Dialog open={showAddSubsidiary} onOpenChange={setShowAddSubsidiary}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Link Subsidiary Corporation</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="text-sm font-medium">Corporation</label>
+                <Select value={selectedChildCorpId} onValueChange={setSelectedChildCorpId}>
+                  <SelectTrigger><SelectValue placeholder="Select a corporation…" /></SelectTrigger>
+                  <SelectContent>
+                    {allCorps.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({TYPE_LABELS[c.corporation_type] || c.corporation_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium">Ownership %</label>
+                  <Input type="number" min="0" max="100" value={corpOwnershipPct} onChange={(e) => setCorpOwnershipPct(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Share Class</label>
+                  <Input value={corpShareClass} onChange={(e) => setCorpShareClass(e.target.value)} placeholder="Common" />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddSubsidiary(false)}>Cancel</Button>
+              <Button onClick={addSubsidiary} disabled={!selectedChildCorpId}>Link Subsidiary</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
