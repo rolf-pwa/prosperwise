@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff, Megaphone } from "lucide-react";
+import { Grape, ScrollText, Clock, Calendar, FolderOpen, CheckSquare, ShieldCheck, ExternalLink, FileBarChart, Mail, Loader2, Home, Users, ChevronLeft, ArrowRight, Landmark, MessageCircle, Video, MapPin, ClipboardList, LogOut, Bell, BellOff, Megaphone, Building2 } from "lucide-react";
 import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 
 interface PortalData {
@@ -30,6 +30,7 @@ interface PortalData {
   household: any | null;
   household_members: any[];
   hierarchy?: any;
+  corporations?: any[];
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -350,7 +351,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, audit_trail, portal_requests, meetings, family, household, household_members, hierarchy } = data;
+  const { contact, vineyard_accounts, storehouses, audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
   const portalToken = token || data.portal_token || "";
   const hierarchyLevel = hierarchy?.level || "individual";
 
@@ -629,6 +630,58 @@ const Portal = () => {
               })
             }
           </div>
+
+          {/* Corporation cards */}
+          {corporations.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mt-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Corporate Entities</h3>
+              </div>
+              {corporations.map((corp: any) => {
+                const TYPE_LABELS: Record<string, string> = { opco: "Operating Co", holdco: "Holding Co", trust: "Trust", partnership: "Partnership", other: "Entity" };
+                return (
+                  <div
+                    key={corp.id}
+                    className="rounded-lg border border-border bg-card p-4 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                          <Building2 className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{corp.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {TYPE_LABELS[corp.corporation_type] || corp.corporation_type}
+                            {corp.jurisdiction ? ` · ${corp.jurisdiction}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-foreground">${(corp.total_assets || 0).toLocaleString()}</span>
+                    </div>
+                    {/* Shareholders in this household */}
+                    <div className="pl-11 space-y-0.5">
+                      {corp.shareholders.map((sh: any) => {
+                        const memberName = sh.contact_id === contact.id
+                          ? `${contact.first_name} ${contact.last_name || ""}`.trim()
+                          : (() => {
+                              const m = household_members.find((m: any) => m.id === sh.contact_id);
+                              return m ? `${m.first_name} ${m.last_name || ""}`.trim() : "Member";
+                            })();
+                        return (
+                          <p key={sh.contact_id} className="text-xs text-muted-foreground">
+                            {memberName} — {sh.ownership_percentage}% {sh.share_class || ""}
+                            {sh.role_title ? ` · ${sh.role_title}` : ""}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar: Household-Shared Territory */}
@@ -643,6 +696,7 @@ const Portal = () => {
             scopeLabel="Household Shared"
             portalToken={portalToken}
             onScopeChange={() => refreshData(portalToken)}
+            corporations={corporations}
           />
         </div>
       </div>
@@ -895,6 +949,7 @@ const Portal = () => {
             scopeLabel={isSelf ? "My Territory" : `${currentMember?.first_name || ""}'s Territory`}
             portalToken={portalToken}
             onScopeChange={() => refreshData(portalToken)}
+            corporations={corporations}
           />
 
           {/* Timeline — bottom of sidebar */}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Grape, Landmark, Castle, Sword, Wheat, Lock, Users, Home, Eye, EyeOff, Globe } from "lucide-react";
+import { Grape, Landmark, Castle, Sword, Wheat, Lock, Users, Home, Eye, EyeOff, Globe, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -49,6 +49,7 @@ interface Props {
   scopeLabel?: string;
   portalToken?: string;
   onScopeChange?: () => void;
+  corporations?: any[];
 }
 
 function ScopeBadge({
@@ -142,7 +143,7 @@ function ScopeBadge({
   );
 }
 
-export function PortalTerritory({ vineyardAccounts, storehouses, contact, family, household, householdMembers = [], scopeLabel, portalToken, onScopeChange }: Props) {
+export function PortalTerritory({ vineyardAccounts, storehouses, contact, family, household, householdMembers = [], scopeLabel, portalToken, onScopeChange, corporations = [] }: Props) {
   const isIndividualSelf = scopeLabel === "My Territory";
   
   // If scopeLabel is provided, assets are already pre-filtered by the parent; show all
@@ -152,10 +153,14 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
     : vineyardAccounts.filter((a: any) => a.visibility_scope !== "private");
   const privateAccountCount = vineyardAccounts.length - visibleAccounts.length;
 
+  // Corporate vineyard totals
+  const corpVineyardTotal = corporations.reduce((sum, corp) =>
+    sum + (corp.vineyard_accounts || []).reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0), 0);
+
   const totalVineyard = visibleAccounts.reduce(
     (sum: number, a: any) => sum + (Number(a.current_value) || 0),
     0
-  );
+  ) + corpVineyardTotal;
 
   const byType: Record<string, { accounts: any[]; total: number }> = {};
   visibleAccounts.forEach((a: any) => {
@@ -227,6 +232,47 @@ export function PortalTerritory({ vineyardAccounts, storehouses, contact, family
             ))
           ) : (
             <p className="text-sm text-muted-foreground">No accounts have been configured yet.</p>
+          )}
+          {/* Corporate Vineyard Accounts */}
+          {corporations.length > 0 && corporations.some(c => (c.vineyard_accounts || []).length > 0) && (
+            <>
+              <div className="border-t border-border pt-3 mt-2" />
+              <div className="flex items-center gap-2 mb-1">
+                <Building2 className="h-3.5 w-3.5 text-primary" />
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Corporate Holdings</h4>
+              </div>
+              {corporations.filter(c => (c.vineyard_accounts || []).length > 0).map((corp: any) => {
+                const corpTotal = (corp.vineyard_accounts || []).reduce((s: number, a: any) => s + (Number(a.current_value) || 0), 0);
+                // Find logged-in user's ownership percentage
+                const selfShare = (corp.shareholders || []).find((sh: any) => sh.contact_id === contact?.id);
+                const ownershipPct = selfShare?.ownership_percentage || 0;
+                const TYPE_LABELS: Record<string, string> = { opco: "OpCo", holdco: "HoldCo", trust: "Trust", partnership: "Partnership", other: "Entity" };
+                return (
+                  <div key={corp.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-foreground">{corp.name}</span>
+                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary border border-primary/20">
+                          {TYPE_LABELS[corp.corporation_type] || corp.corporation_type}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-foreground">${corpTotal.toLocaleString()}</span>
+                    </div>
+                    {ownershipPct > 0 && (
+                      <p className="text-[10px] text-muted-foreground">Your stake: {ownershipPct}% · ${Math.round(corpTotal * ownershipPct / 100).toLocaleString()}</p>
+                    )}
+                    {(corp.vineyard_accounts || []).map((acc: any) => (
+                      <div key={acc.id} className="rounded-lg bg-muted/50 px-4 py-2.5 border border-border">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-foreground/80">{acc.account_name}</span>
+                          <span className="text-sm font-medium text-foreground">${(Number(acc.current_value) || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </>
           )}
           {privateAccountCount > 0 && (
             <div className="flex items-center gap-2 rounded-lg border border-muted px-4 py-3 bg-muted/30">
