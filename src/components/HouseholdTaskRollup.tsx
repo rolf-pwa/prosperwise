@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckSquare, Clock, Loader2, AlertCircle, ChevronRight, Users } from "lucide-react";
+import { CheckSquare, Clock, Loader2, AlertCircle, ChevronRight, ChevronDown, Users } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -83,6 +83,7 @@ export function HouseholdTaskRollup({ members }: Props) {
   const [tasks, setTasks] = useState<TaskWithOwner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -244,10 +245,14 @@ export function HouseholdTaskRollup({ members }: Props) {
 
             {completedTasks.length > 0 && (
               <div className="pt-2">
-                <p className="text-xs text-muted-foreground font-medium mb-1.5">
+                <button
+                  onClick={() => setShowCompleted((prev) => !prev)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium hover:text-foreground transition-colors mb-1.5"
+                >
+                  {showCompleted ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   Completed ({completedTasks.length})
-                </p>
-                {completedTasks.slice(0, 5).map((task) => (
+                </button>
+                {showCompleted && completedTasks.slice(0, 5).map((task) => (
                   <div
                     key={task.gid}
                     className="flex items-center gap-3 rounded-lg px-4 py-2 opacity-50"
