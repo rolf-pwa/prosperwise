@@ -421,62 +421,6 @@ const ContactDetail = () => {
           </div>
         </div>
 
-        {/* ── 5-Phase Governance Stepper ── */}
-        <div className="rounded-xl border border-border bg-card px-6 py-4">
-          <div className="flex items-center justify-between">
-            {PHASES.map((phase, idx) => {
-              const isComplete = governancePhase > phase.num;
-              const isActive = governancePhase === phase.num;
-              return (
-                <div key={phase.num} className="flex flex-1 items-center">
-                  {/* Step */}
-                  <div className="flex flex-col items-center gap-1 min-w-0">
-                    <div
-                      className={[
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-all",
-                        isComplete
-                          ? "border-accent bg-accent text-accent-foreground"
-                          : isActive
-                          ? "border-accent bg-accent/15 text-accent"
-                          : "border-border bg-background text-muted-foreground",
-                      ].join(" ")}
-                    >
-                      {isComplete ? (
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      ) : (
-                        phase.num
-                      )}
-                    </div>
-                    <span
-                      className={[
-                        "text-[10px] font-medium text-center leading-tight whitespace-nowrap",
-                        isActive
-                          ? "text-accent"
-                          : isComplete
-                          ? "text-accent/70"
-                          : "text-muted-foreground",
-                      ].join(" ")}
-                    >
-                      {phase.label}
-                    </span>
-                  </div>
-                  {/* Connector */}
-                  {idx < PHASES.length - 1 && (
-                    <div
-                      className={[
-                        "h-[2px] flex-1 mx-2 rounded-full transition-all",
-                        governancePhase > phase.num ? "bg-accent/60" : "bg-border",
-                      ].join(" ")}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Content */}
           <div className="space-y-6 lg:col-span-2">
