@@ -640,59 +640,7 @@ const ContactDetail = () => {
                 )}
               </CardContent>
             </Card>
-            {/* Corporate Stakes */}
-            {corporateStakes.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-sanctuary-bronze" />
-                    Corporate Stakes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {corporateStakes.map((stake) => {
-                    const totalIndirect = stake.subsidiaries.reduce((s, sub) => s + sub.indirect_pro_rata, 0);
-                    const totalStake = stake.pro_rata + totalIndirect;
-                    return (
-                      <div key={stake.corporation_id} className="rounded-md border p-3 space-y-2">
-                        <Link
-                          to={`/corporations/${stake.corporation_id}`}
-                          className="flex items-center justify-between hover:underline"
-                        >
-                          <span className="font-medium text-sm">{stake.corporation_name}</span>
-                          <Badge variant="outline" className="text-[10px] uppercase">{stake.corporation_type}</Badge>
-                        </Link>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{stake.ownership_percentage}% {stake.share_class || "Common"}</span>
-                          {stake.role_title && <span>{stake.role_title}</span>}
-                        </div>
-                        {/* Direct pro-rata */}
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Direct Stake</span>
-                          <span className="font-medium">${stake.pro_rata.toLocaleString()}</span>
-                        </div>
-                        {/* Indirect via subsidiaries */}
-                        {stake.subsidiaries.map((sub) => (
-                          <div key={sub.child_id} className="flex justify-between text-xs pl-3 border-l-2 border-border">
-                            <Link to={`/corporations/${sub.child_id}`} className="text-muted-foreground hover:underline">
-                              via {sub.child_name} ({stake.ownership_percentage}% × {sub.parent_ownership_pct}%)
-                            </Link>
-                            <span className="font-medium">${sub.indirect_pro_rata.toLocaleString()}</span>
-                          </div>
-                        ))}
-                        {/* Total */}
-                        {totalStake > 0 && (
-                          <div className="flex justify-between text-xs font-semibold border-t pt-1 border-border">
-                            <span>Sovereign Stake</span>
-                            <span className="text-sanctuary-bronze">${totalStake.toLocaleString()}</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            )}
+            
             {/* Tasks */}
             <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
             {/* Vineyard & Storehouses */}
@@ -801,6 +749,57 @@ const ContactDetail = () => {
                     </div>
                   }
                 />
+
+                {/* Corporate Stakes inside Vineyard */}
+                {corporateStakes.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5 text-sanctuary-bronze" />
+                        <h4 className="text-xs font-semibold uppercase tracking-wider">Corporate Holdings</h4>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums">
+                        ${corporateStakes.reduce((sum, s) => {
+                          const indirect = s.subsidiaries.reduce((si, sub) => si + sub.indirect_pro_rata, 0);
+                          return sum + s.pro_rata + indirect;
+                        }, 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      {corporateStakes.map((stake) => {
+                        const totalIndirect = stake.subsidiaries.reduce((s, sub) => s + sub.indirect_pro_rata, 0);
+                        const totalStake = stake.pro_rata + totalIndirect;
+                        return (
+                          <div key={stake.corporation_id} className="rounded-md bg-muted/40 px-3 py-2 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <Link
+                                to={`/corporations/${stake.corporation_id}`}
+                                className="font-medium text-sm hover:underline flex items-center gap-1.5"
+                              >
+                                {stake.corporation_name}
+                                <Badge variant="outline" className="text-[9px] uppercase">{stake.corporation_type}</Badge>
+                              </Link>
+                              <span className="text-xs font-medium tabular-nums">${totalStake.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                              <span>{stake.ownership_percentage}% {stake.share_class || "Common"}</span>
+                              {stake.role_title && <span>· {stake.role_title}</span>}
+                              <span className="ml-auto">Direct: ${stake.pro_rata.toLocaleString()}</span>
+                            </div>
+                            {stake.subsidiaries.map((sub) => (
+                              <div key={sub.child_id} className="flex justify-between text-[10px] pl-3 border-l-2 border-border">
+                                <Link to={`/corporations/${sub.child_id}`} className="text-muted-foreground hover:underline">
+                                  via {sub.child_name} ({stake.ownership_percentage}% × {sub.parent_ownership_pct}%)
+                                </Link>
+                                <span className="font-medium">${sub.indirect_pro_rata.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Storehouse Containers */}
                 {[1, 2, 3, 4].map((num) => {
