@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseLocalDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,7 @@ function getTaskStatus(task: AsanaTask): { label: string; variant: "default" | "
   const section = task.memberships?.[0]?.section?.name?.toLowerCase() || "";
   if (section.includes("review") || section.includes("awaiting")) return { label: "Awaiting Review", variant: "outline" };
   if (section.includes("progress") || section.includes("doing")) return { label: "In Progress", variant: "default" };
-  if (task.due_on && new Date(task.due_on) < new Date()) return { label: "Overdue", variant: "destructive" };
+  if (task.due_on && parseLocalDate(task.due_on) < new Date()) return { label: "Overdue", variant: "destructive" };
   return { label: "Open", variant: "outline" };
 }
 
@@ -136,8 +137,8 @@ export function HouseholdTaskRollup({ members }: Props) {
 
         merged.sort((a, b) => {
           if (a.completed !== b.completed) return a.completed ? 1 : -1;
-          const da = a.due_on ? new Date(a.due_on).getTime() : Infinity;
-          const db = b.due_on ? new Date(b.due_on).getTime() : Infinity;
+          const da = a.due_on ? parseLocalDate(a.due_on).getTime() : Infinity;
+          const db = b.due_on ? parseLocalDate(b.due_on).getTime() : Infinity;
           return da - db;
         });
 
@@ -231,7 +232,7 @@ export function HouseholdTaskRollup({ members }: Props) {
                       </Link>
                       {task.due_on && (
                         <span className="text-[10px] text-muted-foreground">
-                          Due {new Date(task.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          Due {parseLocalDate(task.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
                       )}
                     </div>
