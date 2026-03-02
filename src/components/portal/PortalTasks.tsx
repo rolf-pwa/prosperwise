@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseLocalDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckSquare, Clock, AlertCircle, ChevronRight, Loader2, Sparkles, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,7 @@ function getTaskStatus(task: AsanaTask): { label: string; variant: "default" | "
     return { label: "Awaiting Review", variant: "outline" };
   if (sectionName.includes("progress") || sectionName.includes("doing"))
     return { label: "In Progress", variant: "default" };
-  if (task.due_on && new Date(task.due_on) < new Date())
+  if (task.due_on && parseLocalDate(task.due_on) < new Date())
     return { label: "Overdue", variant: "destructive" };
   return { label: "Open", variant: "outline" };
 }
@@ -69,7 +70,7 @@ function TaskCard({ task, onClick }: { task: AsanaTask; onClick: () => void }) {
           <p className="text-sm font-medium text-foreground truncate">{task.name}</p>
           {task.due_on && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Due: {new Date(task.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              Due: {parseLocalDate(task.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </p>
           )}
         </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink } from "lucide-react";
 import { format, parseISO, isToday, formatDistanceToNow } from "date-fns";
+import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -309,7 +310,7 @@ function AsanaMyTasksWidget() {
             if (!a.due_on && !b.due_on) return 0;
             if (!a.due_on) return 1;
             if (!b.due_on) return -1;
-            return new Date(a.due_on).getTime() - new Date(b.due_on).getTime();
+            return parseLocalDate(a.due_on).getTime() - parseLocalDate(b.due_on).getTime();
           });
           setTasks(sorted);
         }
@@ -383,7 +384,7 @@ function AsanaMyTasksWidget() {
                       )}
                       {task.due_on && (
                         <span className="text-xs text-muted-foreground">
-                          Due: {format(new Date(task.due_on), "MMM d")}
+                          Due: {format(parseLocalDate(task.due_on), "MMM d")}
                         </span>
                       )}
                       {task.modified_at && (

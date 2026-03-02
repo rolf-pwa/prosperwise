@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { parseLocalDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -138,7 +139,7 @@ function getTaskStatus(task: AsanaTask): {
     return { label: "Awaiting Review", variant: "outline" };
   if (section.includes("progress") || section.includes("doing"))
     return { label: "In Progress", variant: "default" };
-  if (task.due_on && new Date(task.due_on) < new Date())
+  if (task.due_on && parseLocalDate(task.due_on) < new Date())
     return { label: "Overdue", variant: "destructive" };
   return { label: "Open", variant: "outline" };
 }
@@ -409,7 +410,7 @@ function TaskRow({
           {task.due_on && !completed && (
             <p className="text-[10px] text-muted-foreground mt-0.5">
               Due{" "}
-              {new Date(task.due_on).toLocaleDateString("en-US", {
+              {parseLocalDate(task.due_on).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
               })}
@@ -890,7 +891,7 @@ function SubtaskDetailRow({
           {subtask.due_on && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
-              <span>Due {new Date(subtask.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              <span>Due {parseLocalDate(subtask.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
             </div>
           )}
 
@@ -1253,7 +1254,7 @@ function TaskDetailPanel({
           ) : (
             <span>
               {task.due_on
-                ? new Date(task.due_on).toLocaleDateString("en-US", {
+                ? parseLocalDate(task.due_on).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
