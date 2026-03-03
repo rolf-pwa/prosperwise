@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Megaphone, Plus, Loader2, Trash2, ExternalLink } from "lucide-react";
+import { Megaphone, Plus, Loader2, Trash2, ExternalLink, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -16,7 +19,21 @@ interface MarketingUpdate {
   title: string;
   url: string;
   target_governance_status: string;
+  target_contact_ids: string[];
+  target_household_ids: string[];
   created_at: string;
+}
+
+interface ContactOption {
+  id: string;
+  full_name: string;
+  household_id: string | null;
+}
+
+interface HouseholdOption {
+  id: string;
+  label: string;
+  family_name: string;
 }
 
 export function MarketingUpdateWidget() {
@@ -28,43 +45,94 @@ export function MarketingUpdateWidget() {
   const [target, setTarget] = useState("all");
   const [publishing, setPublishing] = useState(false);
 
+  // For specific targeting
+  const [contacts, setContacts] = useState<ContactOption[]>([]);
+  const [households, setHouseholds] = useState<HouseholdOption[]>([]);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [selectedHouseholdIds, setSelectedHouseholdIds] = useState<string[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
+  const [householdSearch, setHouseholdSearch] = useState("");
+
   const fetchUpdates = async () => {
     const { data } = await supabase
       .from("marketing_updates")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(10);
-    setUpdates((data as any[]) || []);
+    setUpdates(((data as any[]) || []).map((u) => ({
+      ...u,
+      target_contact_ids: u.target_contact_ids || [],
+      target_household_ids: u.target_household_ids || [],
+    })));
     setLoading(false);
   };
 
+  const fetchOptions = async () => {
+    const [contactsRes, householdsRes] = await Promise.all([
+      supabase.from("contacts").select("id, full_name, household_id").order("full_name"),
+      supabase.from("households").select("id, label, family_id").order("label"),
+    ]);
+
+    setContacts((contactsRes.data as any[]) || []);
+
+    // Enrich households with family name
+    if (householdsRes.data && householdsRes.data.length > 0) {
+      const familyIds = [...new Set((householdsRes.data as any[]).map((h) => h.family_id))];
+      const { data: families } = await supabase.from("families").select("id, name").in("id", familyIds);
+      const familyMap = new Map((families || []).map((f) => [f.id, f.name]));
+      setHouseholds(
+        (householdsRes.data as any[]).map((h) => ({
+          id: h.id,
+          label: h.label,
+          family_name: familyMap.get(h.family_id) || "",
+        }))
+      );
+    }
+  };
+
   useEffect(() => { fetchUpdates(); }, []);
+  useEffect(() => {
+    if (open) fetchOptions();
+  }, [open]);
 
   const handlePublish = async () => {
     if (!title.trim() || !url.trim()) return;
+    if (target === "specific_contacts" && selectedContactIds.length === 0) {
+      toast.error("Select at least one contact");
+      return;
+    }
+    if (target === "specific_households" && selectedHouseholdIds.length === 0) {
+      toast.error("Select at least one household");
+      return;
+    }
+
     setPublishing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("marketing_updates").insert({
+      const insertPayload: any = {
         title: title.trim(),
         url: url.trim(),
-        target_governance_status: target,
+        target_governance_status: ["all", "sovereign", "stabilization"].includes(target) ? target : "all",
         published_by: user.id,
-      } as any);
+        target_contact_ids: target === "specific_contacts" ? selectedContactIds : [],
+        target_household_ids: target === "specific_households" ? selectedHouseholdIds : [],
+      };
 
+      const { error } = await supabase.from("marketing_updates").insert(insertPayload as any);
       if (error) throw error;
 
-      // Send notifications to targeted contacts
       await supabase.functions.invoke("notify-portal-request", {
-        body: { notify_type: "marketing_update", title: title.trim(), url: url.trim(), target_governance_status: target },
+        body: { notify_type: "marketing_update", title: title.trim(), url: url.trim(), target_governance_status: insertPayload.target_governance_status, target_contact_ids: insertPayload.target_contact_ids, target_household_ids: insertPayload.target_household_ids },
       });
 
       toast.success("Update published & notifications sent");
       setTitle("");
       setUrl("");
       setTarget("all");
+      setSelectedContactIds([]);
+      setSelectedHouseholdIds([]);
       setOpen(false);
       fetchUpdates();
     } catch (e: any) {
@@ -83,7 +151,39 @@ export function MarketingUpdateWidget() {
     all: "All Contacts",
     sovereign: "Sovereign",
     stabilization: "Stabilization",
+    specific_contacts: "Specific Contacts",
+    specific_households: "Specific Households",
   };
+
+  const getUpdateAudienceLabel = (u: MarketingUpdate) => {
+    if (u.target_contact_ids?.length > 0) {
+      return `${u.target_contact_ids.length} Contact${u.target_contact_ids.length > 1 ? "s" : ""}`;
+    }
+    if (u.target_household_ids?.length > 0) {
+      return `${u.target_household_ids.length} Household${u.target_household_ids.length > 1 ? "s" : ""}`;
+    }
+    return TARGET_LABELS[u.target_governance_status] || u.target_governance_status;
+  };
+
+  const toggleContact = (id: string) => {
+    setSelectedContactIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
+  };
+
+  const toggleHousehold = (id: string) => {
+    setSelectedHouseholdIds((prev) =>
+      prev.includes(id) ? prev.filter((h) => h !== id) : [...prev, id]
+    );
+  };
+
+  const filteredContacts = contacts.filter((c) =>
+    c.full_name.toLowerCase().includes(contactSearch.toLowerCase())
+  );
+
+  const filteredHouseholds = households.filter((h) =>
+    `${h.family_name} ${h.label}`.toLowerCase().includes(householdSearch.toLowerCase())
+  );
 
   return (
     <Card>
@@ -114,7 +214,7 @@ export function MarketingUpdateWidget() {
               </div>
               <div className="space-y-2">
                 <Label>Audience</Label>
-                <Select value={target} onValueChange={setTarget}>
+                <Select value={target} onValueChange={(v) => { setTarget(v); setSelectedContactIds([]); setSelectedHouseholdIds([]); }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -122,9 +222,108 @@ export function MarketingUpdateWidget() {
                     <SelectItem value="all">All Contacts</SelectItem>
                     <SelectItem value="sovereign">Sovereign Only</SelectItem>
                     <SelectItem value="stabilization">Stabilization Only</SelectItem>
+                    <SelectItem value="specific_contacts">Specific Contacts</SelectItem>
+                    <SelectItem value="specific_households">Specific Households</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {target === "specific_contacts" && (
+                <div className="space-y-2">
+                  <Label>Select Contacts</Label>
+                  {selectedContactIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {selectedContactIds.map((id) => {
+                        const c = contacts.find((x) => x.id === id);
+                        return (
+                          <Badge key={id} variant="secondary" className="text-xs gap-1">
+                            {c?.full_name || id}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => toggleContact(id)} />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-muted-foreground">
+                        {selectedContactIds.length > 0 ? `${selectedContactIds.length} selected` : "Choose contacts…"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-2" align="start">
+                      <Input
+                        placeholder="Search contacts…"
+                        value={contactSearch}
+                        onChange={(e) => setContactSearch(e.target.value)}
+                        className="mb-2 h-8 text-sm"
+                      />
+                      <ScrollArea className="h-48">
+                        {filteredContacts.map((c) => (
+                          <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded cursor-pointer">
+                            <Checkbox
+                              checked={selectedContactIds.includes(c.id)}
+                              onCheckedChange={() => toggleContact(c.id)}
+                            />
+                            {c.full_name}
+                          </label>
+                        ))}
+                        {filteredContacts.length === 0 && (
+                          <p className="text-xs text-muted-foreground px-2 py-4 text-center">No contacts found</p>
+                        )}
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
+              {target === "specific_households" && (
+                <div className="space-y-2">
+                  <Label>Select Households</Label>
+                  {selectedHouseholdIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {selectedHouseholdIds.map((id) => {
+                        const h = households.find((x) => x.id === id);
+                        return (
+                          <Badge key={id} variant="secondary" className="text-xs gap-1">
+                            {h ? `${h.family_name} – ${h.label}` : id}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => toggleHousehold(id)} />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-muted-foreground">
+                        {selectedHouseholdIds.length > 0 ? `${selectedHouseholdIds.length} selected` : "Choose households…"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-2" align="start">
+                      <Input
+                        placeholder="Search households…"
+                        value={householdSearch}
+                        onChange={(e) => setHouseholdSearch(e.target.value)}
+                        className="mb-2 h-8 text-sm"
+                      />
+                      <ScrollArea className="h-48">
+                        {filteredHouseholds.map((h) => (
+                          <label key={h.id} className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted rounded cursor-pointer">
+                            <Checkbox
+                              checked={selectedHouseholdIds.includes(h.id)}
+                              onCheckedChange={() => toggleHousehold(h.id)}
+                            />
+                            <span>{h.family_name} – {h.label}</span>
+                          </label>
+                        ))}
+                        {filteredHouseholds.length === 0 && (
+                          <p className="text-xs text-muted-foreground px-2 py-4 text-center">No households found</p>
+                        )}
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
               <Button onClick={handlePublish} disabled={publishing || !title.trim() || !url.trim()} className="w-full">
                 {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Megaphone className="mr-2 h-4 w-4" />}
                 Publish & Notify
@@ -151,7 +350,7 @@ export function MarketingUpdateWidget() {
                   </a>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-muted-foreground">{format(new Date(u.created_at), "MMM d, yyyy")}</span>
-                    <Badge variant="outline" className="text-[10px]">{TARGET_LABELS[u.target_governance_status] || u.target_governance_status}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{getUpdateAudienceLabel(u)}</Badge>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleDelete(u.id)}>
