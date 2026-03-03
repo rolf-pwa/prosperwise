@@ -62,6 +62,7 @@ const ContactForm = () => {
     sidedrawer_url: "",
     asana_url: "",
     ia_financial_url: "",
+    just_wealth_url: "",
     google_drive_url: "",
     charter_url: "",
   });
@@ -126,6 +127,7 @@ const ContactForm = () => {
         sidedrawer_url: data.sidedrawer_url || "",
         asana_url: data.asana_url || "",
         ia_financial_url: data.ia_financial_url || "",
+        just_wealth_url: (data as any).just_wealth_url || "",
         google_drive_url: data.google_drive_url || "",
         charter_url: (data as any).charter_url || "",
       });
@@ -237,6 +239,7 @@ const ContactForm = () => {
       sidedrawer_url: form.sidedrawer_url || null,
       asana_url: form.asana_url || null,
       ia_financial_url: form.ia_financial_url || null,
+      just_wealth_url: form.just_wealth_url || null,
       google_drive_url: form.google_drive_url || null,
       charter_url: form.charter_url || null,
     };
@@ -559,10 +562,14 @@ const ContactForm = () => {
               <Label>Asana URL</Label>
               <Input value={form.asana_url} onChange={(e) => update("asana_url", e.target.value)} placeholder="https://..." />
             </div>
-             <div>
-               <Label>IA Financial URL</Label>
-               <Input value={form.ia_financial_url} onChange={(e) => update("ia_financial_url", e.target.value)} placeholder="https://..." />
-             </div>
+              <div>
+                <Label>IA Financial URL</Label>
+                <Input value={form.ia_financial_url} onChange={(e) => update("ia_financial_url", e.target.value)} placeholder="https://..." />
+              </div>
+              <div>
+                <Label>Just Wealth URL</Label>
+                <Input value={form.just_wealth_url} onChange={(e) => update("just_wealth_url", e.target.value)} placeholder="https://..." />
+              </div>
              <div>
                <Label>Google Drive Folder URL</Label>
                <Input value={form.google_drive_url} onChange={(e) => update("google_drive_url", e.target.value)} placeholder="https://drive.google.com/..." />

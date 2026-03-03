@@ -39,6 +39,7 @@ export type Database = {
           ia_financial_url: string | null
           id: string
           is_minor: boolean
+          just_wealth_url: string | null
           last_name: string | null
           lawyer_firm: string | null
           lawyer_name: string | null
@@ -76,6 +77,7 @@ export type Database = {
           ia_financial_url?: string | null
           id?: string
           is_minor?: boolean
+          just_wealth_url?: string | null
           last_name?: string | null
           lawyer_firm?: string | null
           lawyer_name?: string | null
@@ -113,6 +115,7 @@ export type Database = {
           ia_financial_url?: string | null
           id?: string
           is_minor?: boolean
+          just_wealth_url?: string | null
           last_name?: string | null
           lawyer_firm?: string | null
           lawyer_name?: string | null

@@ -948,6 +948,7 @@ const Portal = () => {
               {[
                 { href: contact.sidedrawer_url, label: "My Documents", icon: FolderOpen },
                 { href: "https://clients.ia.ca/account/login", label: "My Accounts", icon: Landmark },
+                { href: (contact as any).just_wealth_url, label: "Just Wealth", icon: ShieldCheck },
               ].map(({ href, label, icon: Icon }) => (
                 <a
                   key={label}
