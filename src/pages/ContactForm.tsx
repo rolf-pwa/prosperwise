@@ -453,107 +453,12 @@ const ContactForm = () => {
           </CardContent>
         </Card>
 
-        {/* Statement Upload */}
-        <StatementUpload
-          files={statementFiles}
-          onFilesChange={setStatementFiles}
-          isIngesting={isIngesting}
-        />
-
-        {/* The Vineyard */}
+        {/* Resources */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">The Vineyard — Entity Data</CardTitle>
+            <CardTitle className="text-lg">Resources</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>EBITDA ($)</Label>
-              <Input type="number" value={form.vineyard_ebitda} onChange={(e) => update("vineyard_ebitda", e.target.value)} />
-            </div>
-            <div>
-              <Label>Operating Income ($)</Label>
-              <Input type="number" value={form.vineyard_operating_income} onChange={(e) => update("vineyard_operating_income", e.target.value)} />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>Balance Sheet Summary</Label>
-              <Textarea value={form.vineyard_balance_sheet_summary} onChange={(e) => update("vineyard_balance_sheet_summary", e.target.value)} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Household & Resources */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Household & Resources</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2 space-y-3">
-              <Label>Household Members</Label>
-
-              {/* Linked members list */}
-              {householdMembers.length > 0 && (
-                <div className="space-y-1">
-                  {householdMembers.map((m, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                      <span className="flex-1 text-sm font-medium">{m.display_name}</span>
-                      {m.relationship_label && (
-                        <Badge variant="secondary" className="text-xs">{m.relationship_label}</Badge>
-                      )}
-                      {m.isNew && (
-                        <Badge variant="outline" className="text-xs">New contact</Badge>
-                      )}
-                      <button type="button" onClick={() => removeMember(i)} className="text-muted-foreground hover:text-destructive">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Search / Add */}
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="relative sm:col-span-2">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search existing contacts..."
-                    value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
-                    onFocus={() => memberSearch.length >= 2 && setShowResults(true)}
-                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
-                    className="pl-9"
-                  />
-                  {showResults && (
-                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
-                      {searchResults.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted"
-                          onMouseDown={() => addExistingMember(c)}
-                        >
-                          {c.first_name} {c.last_name}
-                        </button>
-                      ))}
-                      {memberSearch.length >= 2 && (
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 border-t px-3 py-2 text-sm text-sanctuary-bronze hover:bg-muted"
-                          onMouseDown={() => addNewMember(memberSearch)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Create "{memberSearch}" as new contact
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <Input
-                  placeholder="Relationship (e.g. Spouse)"
-                  value={memberLabel}
-                  onChange={(e) => setMemberLabel(e.target.value)}
-                />
-              </div>
-            </div>
             <div>
               <Label>SideDrawer URL</Label>
               <Input value={form.sidedrawer_url} onChange={(e) => update("sidedrawer_url", e.target.value)} placeholder="https://..." />
@@ -562,22 +467,101 @@ const ContactForm = () => {
               <Label>Asana URL</Label>
               <Input value={form.asana_url} onChange={(e) => update("asana_url", e.target.value)} placeholder="https://..." />
             </div>
-              <div>
-                <Label>IA Financial URL</Label>
-                <Input value={form.ia_financial_url} onChange={(e) => update("ia_financial_url", e.target.value)} placeholder="https://..." />
+            <div>
+              <Label>IA Financial URL</Label>
+              <Input value={form.ia_financial_url} onChange={(e) => update("ia_financial_url", e.target.value)} placeholder="https://..." />
+            </div>
+            <div>
+              <Label>Just Wealth URL</Label>
+              <Input value={form.just_wealth_url} onChange={(e) => update("just_wealth_url", e.target.value)} placeholder="https://..." />
+            </div>
+            <div>
+              <Label>Google Drive Folder URL</Label>
+              <Input value={form.google_drive_url} onChange={(e) => update("google_drive_url", e.target.value)} placeholder="https://drive.google.com/..." />
+            </div>
+            <div>
+              <Label>Charter URL (SideDrawer)</Label>
+              <Input value={form.charter_url} onChange={(e) => update("charter_url", e.target.value)} placeholder="https://app.sidedrawer.com/..." />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Statement Upload */}
+        <StatementUpload
+          files={statementFiles}
+          onFilesChange={setStatementFiles}
+          isIngesting={isIngesting}
+        />
+
+        {/* Household Members */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Household Members</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Linked members list */}
+            {householdMembers.length > 0 && (
+              <div className="space-y-1">
+                {householdMembers.map((m, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                    <span className="flex-1 text-sm font-medium">{m.display_name}</span>
+                    {m.relationship_label && (
+                      <Badge variant="secondary" className="text-xs">{m.relationship_label}</Badge>
+                    )}
+                    {m.isNew && (
+                      <Badge variant="outline" className="text-xs">New contact</Badge>
+                    )}
+                    <button type="button" onClick={() => removeMember(i)} className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
-              <div>
-                <Label>Just Wealth URL</Label>
-                <Input value={form.just_wealth_url} onChange={(e) => update("just_wealth_url", e.target.value)} placeholder="https://..." />
+            )}
+
+            {/* Search / Add */}
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="relative sm:col-span-2">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search existing contacts..."
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  onFocus={() => memberSearch.length >= 2 && setShowResults(true)}
+                  onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                  className="pl-9"
+                />
+                {showResults && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
+                    {searchResults.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="flex w-full items-center px-3 py-2 text-sm hover:bg-muted"
+                        onMouseDown={() => addExistingMember(c)}
+                      >
+                        {c.first_name} {c.last_name}
+                      </button>
+                    ))}
+                    {memberSearch.length >= 2 && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 border-t px-3 py-2 text-sm text-sanctuary-bronze hover:bg-muted"
+                        onMouseDown={() => addNewMember(memberSearch)}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Create "{memberSearch}" as new contact
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-             <div>
-               <Label>Google Drive Folder URL</Label>
-               <Input value={form.google_drive_url} onChange={(e) => update("google_drive_url", e.target.value)} placeholder="https://drive.google.com/..." />
-             </div>
-             <div>
-               <Label>Charter URL (SideDrawer)</Label>
-               <Input value={form.charter_url} onChange={(e) => update("charter_url", e.target.value)} placeholder="https://app.sidedrawer.com/..." />
-             </div>
+              <Input
+                placeholder="Relationship (e.g. Spouse)"
+                value={memberLabel}
+                onChange={(e) => setMemberLabel(e.target.value)}
+              />
+            </div>
           </CardContent>
         </Card>
 
