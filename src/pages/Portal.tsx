@@ -991,7 +991,7 @@ const Portal = () => {
                       className="flex items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
                     >
                       <Landmark className="h-3.5 w-3.5" />
-                      Just Wealth
+                      Just Wealth (Coming Soon)
                       <ExternalLink className="ml-auto h-3 w-3 opacity-40" />
                     </a>
                   </div>
