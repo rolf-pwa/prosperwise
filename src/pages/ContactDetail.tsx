@@ -23,6 +23,7 @@ import {
   Users,
   Bell,
   BellOff,
+  Landmark,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 import { toast } from "sonner";
@@ -306,6 +307,7 @@ const ContactDetail = () => {
     { label: "Google Drive", url: contact.google_drive_url, icon: FolderOpen },
     { label: "Asana", url: contact.asana_url, icon: CheckSquare },
     { label: "IA Financial", url: contact.ia_financial_url, icon: ShieldCheck },
+    { label: "Just Wealth", url: (contact as any).just_wealth_url, icon: Landmark },
   ];
 
   // Derive current governance phase (1–5)
