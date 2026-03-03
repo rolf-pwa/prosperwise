@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 interface Props {
   governanceStatus: string;
   contactId: string;
+  householdId: string | null;
   portalToken: string;
 }
 
@@ -15,10 +16,12 @@ interface Update {
   title: string;
   url: string;
   target_governance_status: string;
+  target_contact_ids: string[];
+  target_household_ids: string[];
   created_at: string;
 }
 
-export function PortalUpdates({ governanceStatus, contactId, portalToken }: Props) {
+export function PortalUpdates({ governanceStatus, contactId, householdId, portalToken }: Props) {
   const [updates, setUpdates] = useState<Update[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -37,9 +40,15 @@ export function PortalUpdates({ governanceStatus, contactId, portalToken }: Prop
           .eq("contact_id", contactId) as any,
       ]);
 
-      const allUpdates = ((updatesRes.data as any[]) || []).filter(
-        (u) => u.target_governance_status === "all" || u.target_governance_status === governanceStatus
-      );
+      const allUpdates = ((updatesRes.data as any[]) || []).filter((u) => {
+        const tContactIds: string[] = u.target_contact_ids || [];
+        const tHouseholdIds: string[] = u.target_household_ids || [];
+        // If targeted to specific contacts or households, check membership
+        if (tContactIds.length > 0) return tContactIds.includes(contactId);
+        if (tHouseholdIds.length > 0) return householdId ? tHouseholdIds.includes(householdId) : false;
+        // Otherwise fall back to governance status filter
+        return u.target_governance_status === "all" || u.target_governance_status === governanceStatus;
+      });
       setUpdates(allUpdates);
 
       const readSet = new Set<string>(
@@ -140,24 +149,30 @@ export function PortalUpdates({ governanceStatus, contactId, portalToken }: Prop
 }
 
 /** Returns count of unread updates for badge use */
-export function useUnreadUpdateCount(governanceStatus: string, contactId: string) {
+export function useUnreadUpdateCount(governanceStatus: string, contactId: string, householdId?: string | null) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     if (!contactId) return;
     (async () => {
       const [updatesRes, readsRes] = await Promise.all([
-        supabase.from("marketing_updates").select("id").limit(100),
+        supabase.from("marketing_updates").select("id, target_governance_status, target_contact_ids, target_household_ids").limit(100),
         (supabase.from("marketing_update_reads" as any) as any)
           .select("update_id")
           .eq("contact_id", contactId),
       ]);
 
-      const allIds = ((updatesRes.data as any[]) || []).map((u) => u.id);
+      const filtered = ((updatesRes.data as any[]) || []).filter((u) => {
+        const tContactIds: string[] = u.target_contact_ids || [];
+        const tHouseholdIds: string[] = u.target_household_ids || [];
+        if (tContactIds.length > 0) return tContactIds.includes(contactId);
+        if (tHouseholdIds.length > 0) return householdId ? tHouseholdIds.includes(householdId) : false;
+        return u.target_governance_status === "all" || u.target_governance_status === governanceStatus;
+      });
       const readSet = new Set(((readsRes.data as any[]) || []).map((r: any) => r.update_id));
-      setCount(allIds.filter((id) => !readSet.has(id)).length);
+      setCount(filtered.filter((u) => !readSet.has(u.id)).length);
     })();
-  }, [governanceStatus, contactId]);
+  }, [governanceStatus, contactId, householdId]);
 
   return count;
 }

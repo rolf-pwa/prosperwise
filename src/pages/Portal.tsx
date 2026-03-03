@@ -65,7 +65,7 @@ const Portal = () => {
   const [accountsOpen, setAccountsOpen] = useState(false);
 
   // Unread update count — must be called unconditionally (Rules of Hooks)
-  const unreadUpdateCount = useUnreadUpdateCount(data?.contact?.governance_status ?? "", data?.contact?.id ?? "");
+  const unreadUpdateCount = useUnreadUpdateCount(data?.contact?.governance_status ?? "", data?.contact?.id ?? "", data?.contact?.household_id ?? null);
 
   // OTP login state
   const [email, setEmail] = useState("");
@@ -822,7 +822,7 @@ const Portal = () => {
             {/* Updates Tab */}
             <TabsContent value="updates" className="mt-4">
               {isSelf ? (
-                <PortalUpdates governanceStatus={contact.governance_status} contactId={contact.id} portalToken={portalToken} />
+                <PortalUpdates governanceStatus={contact.governance_status} contactId={contact.id} householdId={contact.household_id} portalToken={portalToken} />
               ) : (
                 <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
                   <Megaphone className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
