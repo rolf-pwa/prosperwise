@@ -120,13 +120,19 @@ async function buildHierarchy(supabase: any, contact: any) {
   const householdId = contact.household_id;
 
   if (role === "head_of_family" && familyId) {
-    const { data: households } = await supabase
+    // Fetch all households, respecting hof_visible flag
+    const { data: allHouseholds } = await supabase
       .from("households")
-      .select("id, label, address")
+      .select("id, label, address, hof_visible")
       .eq("family_id", familyId)
       .order("label");
 
-    const householdIds = (households || []).map((h: any) => h.id);
+    // HoF can always see their own household; others only if hof_visible is true
+    const households = (allHouseholds || []).filter((h: any) =>
+      h.id === householdId || h.hof_visible === true
+    );
+
+    const householdIds = households.map((h: any) => h.id);
 
     const { data: allMembers } = await supabase
       .from("contacts")
@@ -136,10 +142,12 @@ async function buildHierarchy(supabase: any, contact: any) {
     const memberIds = (allMembers || []).map((m: any) => m.id);
     const assets = await fetchAssetsForContacts(supabase, memberIds);
 
-    const householdsWithMembers = (households || []).map((hh: any) => {
+    const householdsWithMembers = households.map((hh: any) => {
       const members = (allMembers || []).filter((m: any) => m.household_id === hh.id);
       return {
-        ...hh,
+        id: hh.id,
+        label: hh.label,
+        address: hh.address,
         members: members.map((m: any) => ({
           ...m,
           vineyard_accounts: assets.vineyard.filter((v: any) => v.contact_id === m.id),
@@ -151,7 +159,8 @@ async function buildHierarchy(supabase: any, contact: any) {
     return { level: "family", households: householdsWithMembers };
   }
 
-  if ((role === "head_of_family" || role === "spouse") && householdId) {
+  // head_of_household sees their household members (same as spouse-level access)
+  if ((role === "head_of_family" || role === "head_of_household" || role === "spouse") && householdId) {
     const { data: members } = await supabase
       .from("contacts")
       .select("id, first_name, last_name, family_role, is_minor, email")
