@@ -374,43 +374,7 @@ const ContactForm = () => {
           </CardContent>
         </Card>
 
-        {/* Governance & Fiduciary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Governance & Fiduciary</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Governance Status</Label>
-              <Select value={form.governance_status} onValueChange={(v) => update("governance_status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="stabilization">Stabilization Phase (Pre-Charter)</SelectItem>
-                  <SelectItem value="sovereign">Sovereign Phase (Ratified Charter)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Fiduciary Entity</Label>
-              <Select value={form.fiduciary_entity} onValueChange={(v) => update("fiduciary_entity", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pws">PWS — Strategy / Architect</SelectItem>
-                  <SelectItem value="pwa">PWA — Advisors / Builder</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="quiet_period_start_date">Quiet Period Start Date</Label>
-              <Input
-                id="quiet_period_start_date"
-                type="date"
-                value={form.quiet_period_start_date}
-                onChange={(e) => update("quiet_period_start_date", e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Governance is managed at the household level */}
 
         {/* Professional Team */}
         <Card>

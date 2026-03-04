@@ -7,6 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { Progress } from "@/components/ui/progress";
 import { HouseholdTaskRollup } from "@/components/HouseholdTaskRollup";
@@ -292,6 +301,75 @@ const HouseholdDetail = () => {
             </Card>
           )}
         </div>
+
+        {/* Governance & Fiduciary — household level */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Governance & Fiduciary</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Governance Status</Label>
+              <Select
+                value={household.governance_status || "stabilization"}
+                onValueChange={async (v) => {
+                  await supabase.from("households").update({ governance_status: v as any }).eq("id", household.id);
+                  // Cascade to all contacts in this household
+                  const memberIds = members.map((m: any) => m.id);
+                  if (memberIds.length > 0) {
+                    await supabase.from("contacts").update({ governance_status: v as any }).in("id", memberIds);
+                  }
+                  setHousehold({ ...household, governance_status: v });
+                  toast.success("Governance status updated for household");
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stabilization">Stabilization Phase (Pre-Charter)</SelectItem>
+                  <SelectItem value="sovereign">Sovereign Phase (Ratified Charter)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Fiduciary Entity</Label>
+              <Select
+                value={household.fiduciary_entity || "pws"}
+                onValueChange={async (v) => {
+                  await supabase.from("households").update({ fiduciary_entity: v as any }).eq("id", household.id);
+                  const memberIds = members.map((m: any) => m.id);
+                  if (memberIds.length > 0) {
+                    await supabase.from("contacts").update({ fiduciary_entity: v as any }).in("id", memberIds);
+                  }
+                  setHousehold({ ...household, fiduciary_entity: v });
+                  toast.success("Fiduciary entity updated for household");
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pws">PWS — Strategy / Architect</SelectItem>
+                  <SelectItem value="pwa">PWA — Advisors / Builder</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Quiet Period Start Date</Label>
+              <Input
+                type="date"
+                value={household.quiet_period_start_date || ""}
+                onChange={async (e) => {
+                  const val = e.target.value || null;
+                  await supabase.from("households").update({ quiet_period_start_date: val }).eq("id", household.id);
+                  const memberIds = members.map((m: any) => m.id);
+                  if (memberIds.length > 0) {
+                    await supabase.from("contacts").update({ quiet_period_start_date: val }).in("id", memberIds);
+                  }
+                  setHousehold({ ...household, quiet_period_start_date: val });
+                  toast.success("Quiet period updated for household");
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Members */}
         <Card>
