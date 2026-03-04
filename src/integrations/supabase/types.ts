@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      cashflow_analyses: {
+        Row: {
+          burn_rate: Json | null
+          category_breakdown: Json | null
+          created_at: string
+          created_by: string
+          file_paths: string[] | null
+          household_id: string
+          id: string
+          liquidity_status: Json | null
+          logic_trace: string | null
+          outliers: Json | null
+          period_end: string | null
+          period_start: string | null
+          proposed_tasks: Json | null
+          raw_report: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          burn_rate?: Json | null
+          category_breakdown?: Json | null
+          created_at?: string
+          created_by: string
+          file_paths?: string[] | null
+          household_id: string
+          id?: string
+          liquidity_status?: Json | null
+          logic_trace?: string | null
+          outliers?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          proposed_tasks?: Json | null
+          raw_report?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          burn_rate?: Json | null
+          category_breakdown?: Json | null
+          created_at?: string
+          created_by?: string
+          file_paths?: string[] | null
+          household_id?: string
+          id?: string
+          liquidity_status?: Json | null
+          logic_trace?: string | null
+          outliers?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          proposed_tasks?: Json | null
+          raw_report?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashflow_analyses_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           accountant_firm: string | null
