@@ -23,6 +23,9 @@ interface AnalysisResult {
   burn_rate: { monthly_average: number; fixed_baseline: number; variable_leakage: number };
   liquidity_status: { wall_months: number; status: string; liquid_assets: number; gap_to_sovereignty: number };
   category_breakdown: Record<string, number>;
+  total_inflows: number;
+  total_outflows: number;
+  net_cashflow: number;
   outliers: Array<{ date: string; description: string; amount: number; category: string; flag_reason: string }>;
   internal_transfers_neutralized: number;
   proposed_tasks: Array<{ title: string; phase: string; description: string }>;
@@ -158,6 +161,9 @@ export function CashflowAnalyst({ householdId, householdName, liquidAssets }: Ca
       period_start: a.period_start || "",
       period_end: a.period_end || "",
       internal_transfers_neutralized: 0,
+      total_inflows: 0,
+      total_outflows: 0,
+      net_cashflow: 0,
     });
   }
 
@@ -437,36 +443,78 @@ export function CashflowAnalyst({ householdId, householdName, liquidAssets }: Ca
           {displayResult.category_breakdown && Object.keys(displayResult.category_breakdown).length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Category Breakdown (12-Month Total)</CardTitle>
+                <CardTitle className="text-sm font-medium">Category Breakdown — Annual Totals</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  {/* Inflows Section */}
                   {Object.entries(displayResult.category_breakdown)
-                    .filter(([_, v]) => v !== 0)
-                    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
-                    .map(([cat, amount]) => {
-                      const total = Object.values(displayResult.category_breakdown!)
-                        .filter(v => v < 0)
-                        .reduce((s, v) => s + Math.abs(v), 0);
-                      const pct = total > 0 ? (Math.abs(amount) / total) * 100 : 0;
-                      const isIncome = amount > 0;
-                      return (
-                        <div key={cat} className="space-y-1">
-                          <div className="flex items-center justify-between text-sm">
+                    .filter(([_, v]) => v > 0)
+                    .sort(([, a], [, b]) => b - a)
+                    .length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Inflows</p>
+                      {Object.entries(displayResult.category_breakdown)
+                        .filter(([_, v]) => v > 0)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([cat, amount]) => (
+                          <div key={cat} className="flex items-center justify-between text-sm">
                             <span className="text-foreground">{cat}</span>
-                            <span className={`font-medium ${isIncome ? "text-emerald-600" : "text-foreground"}`}>
-                              {formatCurrency(amount)}
-                            </span>
+                            <span className="font-medium text-emerald-600">+{formatCurrency(amount)}</span>
                           </div>
-                          {!isIncome && (
-                            <div className="flex items-center gap-2">
-                              <Progress value={pct} className="h-1.5 flex-1" />
-                              <span className="text-[10px] text-muted-foreground w-10 text-right">{pct.toFixed(0)}%</span>
-                            </div>
-                          )}
+                        ))}
+                      {displayResult.total_inflows > 0 && (
+                        <div className="flex items-center justify-between text-sm border-t border-border pt-1">
+                          <span className="font-semibold text-foreground">Total Inflows</span>
+                          <span className="font-bold text-emerald-600">+{formatCurrency(displayResult.total_inflows)}</span>
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
+                  )}
+
+                  {/* Outflows Section */}
+                  {Object.entries(displayResult.category_breakdown)
+                    .filter(([_, v]) => v < 0)
+                    .length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-red-700 uppercase tracking-wider mt-2">Outflows</p>
+                      {(() => {
+                        const outflows = Object.entries(displayResult.category_breakdown)
+                          .filter(([_, v]) => v < 0)
+                          .sort(([, a], [, b]) => a - b);
+                        const totalOut = outflows.reduce((s, [, v]) => s + Math.abs(v), 0);
+                        return outflows.map(([cat, amount]) => {
+                          const pct = totalOut > 0 ? (Math.abs(amount) / totalOut) * 100 : 0;
+                          return (
+                            <div key={cat} className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-foreground">{cat}</span>
+                                <span className="font-medium text-foreground">{formatCurrency(amount)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Progress value={pct} className="h-1.5 flex-1" />
+                                <span className="text-[10px] text-muted-foreground w-10 text-right">{pct.toFixed(0)}%</span>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                      {displayResult.total_outflows !== 0 && (
+                        <div className="flex items-center justify-between text-sm border-t border-border pt-1">
+                          <span className="font-semibold text-foreground">Total Outflows</span>
+                          <span className="font-bold text-foreground">{formatCurrency(displayResult.total_outflows)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Net Cashflow */}
+                  <div className="flex items-center justify-between text-sm border-t-2 border-border pt-2 mt-2">
+                    <span className="font-bold text-foreground">Net Cashflow</span>
+                    <span className={`text-lg font-bold ${(displayResult.net_cashflow || 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {(displayResult.net_cashflow || 0) >= 0 ? "+" : ""}{formatCurrency(displayResult.net_cashflow || 0)}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
