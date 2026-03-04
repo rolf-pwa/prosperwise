@@ -927,6 +927,7 @@ const Families = () => {
                 className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
                 <option value="head_of_family">Head of Family</option>
+                <option value="head_of_household">Head of Household</option>
                 <option value="spouse">Spouse</option>
                 <option value="beneficiary">Beneficiary</option>
                 <option value="minor">Minor</option>
