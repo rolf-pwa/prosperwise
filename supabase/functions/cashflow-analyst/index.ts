@@ -22,15 +22,21 @@ Standardize all dates to ISO-8601 and all amounts to a single Inflow(+)/Outflow(
 Identify and neutralize 'Internal Transfers.' If an outflow from one account matches an inflow to another account within a 3-day window for the same amount, mark both as INTERNAL_TRANSFER and exclude from Burn Rate calculation.
 
 ## Phase 3: Categorization
-Categorize transactions into: Housing, Utilities, Groceries, Transport, Lifestyle, Debt Service, Income, Internal Transfer, Other.
+Categorize transactions into these EXPENSE categories: Housing, Utilities, Groceries, Transport, Lifestyle, Debt Service, Other.
+Categorize transactions into these INCOME categories: Employment, Investment Income, Government Benefits, Business Income, Rental Income, Other Income.
 Keywords:
 - Housing: Mortgage, Rent, Property Tax, BC Hydro, Fortis
 - Lifestyle: Netflix, Spotify, Restaurant, LCBO, Uber, Amazon
 - Groceries: SafeWay, Save-On, Whole Foods, Loblaws, Costco, Superstore
 - Transport: Chevron, Shell, ICBC, Parking, Transit
-- Income: Deposit, Payroll, Dividends, CRA, Transfer In
 - Utilities: Hydro, Gas, Internet, Phone, Shaw, Telus, Rogers
 - Debt Service: Loan, Interest, Credit Card Payment (when not internal transfer)
+- Employment: Payroll, Salary, Direct Deposit, Pay
+- Investment Income: Dividends, Interest Earned, Capital Gains, Distribution
+- Government Benefits: CRA, GST Credit, Child Benefit, CCB, OAS, CPP, EI
+- Business Income: Invoice, Consulting, Revenue
+- Rental Income: Rent Received, Tenant
+- Other Income: Refund, Rebate, Insurance Claim, Gift
 
 Identify 'The Outliers': Flag any single transaction exceeding 20% of the monthly average outflow.
 
@@ -61,8 +67,13 @@ Return ONLY valid JSON with this exact structure:
     "Transport": number,
     "Lifestyle": number,
     "Debt Service": number,
-    "Income": number (annual total, positive for inflows),
-    "Other": number
+    "Other": number,
+    "Employment": number (annual total, positive for inflows),
+    "Investment Income": number,
+    "Government Benefits": number,
+    "Business Income": number,
+    "Rental Income": number,
+    "Other Income": number
   },
   "total_inflows": number (sum of all positive/income transactions for the period),
   "total_outflows": number (sum of all negative/expense transactions for the period, as a negative number),
