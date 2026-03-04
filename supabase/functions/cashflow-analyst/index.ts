@@ -55,15 +55,18 @@ Return ONLY valid JSON with this exact structure:
     "gap_to_sovereignty": number
   },
   "category_breakdown": {
-    "Housing": number,
+    "Housing": number (annual total, negative for outflows),
     "Utilities": number,
     "Groceries": number,
     "Transport": number,
     "Lifestyle": number,
     "Debt Service": number,
-    "Income": number,
+    "Income": number (annual total, positive for inflows),
     "Other": number
   },
+  "total_inflows": number (sum of all positive/income transactions for the period),
+  "total_outflows": number (sum of all negative/expense transactions for the period, as a negative number),
+  "net_cashflow": number (total_inflows + total_outflows; positive = surplus, negative = deficit),
   "outliers": [
     { "date": "YYYY-MM-DD", "description": "string", "amount": number, "category": "string", "flag_reason": "string" }
   ],
@@ -77,6 +80,7 @@ Return ONLY valid JSON with this exact structure:
 }
 
 Green = 6+ months coverage, Yellow = 3-6 months, Red = <3 months.
+IMPORTANT: All category_breakdown values must be ANNUAL TOTALS for the full period, NOT monthly averages. Use negative numbers for outflow categories and positive numbers for income. Include total_inflows, total_outflows, and net_cashflow as top-level fields.
 Do NOT include markdown fences. Return ONLY the JSON object.`;
 
 Deno.serve(async (req) => {
