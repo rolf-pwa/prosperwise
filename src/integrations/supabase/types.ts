@@ -497,27 +497,36 @@ export type Database = {
           address: string | null
           created_at: string
           family_id: string
+          fiduciary_entity: Database["public"]["Enums"]["fiduciary_entity"]
+          governance_status: Database["public"]["Enums"]["governance_status"]
           hof_visible: boolean
           id: string
           label: string
+          quiet_period_start_date: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           created_at?: string
           family_id: string
+          fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
+          governance_status?: Database["public"]["Enums"]["governance_status"]
           hof_visible?: boolean
           id?: string
           label?: string
+          quiet_period_start_date?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           created_at?: string
           family_id?: string
+          fiduciary_entity?: Database["public"]["Enums"]["fiduciary_entity"]
+          governance_status?: Database["public"]["Enums"]["governance_status"]
           hof_visible?: boolean
           id?: string
           label?: string
+          quiet_period_start_date?: string | null
           updated_at?: string
         }
         Relationships: [
