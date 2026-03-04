@@ -22,21 +22,26 @@ Standardize all dates to ISO-8601 and all amounts to a single Inflow(+)/Outflow(
 Identify and neutralize 'Internal Transfers.' If an outflow from one account matches an inflow to another account within a 3-day window for the same amount, mark both as INTERNAL_TRANSFER and exclude from Burn Rate calculation.
 
 ## Phase 3: Categorization
-Categorize transactions into these EXPENSE categories: Housing, Utilities, Groceries, Transport, Lifestyle, Debt Service, Other.
-Categorize transactions into these INCOME categories: Employment, Investment Income, Government Benefits, Business Income, Rental Income, Other Income.
-Keywords:
-- Housing: Mortgage, Rent, Property Tax, BC Hydro, Fortis
-- Lifestyle: Netflix, Spotify, Restaurant, LCBO, Uber, Amazon
+CRITICAL RULE: Every single positive/inflow transaction MUST be categorized into one of the INCOME categories below. Do NOT leave any inflow uncategorized or lump them into expense categories. If the source CSV already has category labels, USE them to inform your classification.
+
+EXPENSE categories (outflows, negative amounts): Housing, Utilities, Groceries, Transport, Lifestyle, Debt Service, Other.
+INCOME categories (inflows, positive amounts): Employment, Investment Income, Government Benefits, Business Income, Rental Income, Other Income.
+
+Keyword hints (non-exhaustive — use your judgment for any transaction not matching these):
+- Housing: Mortgage, Rent, Property Tax, BC Hydro, Fortis, Strata
+- Lifestyle: Netflix, Spotify, Restaurant, LCBO, Uber, Amazon, Entertainment
 - Groceries: SafeWay, Save-On, Whole Foods, Loblaws, Costco, Superstore
-- Transport: Chevron, Shell, ICBC, Parking, Transit
+- Transport: Chevron, Shell, ICBC, Parking, Transit, Gas Station
 - Utilities: Hydro, Gas, Internet, Phone, Shaw, Telus, Rogers
 - Debt Service: Loan, Interest, Credit Card Payment (when not internal transfer)
-- Employment: Payroll, Salary, Direct Deposit, Pay
-- Investment Income: Dividends, Interest Earned, Capital Gains, Distribution
-- Government Benefits: CRA, GST Credit, Child Benefit, CCB, OAS, CPP, EI
-- Business Income: Invoice, Consulting, Revenue
-- Rental Income: Rent Received, Tenant
-- Other Income: Refund, Rebate, Insurance Claim, Gift
+- Employment: Payroll, Salary, Direct Deposit, Pay, Wages, Employer
+- Investment Income: Dividends, Interest Earned, Capital Gains, Distribution, Yield, Fund, ETF, DRIP, T3, T5, ROC
+- Government Benefits: CRA, GST Credit, Child Benefit, CCB, OAS, CPP, EI, CERB, CWB, GIS
+- Business Income: Invoice, Consulting, Revenue, Client Payment, Professional Fee
+- Rental Income: Rent Received, Tenant, Rental
+- Other Income: Refund, Rebate, Insurance Claim, Gift, Reimbursement, Settlement
+
+IMPORTANT: If the CSV contains a "Category" column or similar label that identifies a transaction as investment income, dividends, interest, etc., you MUST respect that categorization. Do not override source categories with generic labels.
 
 Identify 'The Outliers': Flag any single transaction exceeding 20% of the monthly average outflow.
 
@@ -92,6 +97,7 @@ Return ONLY valid JSON with this exact structure:
 
 Green = 6+ months coverage, Yellow = 3-6 months, Red = <3 months.
 IMPORTANT: All category_breakdown values must be ANNUAL TOTALS for the full period, NOT monthly averages. Use negative numbers for outflow categories and positive numbers for income. Include total_inflows, total_outflows, and net_cashflow as top-level fields.
+CRITICAL: You MUST categorize ALL inflows into the correct income category. If a transaction is clearly investment income (dividends, interest, distributions, capital gains), it MUST appear under "Investment Income", NOT under "Employment" or "Other Income". Review EVERY positive transaction and assign the most accurate income category. Zero values are acceptable for unused categories but do NOT omit any category key.
 Do NOT include markdown fences. Return ONLY the JSON object.`;
 
 Deno.serve(async (req) => {
