@@ -579,7 +579,7 @@ const Portal = () => {
               ...members.filter((m: any) => m.id !== contact.id).map((m: any) => ({ ...m, _isSelf: false })),
             ]
               .sort((a: any, b: any) => {
-                const order: Record<string, number> = { head_of_family: 0, spouse: 1, beneficiary: 2, minor: 3 };
+                const order: Record<string, number> = { head_of_family: 0, head_of_household: 1, spouse: 2, beneficiary: 3, minor: 4 };
                 return (order[a.family_role] ?? 4) - (order[b.family_role] ?? 4);
               })
               .map((m: any) => {
@@ -926,7 +926,7 @@ const Portal = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {[...household_members].sort((a: any, b: any) => {
-                        const order: Record<string, number> = { head_of_family: 0, spouse: 1, beneficiary: 2, minor: 3 };
+                        const order: Record<string, number> = { head_of_family: 0, head_of_household: 1, spouse: 2, beneficiary: 3, minor: 4 };
                         return (order[a.family_role] ?? 4) - (order[b.family_role] ?? 4);
                       }).map((m: any) => (
                         <span key={m.id} className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground border border-border">

@@ -497,6 +497,7 @@ export type Database = {
           address: string | null
           created_at: string
           family_id: string
+          hof_visible: boolean
           id: string
           label: string
           updated_at: string
@@ -505,6 +506,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           family_id: string
+          hof_visible?: boolean
           id?: string
           label?: string
           updated_at?: string
@@ -513,6 +515,7 @@ export type Database = {
           address?: string | null
           created_at?: string
           family_id?: string
+          hof_visible?: boolean
           id?: string
           label?: string
           updated_at?: string
@@ -1228,7 +1231,12 @@ export type Database = {
     Enums: {
       charter_alignment: "aligned" | "misaligned" | "pending_review"
       corporation_type: "opco" | "holdco" | "trust" | "partnership" | "other"
-      family_role: "head_of_family" | "spouse" | "beneficiary" | "minor"
+      family_role:
+        | "head_of_family"
+        | "spouse"
+        | "beneficiary"
+        | "minor"
+        | "head_of_household"
       fee_tier: "sovereign" | "legacy" | "dynasty"
       fiduciary_entity: "pws" | "pwa"
       governance_status: "stabilization" | "sovereign"
@@ -1363,7 +1371,13 @@ export const Constants = {
     Enums: {
       charter_alignment: ["aligned", "misaligned", "pending_review"],
       corporation_type: ["opco", "holdco", "trust", "partnership", "other"],
-      family_role: ["head_of_family", "spouse", "beneficiary", "minor"],
+      family_role: [
+        "head_of_family",
+        "spouse",
+        "beneficiary",
+        "minor",
+        "head_of_household",
+      ],
       fee_tier: ["sovereign", "legacy", "dynasty"],
       fiduciary_entity: ["pws", "pwa"],
       governance_status: ["stabilization", "sovereign"],

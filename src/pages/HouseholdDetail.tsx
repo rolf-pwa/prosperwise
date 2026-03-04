@@ -5,6 +5,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { Progress } from "@/components/ui/progress";
 import { HouseholdTaskRollup } from "@/components/HouseholdTaskRollup";
@@ -28,6 +30,7 @@ import {
 
 const ROLE_ICONS: Record<string, typeof Crown> = {
   head_of_family: Crown,
+  head_of_household: Home,
   spouse: Shield,
   beneficiary: User,
   minor: Baby,
@@ -35,6 +38,7 @@ const ROLE_ICONS: Record<string, typeof Crown> = {
 
 const ROLE_LABELS: Record<string, string> = {
   head_of_family: "Head of Family",
+  head_of_household: "Head of Household",
   spouse: "Spouse",
   beneficiary: "Beneficiary",
   minor: "Minor",
@@ -216,11 +220,26 @@ const HouseholdDetail = () => {
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-foreground">
-              {formatCurrency(totalVineyard + totalStorehouses + totalCorpAssets)}
-            </p>
-            <p className="text-xs text-muted-foreground">Total Assets</p>
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-right">
+              <p className="text-2xl font-bold text-foreground">
+                {formatCurrency(totalVineyard + totalStorehouses + totalCorpAssets)}
+              </p>
+              <p className="text-xs text-muted-foreground">Total Assets</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="hof-visible" className="text-xs text-muted-foreground cursor-pointer">
+                HoF Visible
+              </Label>
+              <Switch
+                id="hof-visible"
+                checked={household.hof_visible ?? true}
+                onCheckedChange={async (checked) => {
+                  await supabase.from("households").update({ hof_visible: checked }).eq("id", household.id);
+                  setHousehold({ ...household, hof_visible: checked });
+                }}
+              />
+            </div>
           </div>
         </div>
 
