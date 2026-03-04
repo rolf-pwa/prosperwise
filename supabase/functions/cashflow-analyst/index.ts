@@ -1,0 +1,213 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const SYSTEM_PROMPT = `You are the Household Cashflow Analyst for ProsperWise. Your objective is to extract the 'True Burn Rate' from raw financial data.
+
+## Phase 1: Ingestion & Mapping
+Utilize the following header mapping to identify columns from Canadian bank CSV exports:
+- RBC: "Transaction Date" → date, "Description 1" → description, "CAD$" → amount
+- TD: "Date" → date, "Description" → description, "Amount" → amount (may have separate Debit/Credit columns; merge them)
+- Scotiabank: "Date" → date, "Description" → description, "Amount" → amount
+- BMO: "Posting Date" → date, "Description" → description, "Amount" → amount
+- CIBC: "Date" → date, "Description" → description, "Debit"/"Credit" → amount (use -Debit or +Credit)
+- American Express: "Date" → date, "Description" → description, "Amount" → amount (payments are negative, spend is positive — invert)
+Standardize all dates to ISO-8601 and all amounts to a single Inflow(+)/Outflow(-) convention.
+
+## Phase 2: Normalization (The Transfer Firewall)
+Identify and neutralize 'Internal Transfers.' If an outflow from one account matches an inflow to another account within a 3-day window for the same amount, mark both as INTERNAL_TRANSFER and exclude from Burn Rate calculation.
+
+## Phase 3: Categorization
+Categorize transactions into: Housing, Utilities, Groceries, Transport, Lifestyle, Debt Service, Income, Internal Transfer, Other.
+Keywords:
+- Housing: Mortgage, Rent, Property Tax, BC Hydro, Fortis
+- Lifestyle: Netflix, Spotify, Restaurant, LCBO, Uber, Amazon
+- Groceries: SafeWay, Save-On, Whole Foods, Loblaws, Costco, Superstore
+- Transport: Chevron, Shell, ICBC, Parking, Transit
+- Income: Deposit, Payroll, Dividends, CRA, Transfer In
+- Utilities: Hydro, Gas, Internet, Phone, Shaw, Telus, Rogers
+- Debt Service: Loan, Interest, Credit Card Payment (when not internal transfer)
+
+Identify 'The Outliers': Flag any single transaction exceeding 20% of the monthly average outflow.
+
+## Phase 4: Sovereign Analysis
+- The Liquidity Wall: Calculate how many months of 'Fixed Burn' (Housing + Utilities + Debt Service) are covered by current liquid assets (provided separately).
+- The Anxiety Anchor: Match spending patterns against the client's stated Anxiety Anchor if provided.
+
+## Output Format
+Return ONLY valid JSON with this exact structure:
+{
+  "period_start": "YYYY-MM-DD",
+  "period_end": "YYYY-MM-DD",
+  "burn_rate": {
+    "monthly_average": number,
+    "fixed_baseline": number,
+    "variable_leakage": number
+  },
+  "liquidity_status": {
+    "wall_months": number,
+    "status": "Red" | "Yellow" | "Green",
+    "liquid_assets": number,
+    "gap_to_sovereignty": number
+  },
+  "category_breakdown": {
+    "Housing": number,
+    "Utilities": number,
+    "Groceries": number,
+    "Transport": number,
+    "Lifestyle": number,
+    "Debt Service": number,
+    "Income": number,
+    "Other": number
+  },
+  "outliers": [
+    { "date": "YYYY-MM-DD", "description": "string", "amount": number, "category": "string", "flag_reason": "string" }
+  ],
+  "internal_transfers_neutralized": number,
+  "proposed_tasks": [
+    { "title": "string", "phase": "C" | "D" | "E", "description": "string" }
+  ],
+  "logic_trace": "string",
+  "executive_summary": "string",
+  "anxiety_anchor_findings": "string or null"
+}
+
+Green = 6+ months coverage, Yellow = 3-6 months, Red = <3 months.
+Do NOT include markdown fences. Return ONLY the JSON object.`;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing auth header");
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authErr } = await userClient.auth.getUser();
+    if (authErr || !user) throw new Error("Unauthorized");
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { householdId, filePaths, householdName, liquidAssets, anxietyAnchor } = await req.json();
+    if (!householdId || !filePaths?.length) throw new Error("Missing householdId or filePaths");
+
+    // Download and concatenate all CSV files
+    const csvContents: string[] = [];
+    for (const fp of filePaths) {
+      const { data: fileData, error: dlErr } = await adminClient.storage
+        .from("cashflow-uploads")
+        .download(fp);
+      if (dlErr || !fileData) throw new Error("Failed to download file: " + fp + " " + dlErr?.message);
+      const text = await fileData.text();
+      csvContents.push(`--- FILE: ${fp} ---\n${text}`);
+    }
+
+    const allCsvData = csvContents.join("\n\n");
+
+    // Build the user prompt
+    let userPrompt = `Analyze the following CSV transaction data for the "${householdName || "Unknown"}" household.\n\n`;
+    if (liquidAssets !== undefined && liquidAssets !== null) {
+      userPrompt += `Current Liquid Assets (Cash, HISA, Short-term GICs): $${Number(liquidAssets).toLocaleString()}\n`;
+    }
+    if (anxietyAnchor) {
+      userPrompt += `Client's Anxiety Anchor: "${anxietyAnchor}"\n`;
+    }
+    userPrompt += `\nRAW CSV DATA:\n${allCsvData}`;
+
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${lovableApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.1,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const status = aiResponse.status;
+      const errText = await aiResponse.text();
+      if (status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("AI analysis failed: " + errText);
+    }
+
+    const aiResult = await aiResponse.json();
+    const rawContent = aiResult.choices?.[0]?.message?.content || "";
+
+    // Clean markdown fences
+    const jsonStr = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      throw new Error("Failed to parse AI response as JSON: " + jsonStr.slice(0, 300));
+    }
+
+    // Save the analysis to the database
+    const { data: analysis, error: insertErr } = await adminClient
+      .from("cashflow_analyses")
+      .insert({
+        household_id: householdId,
+        created_by: user.id,
+        status: "complete",
+        period_start: parsed.period_start || null,
+        period_end: parsed.period_end || null,
+        burn_rate: parsed.burn_rate || {},
+        liquidity_status: parsed.liquidity_status || {},
+        category_breakdown: parsed.category_breakdown || {},
+        outliers: parsed.outliers || [],
+        proposed_tasks: parsed.proposed_tasks || [],
+        logic_trace: parsed.logic_trace || null,
+        raw_report: rawContent,
+        file_paths: filePaths,
+      })
+      .select("id")
+      .single();
+
+    if (insertErr) throw new Error("Failed to save analysis: " + insertErr.message);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        analysisId: analysis?.id,
+        result: parsed,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("cashflow-analyst error:", err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

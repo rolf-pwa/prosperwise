@@ -35,6 +35,7 @@ import {
   ArrowLeft,
   MapPin,
   Building2,
+  BarChart3,
 } from "lucide-react";
 
 const ROLE_ICONS: Record<string, typeof Crown> = {
@@ -402,6 +403,22 @@ const HouseholdDetail = () => {
                 <p className="text-sm text-muted-foreground col-span-full">No members in this household.</p>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Cashflow Analyst Quick Link */}
+        <Card>
+          <CardContent className="py-4">
+            <Link
+              to={`/workbench?household=${id}`}
+              className="flex items-center gap-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-4 py-3 hover:bg-primary/10 transition-colors"
+            >
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Cashflow Analyst</p>
+                <p className="text-xs text-muted-foreground">Upload CSV exports to analyze the True Burn Rate</p>
+              </div>
+            </Link>
           </CardContent>
         </Card>
 

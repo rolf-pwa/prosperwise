@@ -21,6 +21,7 @@ import {
   PanelLeft,
   Building2,
   Megaphone,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -69,6 +70,7 @@ const navItems = [
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
+  { to: "/workbench", label: "Workbench", icon: Cpu },
 ];
 
 const externalLinks = [
