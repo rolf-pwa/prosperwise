@@ -153,7 +153,18 @@ class AsanaService {
         throw new Error(`Asana API error ${res.status}: ${body}`);
       }
       const json = await res.json();
-      return json.data;
+      const task = json.data;
+
+      // Verify custom_fields were set
+      if (payload.custom_fields && task?.gid) {
+        const verifyCf = task.custom_fields || [];
+        const visField = verifyCf.find((cf: any) => 
+          cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility")
+        );
+        console.log("[AsanaService] createTask visibility after creation:", visField?.enum_value?.name || "NOT SET");
+      }
+
+      return task;
     });
   }
 
@@ -193,31 +204,59 @@ class AsanaService {
       // If custom_fields were requested, add the subtask to the parent's project first,
       // then set the custom field value via PUT
       if (payload.custom_fields && subtask?.gid) {
+        console.log("[AsanaService] Setting custom_fields on subtask", subtask.gid, JSON.stringify(payload.custom_fields));
+
         // Find parent task's project to add subtask to it
         const parentRes = await fetch(
           `${ASANA_BASE_URL}/tasks/${parentTaskGid}?opt_fields=projects.gid`,
           { headers: this.headers() },
         );
+        
+        let projectAdded = false;
         if (parentRes.ok) {
           const parentJson = await parentRes.json();
           const projectGid = parentJson.data?.projects?.[0]?.gid;
+          console.log("[AsanaService] Parent task projects:", JSON.stringify(parentJson.data?.projects));
+          
           if (projectGid) {
             // Add subtask to the same project so custom fields are available
-            await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}/addProject`, {
+            const addProjRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}/addProject`, {
               method: "POST",
               headers: this.headers(),
               body: JSON.stringify({ data: { project: projectGid } }),
             });
-            // Now set the custom field
-            const cfRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}`, {
-              method: "PUT",
-              headers: this.headers(),
-              body: JSON.stringify({ data: { custom_fields: payload.custom_fields } }),
-            });
-            if (!cfRes.ok) {
-              console.warn("[AsanaService] Failed to set custom fields on subtask:", await cfRes.text());
+            if (addProjRes.ok) {
+              projectAdded = true;
+              console.log("[AsanaService] Subtask added to project", projectGid);
+            } else {
+              const addProjBody = await addProjRes.text();
+              console.warn("[AsanaService] Failed to add subtask to project:", addProjBody);
             }
+          } else {
+            console.warn("[AsanaService] Parent task has no project association, cannot add custom fields via project");
           }
+        } else {
+          console.warn("[AsanaService] Failed to fetch parent task projects:", parentRes.status);
+        }
+
+        // Try setting custom fields regardless — works if field is workspace-level
+        // or if addProject succeeded
+        const cfRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}`, {
+          method: "PUT",
+          headers: this.headers(),
+          body: JSON.stringify({ data: { custom_fields: payload.custom_fields } }),
+        });
+        if (!cfRes.ok) {
+          const cfBody = await cfRes.text();
+          console.warn("[AsanaService] Failed to set custom fields on subtask:", cfBody);
+          
+          // If project wasn't added and direct PUT failed, try finding any project
+          // from the workspace that has this custom field
+          if (!projectAdded) {
+            console.warn("[AsanaService] Custom fields could not be set — subtask may not be in a project with PW_Visibility field");
+          }
+        } else {
+          console.log("[AsanaService] Custom fields set successfully on subtask", subtask.gid);
         }
       }
 
