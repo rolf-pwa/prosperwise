@@ -179,6 +179,7 @@ class AsanaService {
     due_on?: string | null;
     assignee?: string | null;
     custom_fields?: Record<string, string>;
+    project_gid?: string;
   }) {
     return withFailSafe("createSubtask", async () => {
       const url = `${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`;
@@ -206,37 +207,42 @@ class AsanaService {
       if (payload.custom_fields && subtask?.gid) {
         console.log("[AsanaService] Setting custom_fields on subtask", subtask.gid, JSON.stringify(payload.custom_fields));
 
-        // Find parent task's project to add subtask to it
-        const parentRes = await fetch(
-          `${ASANA_BASE_URL}/tasks/${parentTaskGid}?opt_fields=projects.gid`,
-          { headers: this.headers() },
-        );
-        
+        // Find project to add subtask to — prefer explicit project_gid, then parent's project
+        let projectGid = payload.project_gid || null;
         let projectAdded = false;
-        if (parentRes.ok) {
-          const parentJson = await parentRes.json();
-          const projectGid = parentJson.data?.projects?.[0]?.gid;
-          console.log("[AsanaService] Parent task projects:", JSON.stringify(parentJson.data?.projects));
-          
-          if (projectGid) {
-            // Add subtask to the same project so custom fields are available
-            const addProjRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}/addProject`, {
-              method: "POST",
-              headers: this.headers(),
-              body: JSON.stringify({ data: { project: projectGid } }),
-            });
-            if (addProjRes.ok) {
-              projectAdded = true;
-              console.log("[AsanaService] Subtask added to project", projectGid);
-            } else {
-              const addProjBody = await addProjRes.text();
-              console.warn("[AsanaService] Failed to add subtask to project:", addProjBody);
-            }
+
+        if (!projectGid) {
+          const parentRes = await fetch(
+            `${ASANA_BASE_URL}/tasks/${parentTaskGid}?opt_fields=projects.gid`,
+            { headers: this.headers() },
+          );
+          if (parentRes.ok) {
+            const parentJson = await parentRes.json();
+            projectGid = parentJson.data?.projects?.[0]?.gid || null;
+            console.log("[AsanaService] Parent task projects:", JSON.stringify(parentJson.data?.projects));
           } else {
-            console.warn("[AsanaService] Parent task has no project association, cannot add custom fields via project");
+            console.warn("[AsanaService] Failed to fetch parent task projects:", parentRes.status);
           }
         } else {
-          console.warn("[AsanaService] Failed to fetch parent task projects:", parentRes.status);
+          console.log("[AsanaService] Using explicit project_gid:", projectGid);
+        }
+
+        if (projectGid) {
+          // Add subtask to the same project so custom fields are available
+          const addProjRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}/addProject`, {
+            method: "POST",
+            headers: this.headers(),
+            body: JSON.stringify({ data: { project: projectGid } }),
+          });
+          if (addProjRes.ok) {
+            projectAdded = true;
+            console.log("[AsanaService] Subtask added to project", projectGid);
+          } else {
+            const addProjBody = await addProjRes.text();
+            console.warn("[AsanaService] Failed to add subtask to project:", addProjBody);
+          }
+        } else {
+          console.warn("[AsanaService] No project found, cannot add custom fields via project");
         }
 
         // Try setting custom fields regardless — works if field is workspace-level
@@ -747,7 +753,7 @@ serve(async (req) => {
       }
 
       case "createSubtask": {
-        const { parent_task_gid, name: subtaskName, notes: subtaskNotes, due_on: subtaskDueOn, assignee: subtaskAssignee, custom_fields: subtaskCf } = params;
+        const { parent_task_gid, name: subtaskName, notes: subtaskNotes, due_on: subtaskDueOn, assignee: subtaskAssignee, custom_fields: subtaskCf, project_gid: subtaskProjectGid } = params;
         if (!parent_task_gid || !subtaskName) {
           return new Response(
             JSON.stringify({ error: "parent_task_gid and name are required" }),
@@ -760,6 +766,7 @@ serve(async (req) => {
           due_on: subtaskDueOn,
           assignee: subtaskAssignee,
           custom_fields: subtaskCf,
+          project_gid: subtaskProjectGid,
         });
         break;
       }

@@ -590,6 +590,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
     if (taskBased && parentTaskGid) {
       body.action = "createSubtask";
       body.parent_task_gid = parentTaskGid;
+      if (projectGid) body.project_gid = projectGid;
     } else {
       body.action = "createTask";
       body.project_gid = projectGid;
@@ -791,6 +792,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
               onSubtaskCreated={fetchTasks}
               contactId={contactId}
               householdMembers={householdMembers}
+              asanaProjectGid={projectGid}
             />
           )}
         </SheetContent>
@@ -974,6 +976,7 @@ function TaskDetailPanel({
   onSubtaskCreated,
   contactId,
   householdMembers = [],
+  asanaProjectGid,
 }: {
   task: AsanaTask;
   members: AsanaMember[];
@@ -983,6 +986,7 @@ function TaskDetailPanel({
   onSubtaskCreated?: () => void;
   contactId?: string;
   householdMembers?: HouseholdMemberInfo[];
+  asanaProjectGid?: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(task.name);
@@ -1193,6 +1197,8 @@ function TaskDetailPanel({
           : visFieldInfo.internalOnlyGid,
       };
     }
+    // Pass project_gid so the subtask can be added to the project for custom field support
+    if (asanaProjectGid) body.project_gid = asanaProjectGid;
     const res = await supabase.functions.invoke("asana-service", { body });
     if (res.error) throw res.error;
     if (res.data?.error) throw new Error(res.data.error);
