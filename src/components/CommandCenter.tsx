@@ -120,7 +120,7 @@ function CalendarWidget() {
           <Calendar className="h-4 w-4 text-sanctuary-bronze" />
           Upcoming Events
         </CardTitle>
-        <a href="https://calendar.google.com/calendar/r/eventedit" target="_blank" rel="noopener noreferrer">
+        <a href="https://calendar.google.com/calendar/u/0/appointments/AcZssZ3Edv0-dF_AX1v9OIgnxfXSVIqy1GCcpWscL6U=" target="_blank" rel="noopener noreferrer">
           <Button variant="ghost" size="sm">
             <Plus className="mr-1 h-3 w-3" />
             New
