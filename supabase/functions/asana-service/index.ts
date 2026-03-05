@@ -213,13 +213,14 @@ class AsanaService {
 
         if (!projectGid) {
           const parentRes = await fetch(
-            `${ASANA_BASE_URL}/tasks/${parentTaskGid}?opt_fields=projects.gid`,
+            `${ASANA_BASE_URL}/tasks/${parentTaskGid}?opt_fields=memberships.project.gid,memberships.section.gid`,
             { headers: this.headers() },
           );
           if (parentRes.ok) {
             const parentJson = await parentRes.json();
-            projectGid = parentJson.data?.projects?.[0]?.gid || null;
-            console.log("[AsanaService] Parent task projects:", JSON.stringify(parentJson.data?.projects));
+            const memberships = parentJson.data?.memberships || [];
+            projectGid = memberships.find((m: any) => m?.project?.gid)?.project?.gid || null;
+            console.log("[AsanaService] Parent task memberships:", JSON.stringify(memberships));
           } else {
             console.warn("[AsanaService] Failed to fetch parent task projects:", parentRes.status);
           }
