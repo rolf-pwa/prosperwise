@@ -513,30 +513,38 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
         setTasks(fetchedTasks);
 
         // Lookup visibility field info from the first task that has custom_fields
-        if (!visFieldInfo && fetchedTasks.length > 0) {
-          const taskWithCf = fetchedTasks.find((t: any) => t.custom_fields?.length > 0);
-          if (taskWithCf) {
-            const cf = taskWithCf.custom_fields.find(
-              (f: any) => f.name === "PW_Visibility" || f.name?.toLowerCase().includes("visibility"),
-            );
-            if (cf?.enum_options) {
-              const internalOpt = cf.enum_options.find((o: any) => o.name === "Internal Only");
-              const clientOpt = cf.enum_options.find((o: any) => o.name === "Client Visible");
-              if (internalOpt && clientOpt) {
-                setVisFieldInfo({
-                  fieldGid: cf.gid,
-                  internalOnlyGid: internalOpt.gid,
-                  clientVisibleGid: clientOpt.gid,
-                });
+        if (!visFieldInfo) {
+          let found = false;
+          if (fetchedTasks.length > 0) {
+            const taskWithCf = fetchedTasks.find((t: any) => t.custom_fields?.length > 0);
+            if (taskWithCf) {
+              const cf = taskWithCf.custom_fields.find(
+                (f: any) => f.name === "PW_Visibility" || f.name?.toLowerCase().includes("visibility"),
+              );
+              if (cf?.enum_options) {
+                const internalOpt = cf.enum_options.find((o: any) => o.name === "Internal Only");
+                const clientOpt = cf.enum_options.find((o: any) => o.name === "Client Visible");
+                if (internalOpt && clientOpt) {
+                  setVisFieldInfo({
+                    fieldGid: cf.gid,
+                    internalOnlyGid: internalOpt.gid,
+                    clientVisibleGid: clientOpt.gid,
+                  });
+                  found = true;
+                }
               }
             }
-          } else if (parentTaskGid) {
-            // Try looking up from parent task
-            const res = await supabase.functions.invoke("asana-service", {
-              body: { action: "lookupVisibilityField", task_gid: parentTaskGid },
-            });
-            if (!res.error && res.data?.data) {
-              setVisFieldInfo(res.data.data);
+          }
+          // Fallback: lookup from parent task or first fetched task
+          if (!found) {
+            const lookupGid = parentTaskGid || fetchedTasks[0]?.gid;
+            if (lookupGid) {
+              const res = await supabase.functions.invoke("asana-service", {
+                body: { action: "lookupVisibilityField", task_gid: lookupGid },
+              });
+              if (!res.error && res.data?.data) {
+                setVisFieldInfo(res.data.data);
+              }
             }
           }
         }
