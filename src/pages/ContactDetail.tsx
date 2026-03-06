@@ -503,6 +503,9 @@ const ContactDetail = () => {
                 </a>
               ))}
             </div>
+            {/* Tasks */}
+            <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
+
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
