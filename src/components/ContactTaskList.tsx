@@ -927,7 +927,7 @@ function SubtaskDetailRow({
                         {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                       </span>
                     </div>
-                    <p className="text-xs whitespace-pre-wrap">{c.text}</p>
+                    <p className="text-xs whitespace-pre-wrap"><Linkify>{c.text}</Linkify></p>
                   </div>
                 ))}
               </div>
