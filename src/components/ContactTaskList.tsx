@@ -661,130 +661,21 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
   const newTasks = active.filter((t) => categorise(t) === "new");
   const ongoingTasks = active.filter((t) => categorise(t) === "ongoing");
 
-  return (
-    <>
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
-              Tasks
-            </CardTitle>
-            <div className="flex items-center gap-1.5">
-              {active.length > 0 && (
-                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent">
-                  {active.length}
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setShowAddTask(!showAddTask)}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {showAddTask && (
-            <AddTaskForm
-              placeholder={taskBased ? "New subtask name…" : "New task name…"}
-              visFieldInfo={visFieldInfo}
-              onSubmit={handleCreateTask}
-              onCancel={() => setShowAddTask(false)}
-            />
-          )}
-
-          {active.length === 0 && completed.length === 0 && !showAddTask && (
-            <p className="text-sm text-muted-foreground text-center py-2">
-              No tasks found.
-            </p>
-          )}
-
-          {newTasks.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                <Sparkles className="h-3 w-3" />
-                New ({newTasks.length})
-              </div>
-              {newTasks.map((task) => (
-                <TaskRow
-                  key={task.gid}
-                  task={task}
-                  onClick={() => setSelectedTask(task)}
-                  visFieldInfo={visFieldInfo}
-                  onTaskUpdated={handleTaskUpdated}
-                />
-              ))}
-            </div>
-          )}
-
-          {ongoingTasks.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                <RotateCw className="h-3 w-3" />
-                Ongoing ({ongoingTasks.length})
-              </div>
-              {ongoingTasks.map((task) => (
-                <TaskRow
-                  key={task.gid}
-                  task={task}
-                  onClick={() => setSelectedTask(task)}
-                  visFieldInfo={visFieldInfo}
-                  onTaskUpdated={handleTaskUpdated}
-                />
-              ))}
-            </div>
-          )}
-
-          {completed.length > 0 && (
-            <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
-              <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider w-full hover:text-foreground transition-colors">
-                {completedOpen ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronRight className="h-3 w-3" />
-                )}
-                Completed ({completed.length})
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1.5 mt-1.5">
-                {completed.slice(0, 10).map((task) => (
-                  <TaskRow
-                    key={task.gid}
-                    task={task}
-                    completed
-                    onClick={() => setSelectedTask(task)}
-                    visFieldInfo={visFieldInfo}
-                    onTaskUpdated={handleTaskUpdated}
-                  />
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-
-          <a
-            href={asanaUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
-          >
-            Open in Asana
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        </CardContent>
-      </Card>
-
-      {/* Task Detail Sheet */}
-      <Sheet
-        open={!!selectedTask}
-        onOpenChange={(open) => !open && setSelectedTask(null)}
-      >
-        <SheetContent className="sm:max-w-lg overflow-y-auto">
-          {selectedTask && (
+  const renderTaskRow = (task: AsanaTask, isCompleted?: boolean) => {
+    const isSelected = selectedTask?.gid === task.gid;
+    return (
+      <div key={task.gid}>
+        <TaskRow
+          task={task}
+          completed={isCompleted}
+          onClick={() => setSelectedTask(isSelected ? null : task)}
+          visFieldInfo={visFieldInfo}
+          onTaskUpdated={handleTaskUpdated}
+        />
+        {isSelected && (
+          <div className="mt-1 rounded-md border border-border bg-background p-4">
             <TaskDetailPanel
-              task={selectedTask}
+              task={task}
               members={members}
               visFieldInfo={visFieldInfo}
               onUpdated={handleTaskUpdated}
@@ -794,10 +685,100 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
               householdMembers={householdMembers}
               asanaProjectGid={projectGid}
             />
-          )}
-        </SheetContent>
-      </Sheet>
-    </>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CheckSquare className="h-4 w-4 text-muted-foreground" />
+            Tasks
+          </CardTitle>
+          <div className="flex items-center gap-1.5">
+            {active.length > 0 && (
+              <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                {active.length}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setShowAddTask(!showAddTask)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {showAddTask && (
+          <AddTaskForm
+            placeholder={taskBased ? "New subtask name…" : "New task name…"}
+            visFieldInfo={visFieldInfo}
+            onSubmit={handleCreateTask}
+            onCancel={() => setShowAddTask(false)}
+          />
+        )}
+
+        {active.length === 0 && completed.length === 0 && !showAddTask && (
+          <p className="text-sm text-muted-foreground text-center py-2">
+            No tasks found.
+          </p>
+        )}
+
+        {newTasks.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              <Sparkles className="h-3 w-3" />
+              New ({newTasks.length})
+            </div>
+            {newTasks.map((task) => renderTaskRow(task))}
+          </div>
+        )}
+
+        {ongoingTasks.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              <RotateCw className="h-3 w-3" />
+              Ongoing ({ongoingTasks.length})
+            </div>
+            {ongoingTasks.map((task) => renderTaskRow(task))}
+          </div>
+        )}
+
+        {completed.length > 0 && (
+          <Collapsible open={completedOpen} onOpenChange={setCompletedOpen}>
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider w-full hover:text-foreground transition-colors">
+              {completedOpen ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              Completed ({completed.length})
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1.5 mt-1.5">
+              {completed.slice(0, 10).map((task) => renderTaskRow(task, true))}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        <a
+          href={asanaUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+        >
+          Open in Asana
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      </CardContent>
+    </Card>
   );
 }
 
