@@ -89,6 +89,25 @@ function notifyTaskUpdate(contactId: string | undefined, taskName: string, taskE
   }).catch((e) => console.error("[Notify] Task notification error:", e));
 }
 
+// ── Linkify helper ──
+function Linkify({ children }: { children: string }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = children.split(urlRegex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent underline break-all hover:text-accent/80">
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 // ── URL Helpers ──
 function extractProjectGid(url: string | null): string | null {
   if (!url) return null;
@@ -883,7 +902,7 @@ function SubtaskDetailRow({
           {/* Notes */}
           {subtask.notes && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5 whitespace-pre-wrap">
-              {subtask.notes}
+              <Linkify>{subtask.notes}</Linkify>
             </div>
           )}
 
@@ -908,7 +927,7 @@ function SubtaskDetailRow({
                         {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                       </span>
                     </div>
-                    <p className="text-xs whitespace-pre-wrap">{c.text}</p>
+                    <p className="text-xs whitespace-pre-wrap"><Linkify>{c.text}</Linkify></p>
                   </div>
                 ))}
               </div>
@@ -1469,7 +1488,7 @@ function TaskDetailPanel({
                     })}
                   </span>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
+                <p className="text-sm whitespace-pre-wrap"><Linkify>{comment.text}</Linkify></p>
               </div>
             ))}
           </div>
