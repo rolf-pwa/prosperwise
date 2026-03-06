@@ -902,7 +902,7 @@ function SubtaskDetailRow({
           {/* Notes */}
           {subtask.notes && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5 whitespace-pre-wrap">
-              {subtask.notes}
+              <Linkify>{subtask.notes}</Linkify>
             </div>
           )}
 
