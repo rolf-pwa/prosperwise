@@ -55,12 +55,15 @@ function categoriseTask(task: AsanaTask): TaskCategory {
   return "new";
 }
 
-function TaskCard({ task, onClick }: { task: AsanaTask; onClick: () => void }) {
+function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () => void; isExpanded?: boolean }) {
   const status = getTaskStatus(task);
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between gap-3 rounded-lg bg-card border border-border p-4 hover:bg-muted/50 transition-colors text-left group"
+      className={cn(
+        "w-full flex items-center justify-between gap-3 rounded-lg bg-card border border-border p-4 hover:bg-muted/50 transition-colors text-left group",
+        isExpanded && "bg-muted/50 border-accent/30"
+      )}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 border border-accent/20">
@@ -79,7 +82,10 @@ function TaskCard({ task, onClick }: { task: AsanaTask; onClick: () => void }) {
         <Badge variant={status.variant} className="text-[10px] whitespace-nowrap">
           {status.label}
         </Badge>
-        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronRight className={cn(
+          "h-4 w-4 text-muted-foreground transition-transform",
+          isExpanded ? "rotate-90 opacity-100" : "opacity-0 group-hover:opacity-100"
+        )} />
       </div>
     </button>
   );
