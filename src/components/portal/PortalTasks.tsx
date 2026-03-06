@@ -1,15 +1,10 @@
 import { useState, useEffect } from "react";
 import { parseLocalDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckSquare, Clock, AlertCircle, ChevronRight, Loader2, Sparkles, RotateCw } from "lucide-react";
+import { CheckSquare, Clock, AlertCircle, ChevronRight, Loader2, Sparkles, RotateCw, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PortalTaskConversation } from "./PortalTaskConversation";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 interface AsanaTask {
   gid: string;
@@ -42,7 +37,6 @@ function getTaskStatus(task: AsanaTask): { label: string; variant: "default" | "
 
 function categoriseTask(task: AsanaTask): TaskCategory {
   const sectionName = task.memberships?.[0]?.section?.name?.toLowerCase() || "";
-  // Ongoing = actively being worked on or awaiting review
   if (
     sectionName.includes("progress") ||
     sectionName.includes("doing") ||
@@ -55,12 +49,15 @@ function categoriseTask(task: AsanaTask): TaskCategory {
   return "new";
 }
 
-function TaskCard({ task, onClick }: { task: AsanaTask; onClick: () => void }) {
+function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () => void; isExpanded?: boolean }) {
   const status = getTaskStatus(task);
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between gap-3 rounded-lg bg-card border border-border p-4 hover:bg-muted/50 transition-colors text-left group"
+      className={cn(
+        "w-full flex items-center justify-between gap-3 rounded-lg bg-card border border-border p-4 hover:bg-muted/50 transition-colors text-left group",
+        isExpanded && "bg-muted/50 border-accent/30"
+      )}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 border border-accent/20">
@@ -79,7 +76,10 @@ function TaskCard({ task, onClick }: { task: AsanaTask; onClick: () => void }) {
         <Badge variant={status.variant} className="text-[10px] whitespace-nowrap">
           {status.label}
         </Badge>
-        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronRight className={cn(
+          "h-4 w-4 text-muted-foreground transition-transform",
+          isExpanded ? "rotate-90 opacity-100" : "opacity-0 group-hover:opacity-100"
+        )} />
       </div>
     </button>
   );
@@ -137,10 +137,8 @@ export function PortalTasks({ portalToken, clientName }: Props) {
 
   const activeTasks = tasks.filter((t) => !t.completed);
   const completedTasks = tasks.filter((t) => t.completed);
-
   const newTasks = activeTasks.filter((t) => categoriseTask(t) === "new");
   const ongoingTasks = activeTasks.filter((t) => categoriseTask(t) === "ongoing");
-
   const hasNoTasks = activeTasks.length === 0 && completedTasks.length === 0;
 
   if (hasNoTasks) {
@@ -154,6 +152,26 @@ export function PortalTasks({ portalToken, clientName }: Props) {
       </div>
     );
   }
+
+  const renderTaskWithExpansion = (task: AsanaTask) => {
+    const isExpanded = selectedTask?.gid === task.gid;
+    return (
+      <div key={task.gid}>
+        <TaskCard task={task} onClick={() => setSelectedTask(isExpanded ? null : task)} isExpanded={isExpanded} />
+        {isExpanded && (
+          <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-foreground font-serif">{task.name}</h4>
+              <button onClick={() => setSelectedTask(null)} className="p-1 rounded hover:bg-muted">
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+            <PortalTaskConversation taskGid={task.gid} portalToken={portalToken} clientName={clientName} />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-8">
@@ -172,9 +190,7 @@ export function PortalTasks({ portalToken, clientName }: Props) {
           <p className="text-sm text-muted-foreground pl-1">No new action items at this time.</p>
         ) : (
           <div className="space-y-2">
-            {newTasks.map((task) => (
-              <TaskCard key={task.gid} task={task} onClick={() => setSelectedTask(task)} />
-            ))}
+            {newTasks.map(renderTaskWithExpansion)}
           </div>
         )}
       </div>
@@ -194,9 +210,7 @@ export function PortalTasks({ portalToken, clientName }: Props) {
           <p className="text-sm text-muted-foreground pl-1">No ongoing items right now.</p>
         ) : (
           <div className="space-y-2">
-            {ongoingTasks.map((task) => (
-              <TaskCard key={task.gid} task={task} onClick={() => setSelectedTask(task)} />
-            ))}
+            {ongoingTasks.map(renderTaskWithExpansion)}
           </div>
         )}
       </div>
@@ -211,50 +225,10 @@ export function PortalTasks({ portalToken, clientName }: Props) {
             </p>
           </div>
           <div className="space-y-2">
-            {completedTasks.slice(0, 5).map((task) => (
-              <button
-                key={task.gid}
-                onClick={() => setSelectedTask(task)}
-                className="w-full flex items-center justify-between gap-3 rounded-lg bg-card/50 border border-border/50 p-3 hover:bg-muted/30 transition-colors text-left group opacity-60"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <CheckSquare className="h-4 w-4 text-accent/50 shrink-0" />
-                  <p className="text-sm text-muted-foreground truncate line-through">{task.name}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-              </button>
-            ))}
+            {completedTasks.slice(0, 5).map(renderTaskWithExpansion)}
           </div>
         </div>
       )}
-
-      {/* Conversation Sheet */}
-      <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <SheetContent className="sm:max-w-lg w-full p-0 flex flex-col">
-          <SheetHeader className="px-6 py-4 border-b border-border">
-            <div className="flex items-center justify-between gap-2">
-              <SheetTitle className="text-base font-serif text-foreground truncate pr-8">
-                Task Governance
-              </SheetTitle>
-              {selectedTask && (
-                <Badge variant={getTaskStatus(selectedTask).variant} className="text-[10px] shrink-0">
-                  {getTaskStatus(selectedTask).label}
-                </Badge>
-              )}
-            </div>
-            {selectedTask && (
-              <p className="text-sm text-muted-foreground truncate">{selectedTask.name}</p>
-            )}
-          </SheetHeader>
-          {selectedTask && (
-            <PortalTaskConversation
-              taskGid={selectedTask.gid}
-              portalToken={portalToken}
-              clientName={clientName}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
