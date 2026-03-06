@@ -89,6 +89,25 @@ function notifyTaskUpdate(contactId: string | undefined, taskName: string, taskE
   }).catch((e) => console.error("[Notify] Task notification error:", e));
 }
 
+// ── Linkify helper ──
+function Linkify({ children }: { children: string }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = children.split(urlRegex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent underline break-all hover:text-accent/80">
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 // ── URL Helpers ──
 function extractProjectGid(url: string | null): string | null {
   if (!url) return null;
