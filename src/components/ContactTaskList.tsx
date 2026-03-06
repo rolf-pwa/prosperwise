@@ -1488,7 +1488,7 @@ function TaskDetailPanel({
                     })}
                   </span>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
+                <p className="text-sm whitespace-pre-wrap"><Linkify>{comment.text}</Linkify></p>
               </div>
             ))}
           </div>
