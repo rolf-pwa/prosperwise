@@ -49,9 +49,6 @@ function categoriseTask(task: AsanaTask): TaskCategory {
   return "new";
 }
 
-function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () => void; isExpanded?: boolean }) {
-  const status = getTaskStatus(task);
-  return (
 function isNewTask(task: AsanaTask) {
   return categoriseTask(task) === "new";
 }
