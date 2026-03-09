@@ -19,6 +19,7 @@ interface AsanaTask {
 interface Props {
   portalToken: string;
   clientName?: string;
+  contactId?: string;
 }
 
 type TaskCategory = "new" | "ongoing";
@@ -91,28 +92,38 @@ function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () 
   );
 }
 
-export function PortalTasks({ portalToken, clientName }: Props) {
+export function PortalTasks({ portalToken, clientName, contactId }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<AsanaTask | null>(null);
+  const [interactedGids, setInteractedGids] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await supabase.functions.invoke("asana-service", {
-          body: { action: "getTasksForProject", portal_token: portalToken },
-        });
-        if (res.error) throw res.error;
-        if (res.data?.error) {
-          const errMsg: string = res.data.error;
+        const [tasksRes, interactionsRes] = await Promise.all([
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getTasksForProject", portal_token: portalToken },
+          }),
+          contactId
+            ? supabase.from("portal_task_interactions").select("task_gid").eq("contact_id", contactId)
+            : Promise.resolve({ data: [] }),
+        ]);
+        if (tasksRes.error) throw tasksRes.error;
+        if (tasksRes.data?.error) {
+          const errMsg: string = tasksRes.data.error;
           if (errMsg.toLowerCase().includes("no asana project")) {
             setTasks([]);
           } else {
             setError(errMsg);
           }
         } else {
-          setTasks(res.data?.data || []);
+          setTasks(tasksRes.data?.data || []);
+        }
+        // Load previously interacted task gids
+        if (interactionsRes && "data" in interactionsRes && interactionsRes.data) {
+          setInteractedGids(new Set((interactionsRes.data as any[]).map((r: any) => r.task_gid)));
         }
       } catch (e: any) {
         setError(e.message || "Failed to load tasks");
@@ -120,7 +131,7 @@ export function PortalTasks({ portalToken, clientName }: Props) {
         setLoading(false);
       }
     })();
-  }, [portalToken]);
+  }, [portalToken, contactId]);
 
   if (loading) {
     return (
@@ -143,8 +154,9 @@ export function PortalTasks({ portalToken, clientName }: Props) {
 
   const activeTasks = tasks.filter((t) => !t.completed);
   const completedTasks = tasks.filter((t) => t.completed);
-  const newTasks = activeTasks.filter((t) => categoriseTask(t) === "new");
-  const ongoingTasks = activeTasks.filter((t) => categoriseTask(t) === "ongoing");
+  // Tasks the client has interacted with move to "ongoing" regardless of Asana section
+  const newTasks = activeTasks.filter((t) => categoriseTask(t) === "new" && !interactedGids.has(t.gid));
+  const ongoingTasks = activeTasks.filter((t) => categoriseTask(t) === "ongoing" || interactedGids.has(t.gid));
   const hasNoTasks = activeTasks.length === 0 && completedTasks.length === 0;
 
   if (hasNoTasks) {
@@ -159,11 +171,28 @@ export function PortalTasks({ portalToken, clientName }: Props) {
     );
   }
 
+  const handleTaskClick = async (task: AsanaTask) => {
+    const isExpanded = selectedTask?.gid === task.gid;
+    if (isExpanded) {
+      setSelectedTask(null);
+      return;
+    }
+    setSelectedTask(task);
+    // Record interaction if this is a "new" task the client hasn't seen yet
+    if (contactId && !interactedGids.has(task.gid)) {
+      setInteractedGids((prev) => new Set(prev).add(task.gid));
+      await supabase.from("portal_task_interactions").upsert(
+        { contact_id: contactId, task_gid: task.gid },
+        { onConflict: "contact_id,task_gid" }
+      );
+    }
+  };
+
   const renderTaskWithExpansion = (task: AsanaTask) => {
     const isExpanded = selectedTask?.gid === task.gid;
     return (
       <div key={task.gid}>
-        <TaskCard task={task} onClick={() => setSelectedTask(isExpanded ? null : task)} isExpanded={isExpanded} />
+        <TaskCard task={task} onClick={() => handleTaskClick(task)} isExpanded={isExpanded} />
         {isExpanded && (
           <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4">
             <div className="flex items-center justify-between mb-3">

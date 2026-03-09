@@ -799,6 +799,35 @@ export type Database = {
           },
         ]
       }
+      portal_task_interactions: {
+        Row: {
+          contact_id: string
+          id: string
+          interacted_at: string
+          task_gid: string
+        }
+        Insert: {
+          contact_id: string
+          id?: string
+          interacted_at?: string
+          task_gid: string
+        }
+        Update: {
+          contact_id?: string
+          id?: string
+          interacted_at?: string
+          task_gid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_task_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_tokens: {
         Row: {
           contact_id: string
