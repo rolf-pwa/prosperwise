@@ -154,8 +154,9 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
 
   const activeTasks = tasks.filter((t) => !t.completed);
   const completedTasks = tasks.filter((t) => t.completed);
-  const newTasks = activeTasks.filter((t) => categoriseTask(t) === "new");
-  const ongoingTasks = activeTasks.filter((t) => categoriseTask(t) === "ongoing");
+  // Tasks the client has interacted with move to "ongoing" regardless of Asana section
+  const newTasks = activeTasks.filter((t) => categoriseTask(t) === "new" && !interactedGids.has(t.gid));
+  const ongoingTasks = activeTasks.filter((t) => categoriseTask(t) === "ongoing" || interactedGids.has(t.gid));
   const hasNoTasks = activeTasks.length === 0 && completedTasks.length === 0;
 
   if (hasNoTasks) {
