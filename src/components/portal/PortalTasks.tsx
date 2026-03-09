@@ -49,14 +49,20 @@ function categoriseTask(task: AsanaTask): TaskCategory {
   return "new";
 }
 
+function isNewTask(task: AsanaTask) {
+  return categoriseTask(task) === "new";
+}
+
 function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () => void; isExpanded?: boolean }) {
   const status = getTaskStatus(task);
+  const isNew = isNewTask(task);
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full flex items-center justify-between gap-3 rounded-lg bg-card border border-border p-4 hover:bg-muted/50 transition-colors text-left group",
-        isExpanded && "bg-muted/50 border-accent/30"
+        isExpanded && "bg-muted/50 border-accent/30",
+        isNew && !isExpanded && "border-accent/40 shadow-[0_0_0_1px_hsl(var(--accent)/0.15)] bg-accent/5"
       )}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -181,8 +187,8 @@ export function PortalTasks({ portalToken, clientName }: Props) {
           <Sparkles className="h-5 w-5 text-accent" />
           <h2 className="text-lg font-semibold text-foreground font-serif">New Actions</h2>
           {newTasks.length > 0 && (
-            <span className="rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent">
-              {newTasks.length}
+            <span className="rounded-full bg-destructive/15 px-2.5 py-0.5 text-xs font-bold text-destructive animate-pulse">
+              {newTasks.length} new
             </span>
           )}
         </div>
@@ -215,18 +221,23 @@ export function PortalTasks({ portalToken, clientName }: Props) {
         )}
       </div>
 
-      {/* Completed Tasks */}
+      {/* Completed Tasks — compact link list */}
       {completedTasks.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground font-medium">
+            <CheckSquare className="h-4 w-4 text-muted-foreground/50" />
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               Completed ({completedTasks.length})
             </p>
           </div>
-          <div className="space-y-2">
-            {completedTasks.slice(0, 5).map(renderTaskWithExpansion)}
-          </div>
+          <ul className="space-y-1 pl-1">
+            {completedTasks.slice(0, 10).map((task) => (
+              <li key={task.gid} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                <span className="line-through truncate">{task.name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
