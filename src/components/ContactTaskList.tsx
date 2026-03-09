@@ -350,6 +350,7 @@ function TaskRow({
   depth = 0,
   visFieldInfo,
   onTaskUpdated,
+  clientViewedGids,
 }: {
   task: AsanaTask;
   completed?: boolean;
@@ -357,6 +358,7 @@ function TaskRow({
   depth?: number;
   visFieldInfo?: VisibilityFieldInfo | null;
   onTaskUpdated?: (t: AsanaTask) => void;
+  clientViewedGids?: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [subtasks, setSubtasks] = useState<AsanaTask[]>([]);
