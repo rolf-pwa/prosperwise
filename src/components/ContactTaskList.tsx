@@ -575,7 +575,17 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
 
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    // Fetch client-viewed task gids
+    if (contactId) {
+      supabase
+        .from("portal_task_interactions")
+        .select("task_gid")
+        .eq("contact_id", contactId)
+        .then(({ data }) => {
+          if (data) setClientViewedGids(new Set(data.map((r: any) => r.task_gid)));
+        });
+    }
+  }, [fetchTasks, contactId]);
 
   const handleTaskUpdated = (updatedTask: AsanaTask) => {
     setTasks((prev) =>
