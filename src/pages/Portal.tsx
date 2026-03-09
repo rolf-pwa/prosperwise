@@ -810,7 +810,7 @@ const Portal = () => {
             {/* Action Items Tab */}
             <TabsContent value="tasks" className="mt-4">
               {isSelf ? (
-                <PortalTasks portalToken={portalToken} clientName={`${contact.first_name} ${contact.last_name || ""}`.trim()} />
+                <PortalTasks portalToken={portalToken} clientName={`${contact.first_name} ${contact.last_name || ""}`.trim()} contactId={contact.id} />
               ) : (
                 <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
                   <CheckSquare className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
