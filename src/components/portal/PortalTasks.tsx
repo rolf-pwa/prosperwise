@@ -19,6 +19,7 @@ interface AsanaTask {
 interface Props {
   portalToken: string;
   clientName?: string;
+  contactId?: string;
 }
 
 type TaskCategory = "new" | "ongoing";
