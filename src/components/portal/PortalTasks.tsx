@@ -52,11 +52,20 @@ function categoriseTask(task: AsanaTask): TaskCategory {
 function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () => void; isExpanded?: boolean }) {
   const status = getTaskStatus(task);
   return (
+function isNewTask(task: AsanaTask) {
+  return categoriseTask(task) === "new";
+}
+
+function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () => void; isExpanded?: boolean }) {
+  const status = getTaskStatus(task);
+  const isNew = isNewTask(task);
+  return (
     <button
       onClick={onClick}
       className={cn(
         "w-full flex items-center justify-between gap-3 rounded-lg bg-card border border-border p-4 hover:bg-muted/50 transition-colors text-left group",
-        isExpanded && "bg-muted/50 border-accent/30"
+        isExpanded && "bg-muted/50 border-accent/30",
+        isNew && !isExpanded && "border-accent/40 shadow-[0_0_0_1px_hsl(var(--accent)/0.15)] bg-accent/5"
       )}
     >
       <div className="flex items-center gap-3 min-w-0">
