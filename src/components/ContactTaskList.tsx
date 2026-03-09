@@ -350,6 +350,7 @@ function TaskRow({
   depth = 0,
   visFieldInfo,
   onTaskUpdated,
+  clientViewedGids,
 }: {
   task: AsanaTask;
   completed?: boolean;
@@ -357,6 +358,7 @@ function TaskRow({
   depth?: number;
   visFieldInfo?: VisibilityFieldInfo | null;
   onTaskUpdated?: (t: AsanaTask) => void;
+  clientViewedGids?: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [subtasks, setSubtasks] = useState<AsanaTask[]>([]);
@@ -431,6 +433,11 @@ function TaskRow({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {clientViewedGids?.has(task.gid) && (
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-accent/40 text-accent bg-accent/10">
+              <Eye className="h-2.5 w-2.5 mr-0.5" />Viewed
+            </Badge>
+          )}
           {task.assignee?.name && (
             <Badge variant="outline" className="text-[9px] px-1.5 py-0">
               {task.assignee.name.split(" ")[0]}
@@ -466,6 +473,7 @@ function TaskRow({
               depth={depth + 1}
               visFieldInfo={visFieldInfo}
               onTaskUpdated={handleSubtaskUpdated}
+              clientViewedGids={clientViewedGids}
             />
           ))}
         </div>
@@ -487,6 +495,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
   const [selectedTask, setSelectedTask] = useState<AsanaTask | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [visFieldInfo, setVisFieldInfo] = useState<VisibilityFieldInfo | null>(null);
+  const [clientViewedGids, setClientViewedGids] = useState<Set<string>>(new Set());
 
   const projectGid = extractProjectGid(asanaUrl);
   const taskBased = isTaskUrl(asanaUrl);
@@ -574,7 +583,17 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
 
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    // Fetch client-viewed task gids
+    if (contactId) {
+      supabase
+        .from("portal_task_interactions")
+        .select("task_gid")
+        .eq("contact_id", contactId)
+        .then(({ data }) => {
+          if (data) setClientViewedGids(new Set(data.map((r: any) => r.task_gid)));
+        });
+    }
+  }, [fetchTasks, contactId]);
 
   const handleTaskUpdated = (updatedTask: AsanaTask) => {
     setTasks((prev) =>
@@ -684,6 +703,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
           onClick={() => setSelectedTask(isSelected ? null : task)}
           visFieldInfo={visFieldInfo}
           onTaskUpdated={handleTaskUpdated}
+          clientViewedGids={clientViewedGids}
         />
         {isSelected && (
           <div className="mt-1 rounded-md border border-border bg-background p-4">
