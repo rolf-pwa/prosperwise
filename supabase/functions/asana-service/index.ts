@@ -510,34 +510,39 @@ class AsanaService {
         followedUrl += projectFilter;
       }
 
-      console.log("[AsanaService] GET my tasks (assigned + collaborator)");
+      console.log("[AsanaService] GET my tasks (assigned + collaborator + project-wide)");
 
-      const [assignedRes, followedRes] = await Promise.all([
+      const fetches: Promise<Response>[] = [
         fetch(assignedUrl, { headers: this.headers() }),
         fetch(followedUrl, { headers: this.headers() }),
-      ]);
+      ];
 
-      if (!assignedRes.ok) {
-        const body = await assignedRes.text();
-        throw new Error(`Asana API error (assigned) ${assignedRes.status}: ${body}`);
-      }
-      if (!followedRes.ok) {
-        const body = await followedRes.text();
-        throw new Error(`Asana API error (followed) ${followedRes.status}: ${body}`);
+      // Also fetch ALL tasks from linked projects (any assignee) so dashboard shows full team work
+      if (projectGids && projectGids.length > 0) {
+        const projectAllUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&projects.any=${projectGids.join(",")}&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
+        fetches.push(fetch(projectAllUrl, { headers: this.headers() }));
       }
 
-      const [assignedJson, followedJson] = await Promise.all([
-        assignedRes.json(),
-        followedRes.json(),
-      ]);
+      const responses = await Promise.all(fetches);
+
+      for (const res of responses) {
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`Asana API error ${res.status}: ${body}`);
+        }
+      }
+
+      const jsons = await Promise.all(responses.map(r => r.json()));
 
       // Merge & deduplicate by GID
       const seen = new Set<string>();
       const merged: any[] = [];
-      for (const task of [...(assignedJson.data || []), ...(followedJson.data || [])]) {
-        if (!seen.has(task.gid)) {
-          seen.add(task.gid);
-          merged.push(task);
+      for (const json of jsons) {
+        for (const task of (json.data || [])) {
+          if (!seen.has(task.gid)) {
+            seen.add(task.gid);
+            merged.push(task);
+          }
         }
       }
 
