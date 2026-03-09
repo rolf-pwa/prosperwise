@@ -433,6 +433,11 @@ function TaskRow({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {clientViewedGids?.has(task.gid) && (
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-accent/40 text-accent bg-accent/10">
+              <Eye className="h-2.5 w-2.5 mr-0.5" />Viewed
+            </Badge>
+          )}
           {task.assignee?.name && (
             <Badge variant="outline" className="text-[9px] px-1.5 py-0">
               {task.assignee.name.split(" ")[0]}
