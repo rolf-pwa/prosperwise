@@ -181,8 +181,8 @@ export function PortalTasks({ portalToken, clientName }: Props) {
           <Sparkles className="h-5 w-5 text-accent" />
           <h2 className="text-lg font-semibold text-foreground font-serif">New Actions</h2>
           {newTasks.length > 0 && (
-            <span className="rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent">
-              {newTasks.length}
+            <span className="rounded-full bg-destructive/15 px-2.5 py-0.5 text-xs font-bold text-destructive animate-pulse">
+              {newTasks.length} new
             </span>
           )}
         </div>
