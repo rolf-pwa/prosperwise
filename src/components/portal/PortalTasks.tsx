@@ -92,28 +92,38 @@ function TaskCard({ task, onClick, isExpanded }: { task: AsanaTask; onClick: () 
   );
 }
 
-export function PortalTasks({ portalToken, clientName }: Props) {
+export function PortalTasks({ portalToken, clientName, contactId }: Props) {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<AsanaTask | null>(null);
+  const [interactedGids, setInteractedGids] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await supabase.functions.invoke("asana-service", {
-          body: { action: "getTasksForProject", portal_token: portalToken },
-        });
-        if (res.error) throw res.error;
-        if (res.data?.error) {
-          const errMsg: string = res.data.error;
+        const [tasksRes, interactionsRes] = await Promise.all([
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getTasksForProject", portal_token: portalToken },
+          }),
+          contactId
+            ? supabase.from("portal_task_interactions").select("task_gid").eq("contact_id", contactId)
+            : Promise.resolve({ data: [] }),
+        ]);
+        if (tasksRes.error) throw tasksRes.error;
+        if (tasksRes.data?.error) {
+          const errMsg: string = tasksRes.data.error;
           if (errMsg.toLowerCase().includes("no asana project")) {
             setTasks([]);
           } else {
             setError(errMsg);
           }
         } else {
-          setTasks(res.data?.data || []);
+          setTasks(tasksRes.data?.data || []);
+        }
+        // Load previously interacted task gids
+        if (interactionsRes && "data" in interactionsRes && interactionsRes.data) {
+          setInteractedGids(new Set((interactionsRes.data as any[]).map((r: any) => r.task_gid)));
         }
       } catch (e: any) {
         setError(e.message || "Failed to load tasks");
@@ -121,7 +131,7 @@ export function PortalTasks({ portalToken, clientName }: Props) {
         setLoading(false);
       }
     })();
-  }, [portalToken]);
+  }, [portalToken, contactId]);
 
   if (loading) {
     return (
