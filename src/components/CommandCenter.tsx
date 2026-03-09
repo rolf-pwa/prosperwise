@@ -687,6 +687,11 @@ function AsanaMyTasksWidget() {
                         {linked && (
                           <span className="text-xs text-accent font-medium truncate">{linked.name}</span>
                         )}
+                        {task.assignee?.name && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {task.assignee.name.split(" ")[0]}
+                          </Badge>
+                        )}
                         {task.due_on && (
                           <span className="text-xs text-muted-foreground">
                             Due: {format(parseLocalDate(task.due_on), "MMM d")}
