@@ -487,6 +487,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
   const [selectedTask, setSelectedTask] = useState<AsanaTask | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [visFieldInfo, setVisFieldInfo] = useState<VisibilityFieldInfo | null>(null);
+  const [clientViewedGids, setClientViewedGids] = useState<Set<string>>(new Set());
 
   const projectGid = extractProjectGid(asanaUrl);
   const taskBased = isTaskUrl(asanaUrl);
