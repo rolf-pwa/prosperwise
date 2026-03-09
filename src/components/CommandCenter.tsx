@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink } from "lucide-react";
+import { Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink, ChevronRight } from "lucide-react";
 import { format, parseISO, isToday, formatDistanceToNow } from "date-fns";
 import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   useGoogleStatus,
   useConnectGoogle,
@@ -93,10 +94,14 @@ export function CommandCenter() {
           Disconnect
         </Button>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <AsanaMyTasksWidget />
-        <CalendarWidget />
-        <GmailWidget />
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <AsanaMyTasksWidget />
+        </div>
+        <div className="space-y-6">
+          <CalendarWidget />
+          <GmailWidget />
+        </div>
       </div>
     </div>
   );
@@ -252,14 +257,12 @@ interface AsanaTask {
 
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
-  // Match /0/[id], /project/[id], /0/[id]/[task_id], /project/[id]/list/[task_id]
   const match = asanaUrl.match(/app\.asana\.com\/(?:0|project)\/(\d+)/);
   return match ? match[1] : null;
 }
 
 function extractTaskGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
-  // Match /task/[id] or /0/[proj]/[task_id] (second segment)
   const taskMatch = asanaUrl.match(/\/task\/(\d+)/);
   if (taskMatch) return taskMatch[1];
   const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
@@ -271,6 +274,7 @@ function AsanaMyTasksWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [contactMap, setContactMap] = useState<Record<string, { id: string; name: string }>>({});
+  const [expandedGid, setExpandedGid] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -323,12 +327,10 @@ function AsanaMyTasksWidget() {
   }, []);
 
   function getLinkedContact(task: AsanaTask) {
-    // Check project memberships
     for (const m of task.memberships || []) {
       const gid = m.project?.gid;
       if (gid && contactMap[gid]) return contactMap[gid];
     }
-    // Check if the task GID itself is a linked parent task
     if (contactMap[task.gid]) return contactMap[task.gid];
     return null;
   }
@@ -338,23 +340,18 @@ function AsanaMyTasksWidget() {
     return section || null;
   }
 
-  const handleTaskClick = (task: AsanaTask) => {
-    const linked = getLinkedContact(task);
-    if (linked) {
-      navigate(`/contacts/${linked.id}`);
-    } else {
-      // No linked contact — fall back to opening in Asana
-      window.open(`https://app.asana.com/0/0/${task.gid}/f`, "_blank");
-    }
-  };
-
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Inbox className="h-4 w-4 text-sanctuary-bronze" />
           My Tasks
         </CardTitle>
+        {tasks.length > 0 && (
+          <Badge variant="secondary" className="text-xs">
+            {tasks.length}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -367,39 +364,93 @@ function AsanaMyTasksWidget() {
           <p className="text-sm text-muted-foreground">No tasks assigned to you.</p>
         ) : (
           <div className="space-y-2">
-            {tasks.slice(0, 12).map((task) => {
+            {tasks.slice(0, 20).map((task) => {
               const linked = getLinkedContact(task);
               const section = getSectionLabel(task);
+              const isExpanded = expandedGid === task.gid;
               return (
-                <button
-                  key={task.gid}
-                  onClick={() => handleTaskClick(task)}
-                  className="flex w-full items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50 text-left"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{task.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      {linked && (
-                        <span className="text-xs text-accent font-medium truncate">{linked.name}</span>
-                      )}
-                      {task.due_on && (
-                        <span className="text-xs text-muted-foreground">
-                          Due: {format(parseLocalDate(task.due_on), "MMM d")}
-                        </span>
-                      )}
-                      {task.modified_at && (
-                        <span className="text-xs text-muted-foreground">
-                          · {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}
-                        </span>
-                      )}
+                <div key={task.gid}>
+                  <button
+                    onClick={() => setExpandedGid(isExpanded ? null : task.gid)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50 text-left",
+                      isExpanded && "bg-muted/50 border-accent/30"
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{task.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {linked && (
+                          <span className="text-xs text-accent font-medium truncate">{linked.name}</span>
+                        )}
+                        {task.due_on && (
+                          <span className="text-xs text-muted-foreground">
+                            Due: {format(parseLocalDate(task.due_on), "MMM d")}
+                          </span>
+                        )}
+                        {task.modified_at && (
+                          <span className="text-xs text-muted-foreground">
+                            · {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {section && (
-                    <Badge variant="outline" className="text-[10px] shrink-0 whitespace-nowrap">
-                      {section}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {section && (
+                        <Badge variant="outline" className="text-[10px] whitespace-nowrap">
+                          {section}
+                        </Badge>
+                      )}
+                      <ChevronRight className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        isExpanded && "rotate-90"
+                      )} />
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="text-sm font-semibold text-foreground">{task.name}</h4>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {linked && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/contacts/${linked.id}`);
+                              }}
+                            >
+                              View Contact
+                            </Button>
+                          )}
+                          <a
+                            href={`https://app.asana.com/0/0/${task.gid}/f`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button variant="ghost" size="sm" className="text-xs h-7">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Asana
+                            </Button>
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {task.due_on && (
+                          <span>Due: {format(parseLocalDate(task.due_on), "MMM d, yyyy")}</span>
+                        )}
+                        {section && <span>Section: {section}</span>}
+                        {linked && <span>Client: {linked.name}</span>}
+                        {task.modified_at && (
+                          <span>Updated {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}</span>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
