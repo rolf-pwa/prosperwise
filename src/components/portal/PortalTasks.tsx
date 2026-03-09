@@ -215,18 +215,23 @@ export function PortalTasks({ portalToken, clientName }: Props) {
         )}
       </div>
 
-      {/* Completed Tasks */}
+      {/* Completed Tasks — compact link list */}
       {completedTasks.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground font-medium">
+            <CheckSquare className="h-4 w-4 text-muted-foreground/50" />
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               Completed ({completedTasks.length})
             </p>
           </div>
-          <div className="space-y-2">
-            {completedTasks.slice(0, 5).map(renderTaskWithExpansion)}
-          </div>
+          <ul className="space-y-1 pl-1">
+            {completedTasks.slice(0, 10).map((task) => (
+              <li key={task.gid} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                <span className="line-through truncate">{task.name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
