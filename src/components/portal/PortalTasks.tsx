@@ -181,10 +181,21 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
     // Record interaction if this is a "new" task the client hasn't seen yet
     if (contactId && !interactedGids.has(task.gid)) {
       setInteractedGids((prev) => new Set(prev).add(task.gid));
-      await supabase.from("portal_task_interactions").upsert(
-        { contact_id: contactId, task_gid: task.gid },
-        { onConflict: "contact_id,task_gid" }
-      );
+      // Record interaction and notify staff in parallel
+      const displayName = clientName || "A client";
+      await Promise.all([
+        supabase.from("portal_task_interactions").upsert(
+          { contact_id: contactId, task_gid: task.gid },
+          { onConflict: "contact_id,task_gid" }
+        ),
+        supabase.from("staff_notifications").insert({
+          contact_id: contactId,
+          title: `${displayName} opened a task`,
+          body: `"${task.name}"`,
+          source_type: "task_opened",
+          link: `/contacts/${contactId}`,
+        }),
+      ]);
     }
   };
 
