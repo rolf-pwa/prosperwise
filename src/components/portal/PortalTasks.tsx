@@ -171,11 +171,28 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
     );
   }
 
+  const handleTaskClick = async (task: AsanaTask) => {
+    const isExpanded = selectedTask?.gid === task.gid;
+    if (isExpanded) {
+      setSelectedTask(null);
+      return;
+    }
+    setSelectedTask(task);
+    // Record interaction if this is a "new" task the client hasn't seen yet
+    if (contactId && !interactedGids.has(task.gid)) {
+      setInteractedGids((prev) => new Set(prev).add(task.gid));
+      await supabase.from("portal_task_interactions").upsert(
+        { contact_id: contactId, task_gid: task.gid },
+        { onConflict: "contact_id,task_gid" }
+      );
+    }
+  };
+
   const renderTaskWithExpansion = (task: AsanaTask) => {
     const isExpanded = selectedTask?.gid === task.gid;
     return (
       <div key={task.gid}>
-        <TaskCard task={task} onClick={() => setSelectedTask(isExpanded ? null : task)} isExpanded={isExpanded} />
+        <TaskCard task={task} onClick={() => handleTaskClick(task)} isExpanded={isExpanded} />
         {isExpanded && (
           <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4">
             <div className="flex items-center justify-between mb-3">
