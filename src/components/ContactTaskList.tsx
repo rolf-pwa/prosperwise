@@ -473,6 +473,7 @@ function TaskRow({
               depth={depth + 1}
               visFieldInfo={visFieldInfo}
               onTaskUpdated={handleSubtaskUpdated}
+              clientViewedGids={clientViewedGids}
             />
           ))}
         </div>
