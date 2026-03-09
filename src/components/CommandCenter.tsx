@@ -1,11 +1,16 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink, ChevronRight } from "lucide-react";
-import { format, parseISO, isToday, formatDistanceToNow } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+  Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink, ChevronRight,
+  MessageSquare, CheckSquare, FileText, X,
+} from "lucide-react";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,7 +121,6 @@ function CalendarWidget() {
     };
   }, []);
   const { data, isLoading, error } = useCalendarEvents(timeMin, timeMax);
-
 
   return (
     <Card>
@@ -246,13 +250,42 @@ function GmailWidget() {
   );
 }
 
+// ── Linkify helper ──
+function Linkify({ children }: { children: string }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = children.split(urlRegex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-accent underline break-all hover:text-accent/80">
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 interface AsanaTask {
   gid: string;
   name: string;
   completed: boolean;
   due_on: string | null;
+  notes?: string;
   modified_at?: string | null;
+  assignee?: { gid: string; name: string } | null;
   memberships?: { section?: { name?: string }; project?: { gid?: string } }[];
+  custom_fields?: any[];
+}
+
+interface AsanaComment {
+  gid: string;
+  text: string;
+  created_at: string;
+  created_by?: { name?: string };
 }
 
 function extractProjectGid(asanaUrl: string | null): string | null {
@@ -269,13 +302,278 @@ function extractTaskGid(asanaUrl: string | null): string | null {
   return twoSegment ? twoSegment[1] : null;
 }
 
+// ── Dashboard Task Detail Panel ──
+function DashboardTaskDetail({
+  task,
+  linked,
+  section,
+  onClose,
+  onTaskUpdated,
+}: {
+  task: AsanaTask;
+  linked: { id: string; name: string } | null;
+  section: string | null;
+  onClose: () => void;
+  onTaskUpdated?: (t: AsanaTask) => void;
+}) {
+  const navigate = useNavigate();
+  const [comments, setComments] = useState<AsanaComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [newComment, setNewComment] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [subtasks, setSubtasks] = useState<AsanaTask[]>([]);
+  const [subtasksLoading, setSubtasksLoading] = useState(true);
+  const [completing, setCompleting] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    (async () => {
+      setCommentsLoading(true);
+      setSubtasksLoading(true);
+      try {
+        const [commentsRes, subtasksRes] = await Promise.all([
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getTaskStories", task_gid: task.gid },
+          }),
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getSubtasks", task_gid: task.gid },
+          }),
+        ]);
+        if (!commentsRes.error && !commentsRes.data?.error) {
+          setComments(commentsRes.data?.data || []);
+        }
+        if (!subtasksRes.error && !subtasksRes.data?.error) {
+          setSubtasks(subtasksRes.data?.data || []);
+        }
+      } catch {
+        // silent
+      } finally {
+        setCommentsLoading(false);
+        setSubtasksLoading(false);
+      }
+    })();
+  }, [task.gid]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [comments]);
+
+  const handlePostComment = async () => {
+    if (!newComment.trim()) return;
+    setPosting(true);
+    try {
+      const res = await supabase.functions.invoke("asana-service", {
+        body: { action: "postTaskComment", task_gid: task.gid, text: newComment.trim() },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      setComments((prev) => [
+        ...prev,
+        { gid: Date.now().toString(), text: newComment.trim(), created_at: new Date().toISOString(), created_by: { name: "You" } },
+      ]);
+      setNewComment("");
+      toast.success("Comment posted.");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to post comment.");
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleToggleComplete = async () => {
+    setCompleting(true);
+    try {
+      const newCompleted = !task.completed;
+      const res = await supabase.functions.invoke("asana-service", {
+        body: { action: "updateTask", task_gid: task.gid, updates: { completed: newCompleted } },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      onTaskUpdated?.({ ...task, completed: newCompleted });
+      toast.success(newCompleted ? "Task completed." : "Task reopened.");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update task.");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  return (
+    <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <h4 className="text-sm font-semibold text-foreground flex-1">{task.name}</h4>
+        <div className="flex items-center gap-1 shrink-0">
+          {linked && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => navigate(`/contacts/${linked.id}`)}
+            >
+              View Contact
+            </Button>
+          )}
+          <a
+            href={`https://app.asana.com/0/0/${task.gid}/f`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="ghost" size="sm" className="text-xs h-7">
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Asana
+            </Button>
+          </a>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Meta + Actions */}
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        {task.due_on && (
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            Due: {format(parseLocalDate(task.due_on), "MMM d, yyyy")}
+          </span>
+        )}
+        {section && <span>Section: {section}</span>}
+        {linked && <span>Client: {linked.name}</span>}
+        {task.assignee?.name && <span>Assignee: {task.assignee.name}</span>}
+        {task.modified_at && (
+          <span>Updated {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}</span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant={task.completed ? "secondary" : "outline"}
+          size="sm"
+          className="h-7 text-xs"
+          onClick={handleToggleComplete}
+          disabled={completing}
+        >
+          {completing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+          {task.completed ? "Reopen" : "Mark Complete"}
+        </Button>
+      </div>
+
+      {/* Subtasks */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+          <CheckSquare className="h-3 w-3" />
+          Subtasks ({subtasksLoading ? "…" : subtasks.length})
+        </div>
+        {subtasksLoading ? (
+          <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+        ) : subtasks.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">No subtasks</p>
+        ) : (
+          <div className="space-y-1">
+            {subtasks.map((sub) => (
+              <div
+                key={sub.gid}
+                className={cn(
+                  "flex items-center gap-2 rounded px-2.5 py-1.5 text-sm",
+                  sub.completed ? "opacity-50 line-through text-muted-foreground" : "bg-muted/50"
+                )}
+              >
+                <CheckSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="truncate flex-1">{sub.name}</span>
+                {sub.due_on && (
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {format(parseLocalDate(sub.due_on), "MMM d")}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Notes */}
+      {task.notes && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+            <FileText className="h-3 w-3" />
+            Notes
+          </div>
+          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm whitespace-pre-wrap">
+            <Linkify>{task.notes}</Linkify>
+          </div>
+        </div>
+      )}
+
+      <Separator />
+
+      {/* Comments */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+          <MessageSquare className="h-3 w-3" />
+          Comments ({commentsLoading ? "…" : comments.length})
+        </div>
+
+        {commentsLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+          </div>
+        ) : comments.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic py-2">No comments yet.</p>
+        ) : (
+          <div ref={scrollRef} className="space-y-2 max-h-[300px] overflow-y-auto">
+            {comments.map((comment) => (
+              <div key={comment.gid} className="rounded-md bg-muted/50 px-3 py-2 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">
+                    {comment.created_by?.name || "Unknown"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(comment.created_at).toLocaleDateString("en-US", {
+                      month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap"><Linkify>{comment.text}</Linkify></p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Write a comment..."
+            rows={2}
+            className="text-sm flex-1 min-h-[44px]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePostComment();
+            }}
+          />
+          <Button
+            size="icon"
+            className="shrink-0 self-end h-9 w-9"
+            onClick={handlePostComment}
+            disabled={posting || !newComment.trim()}
+          >
+            {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">Press ⌘+Enter to send</p>
+      </div>
+    </div>
+  );
+}
+
 function AsanaMyTasksWidget() {
   const [tasks, setTasks] = useState<AsanaTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [contactMap, setContactMap] = useState<Record<string, { id: string; name: string }>>({});
   const [expandedGid, setExpandedGid] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -339,6 +637,12 @@ function AsanaMyTasksWidget() {
     const section = task.memberships?.[0]?.section?.name;
     return section || null;
   }
+
+  const handleTaskUpdated = (updatedTask: AsanaTask) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.gid === updatedTask.gid ? { ...t, ...updatedTask } : t))
+    );
+  };
 
   return (
     <Card className="h-full">
@@ -408,47 +712,13 @@ function AsanaMyTasksWidget() {
                     </div>
                   </button>
                   {isExpanded && (
-                    <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <h4 className="text-sm font-semibold text-foreground">{task.name}</h4>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {linked && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs h-7"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/contacts/${linked.id}`);
-                              }}
-                            >
-                              View Contact
-                            </Button>
-                          )}
-                          <a
-                            href={`https://app.asana.com/0/0/${task.gid}/f`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button variant="ghost" size="sm" className="text-xs h-7">
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              Asana
-                            </Button>
-                          </a>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        {task.due_on && (
-                          <span>Due: {format(parseLocalDate(task.due_on), "MMM d, yyyy")}</span>
-                        )}
-                        {section && <span>Section: {section}</span>}
-                        {linked && <span>Client: {linked.name}</span>}
-                        {task.modified_at && (
-                          <span>Updated {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}</span>
-                        )}
-                      </div>
-                    </div>
+                    <DashboardTaskDetail
+                      task={task}
+                      linked={linked}
+                      section={section}
+                      onClose={() => setExpandedGid(null)}
+                      onTaskUpdated={handleTaskUpdated}
+                    />
                   )}
                 </div>
               );
