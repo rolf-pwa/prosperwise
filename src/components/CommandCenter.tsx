@@ -290,6 +290,8 @@ interface AsanaComment {
 
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
+  const newMatch = asanaUrl.match(/\/project\/(\d+)/);
+  if (newMatch) return newMatch[1];
   const match = asanaUrl.match(/app\.asana\.com\/(?:0|project)\/(\d+)/);
   return match ? match[1] : null;
 }
@@ -298,8 +300,19 @@ function extractTaskGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
   const taskMatch = asanaUrl.match(/\/task\/(\d+)/);
   if (taskMatch) return taskMatch[1];
+  const listTaskMatch = asanaUrl.match(/\/project\/\d+\/list\/(\d+)/);
+  if (listTaskMatch) return listTaskMatch[1];
   const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
   return twoSegment ? twoSegment[1] : null;
+}
+
+function isTaskBasedUrl(asanaUrl: string | null): boolean {
+  if (!asanaUrl) return false;
+  if (/\/task\/\d+/.test(asanaUrl)) return true;
+  if (/\/project\/\d+\/list\/\d+/.test(asanaUrl)) return true;
+  if (/app\.asana\.com\/0\/\d+\/f/.test(asanaUrl)) return true;
+  if (/app\.asana\.com\/0\/\d+\/\d+/.test(asanaUrl) && !/\/(list|board|timeline|calendar)/.test(asanaUrl)) return true;
+  return false;
 }
 
 // ── Dashboard Task Detail Panel ──
