@@ -63,12 +63,12 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
   { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/workbench", label: "Workbench", icon: Cpu },
-  { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
 ];
 
 const directoryItems = [
