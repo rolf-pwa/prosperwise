@@ -402,6 +402,7 @@ function AssigneePicker({
   );
 }
 
+interface AsanaTask {
   gid: string;
   name: string;
   completed: boolean;
