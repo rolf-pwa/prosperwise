@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { AssigneePicker } from "@/components/AssigneePicker";
 
 // ── Types ──
 interface AsanaTask {
