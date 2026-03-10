@@ -22,6 +22,7 @@ import {
   Building2,
   Megaphone,
   Cpu,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
