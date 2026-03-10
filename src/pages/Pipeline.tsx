@@ -1,0 +1,326 @@
+import { useEffect, useState } from "react";
+import { AppLayout } from "@/components/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Plus, DollarSign, TrendingUp, ShieldCheck, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Link } from "react-router-dom";
+
+interface PipelineItem {
+  id: string;
+  contact_id: string;
+  category: "pws_consulting" | "new_aum" | "insurance";
+  status: "pending" | "in_process" | "completed";
+  amount: number;
+  expected_close_date: string | null;
+  notes: string | null;
+  created_at: string;
+  contact?: { id: string; full_name: string };
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  pws_consulting: "PWS Consulting Fees",
+  new_aum: "New Investment Deposits (AUM)",
+  insurance: "Insurance Sales",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  in_process: "In Process",
+  completed: "Completed",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: "bg-secondary text-secondary-foreground",
+  in_process: "bg-accent text-accent-foreground",
+  completed: "bg-primary text-primary-foreground",
+};
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+
+export default function Pipeline() {
+  const { user } = useAuth();
+  const [items, setItems] = useState<PipelineItem[]>([]);
+  const [contacts, setContacts] = useState<{ id: string; full_name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<PipelineItem | null>(null);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+
+  // Form state
+  const [formContactId, setFormContactId] = useState("");
+  const [formCategory, setFormCategory] = useState<string>("pws_consulting");
+  const [formStatus, setFormStatus] = useState<string>("pending");
+  const [formAmount, setFormAmount] = useState("");
+  const [formDate, setFormDate] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const [{ data: pipelineData }, { data: contactData }] = await Promise.all([
+      supabase.from("business_pipeline" as any).select("*, contact:contacts(id, full_name)").order("created_at", { ascending: false }),
+      supabase.from("contacts").select("id, full_name").order("full_name"),
+    ]);
+    setItems((pipelineData as any) || []);
+    setContacts(contactData || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const resetForm = () => {
+    setFormContactId("");
+    setFormCategory("pws_consulting");
+    setFormStatus("pending");
+    setFormAmount("");
+    setFormDate("");
+    setFormNotes("");
+    setEditingItem(null);
+  };
+
+  const openEdit = (item: PipelineItem) => {
+    setEditingItem(item);
+    setFormContactId(item.contact_id);
+    setFormCategory(item.category);
+    setFormStatus(item.status);
+    setFormAmount(String(item.amount));
+    setFormDate(item.expected_close_date || "");
+    setFormNotes(item.notes || "");
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formContactId || !formAmount) {
+      toast.error("Contact and amount are required");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      contact_id: formContactId,
+      category: formCategory,
+      status: formStatus,
+      amount: Number(formAmount),
+      expected_close_date: formDate || null,
+      notes: formNotes || null,
+    };
+
+    if (editingItem) {
+      const { error } = await (supabase.from("business_pipeline" as any) as any).update(payload).eq("id", editingItem.id);
+      if (error) toast.error("Failed to update");
+      else toast.success("Pipeline item updated");
+    } else {
+      const { error } = await (supabase.from("business_pipeline" as any) as any).insert({ ...payload, created_by: user?.id });
+      if (error) toast.error("Failed to create");
+      else toast.success("Pipeline item created");
+    }
+    setSaving(false);
+    setDialogOpen(false);
+    resetForm();
+    fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await (supabase.from("business_pipeline" as any) as any).delete().eq("id", id);
+    if (error) toast.error("Failed to delete");
+    else { toast.success("Deleted"); fetchData(); }
+  };
+
+  const filtered = items.filter((i) => {
+    if (filterCategory !== "all" && i.category !== filterCategory) return false;
+    if (filterStatus !== "all" && i.status !== filterStatus) return false;
+    return true;
+  });
+
+  // Summary stats
+  const totalPending = items.filter((i) => i.status === "pending").reduce((s, i) => s + Number(i.amount), 0);
+  const totalInProcess = items.filter((i) => i.status === "in_process").reduce((s, i) => s + Number(i.amount), 0);
+  const totalCompleted = items.filter((i) => i.status === "completed").reduce((s, i) => s + Number(i.amount), 0);
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-foreground">New Business Pipeline</h1>
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />Add Opportunity</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingItem ? "Edit Opportunity" : "New Opportunity"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label>Contact</Label>
+                  <Select value={formContactId} onValueChange={setFormContactId}>
+                    <SelectTrigger><SelectValue placeholder="Select contact" /></SelectTrigger>
+                    <SelectContent>
+                      {contacts.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Category</Label>
+                  <Select value={formCategory} onValueChange={setFormCategory}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Amount ($)</Label>
+                  <Input type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <Label>Expected Close Date</Label>
+                  <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Notes</Label>
+                  <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Optional notes..." />
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="w-full">
+                  {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {editingItem ? "Update" : "Create"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <DollarSign className="h-4 w-4" />Pending
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalPending)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <TrendingUp className="h-4 w-4" />In Process
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalInProcess)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <ShieldCheck className="h-4 w-4" />Completed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalCompleted)}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-3">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Table */}
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : filtered.length === 0 ? (
+              <p className="text-center text-muted-foreground py-12">No pipeline items found.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Expected Close</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="w-[80px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <Link to={`/contacts/${item.contact_id}`} className="text-primary hover:underline font-medium">
+                          {(item as any).contact?.full_name || "—"}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{CATEGORY_LABELS[item.category]}</TableCell>
+                      <TableCell>
+                        <Badge className={STATUS_COLORS[item.status]}>{STATUS_LABELS[item.status]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(Number(item.amount))}</TableCell>
+                      <TableCell>{item.expected_close_date || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">{item.notes || "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}
