@@ -243,12 +243,12 @@ const SideDrawerPage = () => {
 
         {/* Credentials missing notice */}
         {credentialsMissing && (
-          <Card className="border-warning/30 bg-warning/5">
+          <Card className="border-accent/30 bg-accent/5">
             <CardContent className="p-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-warning mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-accent mt-0.5" />
                 <div>
-                  <h3 className="font-semibold">
+                  <h3 className="font-semibold text-accent-foreground">
                     SideDrawer credentials not configured
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">
