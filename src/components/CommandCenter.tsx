@@ -685,6 +685,10 @@ function AsanaMyTasksWidget() {
   }, []);
 
   function getLinkedContact(task: AsanaTask) {
+    // Check if subtask was tagged with a parent task GID
+    const parentGid = (task as any)._parentTaskGid;
+    if (parentGid && contactMap[parentGid]) return contactMap[parentGid];
+    // Check project memberships
     for (const m of task.memberships || []) {
       const gid = m.project?.gid;
       if (gid && contactMap[gid]) return contactMap[gid];
