@@ -63,16 +63,19 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/families", label: "Families", icon: TreesIcon },
-  { to: "/households", label: "Households", icon: Home },
-  { to: "/corporations", label: "Corporations", icon: Building2 },
-  { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/workbench", label: "Workbench", icon: Cpu },
   { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
+];
+
+const directoryItems = [
+  { to: "/families", label: "Families", icon: TreesIcon },
+  { to: "/households", label: "Households", icon: Home },
+  { to: "/corporations", label: "Corporations", icon: Building2 },
+  { to: "/contacts", label: "Contacts", icon: Users },
 ];
 
 const externalLinks = [
@@ -132,6 +135,52 @@ export function AppSidebar() {
     return null;
   };
 
+  const renderNavLink = (to: string, label: string, Icon: any, badge: number | null, active: boolean, isCollapsed: boolean, nested = false) => {
+    const linkContent = (
+      <Link
+        key={to}
+        to={to}
+        className={cn(
+          "flex items-center gap-4 rounded-lg transition-colors",
+          isCollapsed ? "justify-center px-3 py-3" : nested ? "px-5 py-2.5" : "px-5 py-4",
+          nested ? "text-sm font-medium" : "text-[15px] font-medium",
+          active
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+      >
+        <Icon className={cn("shrink-0", nested ? "h-4 w-4" : "h-5 w-5")} />
+        {!isCollapsed && label}
+        {!isCollapsed && badge !== null && (
+          <span
+            className={cn(
+              "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+              active
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-accent/25 text-accent border border-accent/30"
+            )}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </Link>
+    );
+
+    if (isCollapsed) {
+      return (
+        <Tooltip key={to}>
+          <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {label}
+            {badge !== null && ` (${badge})`}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return <div key={to}>{linkContent}</div>;
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
@@ -153,53 +202,38 @@ export function AppSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 space-y-1 px-2 pt-8">
-          {navItems.map(({ to, label, icon: Icon, ...rest }: any) => {
+          {navItems.slice(0, 1).map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
+            return renderNavLink(to, label, Icon, badge, active, collapsed);
+          })}
 
-            const linkContent = (
-              <Link
-                key={to}
-                to={to}
-                className={cn(
-                  "flex items-center gap-4 rounded-lg transition-colors",
-                  collapsed ? "justify-center px-3 py-3" : "px-5 py-4",
-                  "text-[15px] font-medium",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {!collapsed && label}
-                {!collapsed && badge !== null && (
-                  <span
-                    className={cn(
-                      "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
-                      active
-                        ? "bg-primary-foreground/20 text-primary-foreground"
-                        : "bg-accent/25 text-accent border border-accent/30"
-                    )}
-                  >
-                    {badge > 99 ? "99+" : badge}
-                  </span>
-                )}
-              </Link>
-            );
+          {/* Directory group: Families, Households, Corporations, Contacts */}
+          {collapsed ? (
+            directoryItems.map(({ to, label, icon: Icon }) => {
+              const active = location.pathname === to || location.pathname.startsWith(to + "/");
+              return renderNavLink(to, label, Icon, null, active, collapsed);
+            })
+          ) : (
+            <Collapsible defaultOpen={directoryItems.some(({ to }) => location.pathname === to || location.pathname.startsWith(to + "/"))}>
+              <CollapsibleTrigger className="flex w-full items-center gap-4 rounded-lg px-5 py-3 text-[15px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <Folder className="h-5 w-5 shrink-0" />
+                <span className="flex-1 text-left">Directory</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5 pl-4">
+                {directoryItems.map(({ to, label, icon: Icon }) => {
+                  const active = location.pathname === to || location.pathname.startsWith(to + "/");
+                  return renderNavLink(to, label, Icon, null, active, false, true);
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
-            if (collapsed) {
-              return (
-                <Tooltip key={to}>
-                  <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {label}
-                    {badge !== null && ` (${badge})`}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            return <div key={to}>{linkContent}</div>;
+          {navItems.slice(1).map(({ to, label, icon: Icon, ...rest }: any) => {
+            const active = location.pathname === to || location.pathname.startsWith(to + "/");
+            const badge = getBadgeCount({ ...rest });
+            return renderNavLink(to, label, Icon, badge, active, collapsed);
           })}
 
           <Separator className="my-4 bg-border" />
