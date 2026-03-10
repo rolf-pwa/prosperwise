@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { CommandCenter } from "@/components/CommandCenter";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
+import { PipelineWidget } from "@/components/PipelineWidget";
 
 const Dashboard = () => {
   return (
@@ -8,6 +9,7 @@ const Dashboard = () => {
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-foreground">Command Center</h1>
         <DashboardSidebar />
+        <PipelineWidget />
         <CommandCenter />
       </div>
     </AppLayout>

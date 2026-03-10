@@ -27,6 +27,7 @@ import Corporations from "./pages/Corporations";
 import CorporationDetail from "./pages/CorporationDetail";
 import MarketingUpdates from "./pages/MarketingUpdates";
 import Workbench from "./pages/Workbench";
+import Pipeline from "./pages/Pipeline";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/review-queue" element={<ProtectedRoute><ReviewQueue /></ProtectedRoute>} />
             <Route path="/marketing-updates" element={<ProtectedRoute><MarketingUpdates /></ProtectedRoute>} />
             <Route path="/workbench" element={<ProtectedRoute><Workbench /></ProtectedRoute>} />
+            <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
             <Route path="/contacts/new" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />

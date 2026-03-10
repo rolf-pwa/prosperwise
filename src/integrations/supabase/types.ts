@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_pipeline: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["pipeline_category"]
+          contact_id: string
+          created_at: string
+          created_by: string
+          expected_close_date: string | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["pipeline_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: Database["public"]["Enums"]["pipeline_category"]
+          contact_id: string
+          created_at?: string
+          created_by: string
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["pipeline_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["pipeline_category"]
+          contact_id?: string
+          created_at?: string
+          created_by?: string
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["pipeline_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_pipeline_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashflow_analyses: {
         Row: {
           burn_rate: Json | null
@@ -1343,6 +1390,8 @@ export type Database = {
       fee_tier: "sovereign" | "legacy" | "dynasty"
       fiduciary_entity: "pws" | "pwa"
       governance_status: "stabilization" | "sovereign"
+      pipeline_category: "pws_consulting" | "new_aum" | "insurance"
+      pipeline_status: "pending" | "in_process" | "completed"
       review_status: "pending" | "approved" | "rejected" | "escalated"
       visibility_scope: "private" | "household_shared" | "family_shared"
     }
@@ -1484,6 +1533,8 @@ export const Constants = {
       fee_tier: ["sovereign", "legacy", "dynasty"],
       fiduciary_entity: ["pws", "pwa"],
       governance_status: ["stabilization", "sovereign"],
+      pipeline_category: ["pws_consulting", "new_aum", "insurance"],
+      pipeline_status: ["pending", "in_process", "completed"],
       review_status: ["pending", "approved", "rejected", "escalated"],
       visibility_scope: ["private", "household_shared", "family_shared"],
     },
