@@ -20,11 +20,6 @@ import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { format, parseISO, formatDistanceToNow } from "date-fns";
-import { parseLocalDate } from "@/lib/date-utils";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import {
   useGoogleStatus,
   useConnectGoogle,
