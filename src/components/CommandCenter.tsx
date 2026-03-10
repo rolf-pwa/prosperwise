@@ -669,7 +669,8 @@ function AsanaMyTasksWidget() {
           }
         }
 
-        const sorted = allTasks.sort((a, b) => {
+        const incomplete = allTasks.filter((t) => !t.completed);
+        const sorted = incomplete.sort((a, b) => {
           if (!a.due_on && !b.due_on) return 0;
           if (!a.due_on) return 1;
           if (!b.due_on) return -1;
