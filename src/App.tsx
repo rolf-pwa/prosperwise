@@ -28,6 +28,7 @@ import CorporationDetail from "./pages/CorporationDetail";
 import MarketingUpdates from "./pages/MarketingUpdates";
 import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
+import SideDrawer from "./pages/SideDrawer";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/contacts/new" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />
             <Route path="/contacts/:id/edit" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
+            <Route path="/sidedrawer/:contactId" element={<ProtectedRoute><SideDrawer /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

@@ -303,7 +303,7 @@ const ContactDetail = () => {
   const progressPct = quietStart ? Math.min((daysElapsed / 90) * 100, 100) : 0;
 
   const resourceLinks = [
-    { label: "SideDrawer", url: contact.sidedrawer_url, icon: Folder },
+    { label: "SideDrawer", url: `/sidedrawer/${id}`, icon: Folder, internal: true },
     { label: "Google Drive", url: contact.google_drive_url, icon: FolderOpen },
     { label: "Asana", url: contact.asana_url, icon: CheckSquare },
     { label: "IA Financial", url: contact.ia_financial_url, icon: ShieldCheck },
@@ -483,25 +483,39 @@ const ContactDetail = () => {
 
             {/* Resources */}
             <div className="grid grid-cols-4 gap-2">
-              {resourceLinks.map(({ label, url, icon: Icon }) => (
-                <a
-                  key={label}
-                  href={url || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
-                    url
-                      ? "hover:bg-muted/50"
-                      : "cursor-not-allowed opacity-50"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">{label}</span>
-                  {url && (
-                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                  )}
-                </a>
-              ))}
+              {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
+                if (internal && url) {
+                  return (
+                    <Link
+                      key={label}
+                      to={url}
+                      className="flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors hover:bg-muted/50"
+                    >
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{label}</span>
+                    </Link>
+                  );
+                }
+                return (
+                  <a
+                    key={label}
+                    href={url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
+                      url
+                        ? "hover:bg-muted/50"
+                        : "cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{label}</span>
+                    {url && (
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </a>
+                );
+              })}
             </div>
             {/* Tasks */}
             <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
