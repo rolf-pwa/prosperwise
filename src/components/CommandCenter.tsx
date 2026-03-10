@@ -291,11 +291,18 @@ async function fetchWorkspaceUsers(): Promise<{ gid: string; name: string }[]> {
     const res = await supabase.functions.invoke("asana-service", {
       body: { action: "getWorkspaceUsers" },
     });
+    if (res.error) {
+      console.error("[AssigneePicker] Edge function error:", res.error);
+      return [];
+    }
     const users = (res.data?.data || []).map((u: any) => ({ gid: u.gid, name: u.name }));
     _workspaceUsersCache = users;
     _workspaceUsersListeners.forEach((cb) => cb(users));
     _workspaceUsersListeners.length = 0;
     return users;
+  } catch (e) {
+    console.error("[AssigneePicker] Failed to fetch users:", e);
+    return [];
   } finally {
     _workspaceUsersFetching = false;
   }
