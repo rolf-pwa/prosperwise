@@ -335,15 +335,23 @@ class AsanaService {
   // -------------------------------------------------------------------------
   async getWorkspaceUsers() {
     return withFailSafe("getWorkspaceUsers", async () => {
-      const url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/users?opt_fields=name,email,photo.image_36x36`;
+      const url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/users?opt_fields=name,email,photo.image_36x36&limit=100`;
       console.log("[AsanaService] GET", url);
       const res = await fetch(url, { headers: this.headers() });
       if (!res.ok) {
         const body = await res.text();
+        console.error("[AsanaService] getWorkspaceUsers failed:", res.status, body);
         throw new Error(`Asana API error ${res.status}: ${body}`);
       }
       const json = await res.json();
-      return json.data || [];
+      const allUsers = json.data || [];
+      console.log("[AsanaService] getWorkspaceUsers total:", allUsers.length);
+      // Filter to only @prosperwise.ca team members
+      const filtered = allUsers.filter((u: any) => 
+        u.email && u.email.toLowerCase().endsWith("@prosperwise.ca")
+      );
+      console.log("[AsanaService] getWorkspaceUsers filtered:", filtered.length);
+      return filtered;
     });
   }
 
