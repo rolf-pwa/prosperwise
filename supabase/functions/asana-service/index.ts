@@ -1027,6 +1027,11 @@ serve(async (req) => {
         break;
       }
 
+      case "getWorkspaceUsers": {
+        result = await service.getWorkspaceUsers();
+        break;
+      }
+
       case "getInbox": {
         result = await service.getInbox();
         break;
