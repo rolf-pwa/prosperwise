@@ -496,32 +496,28 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
-  // getMyTasks – Tasks assigned to me, optionally filtered by project GIDs
+  // getMyTasks – Tasks assigned to staff in linked projects (excludes collaborator-only)
   // -------------------------------------------------------------------------
   async getMyTasks(projectGids?: string[]) {
     return withFailSafe("getMyTasks", async () => {
       const fields = "name,completed,due_on,modified_at,memberships.section.name,memberships.project.gid,notes,num_subtasks,assignee.name";
-      let assignedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&assignee.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
-      let followedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&followers.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
       
+      const fetches: Promise<Response>[] = [];
+
+      // Fetch tasks assigned to me (the PAT user)
+      let assignedUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&assignee.any=me&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
       if (projectGids && projectGids.length > 0) {
-        const projectFilter = `&projects.any=${projectGids.join(",")}`;
-        assignedUrl += projectFilter;
-        followedUrl += projectFilter;
+        assignedUrl += `&projects.any=${projectGids.join(",")}`;
       }
+      fetches.push(fetch(assignedUrl, { headers: this.headers() }));
 
-      console.log("[AsanaService] GET my tasks (assigned + collaborator + project-wide)");
-
-      const fetches: Promise<Response>[] = [
-        fetch(assignedUrl, { headers: this.headers() }),
-        fetch(followedUrl, { headers: this.headers() }),
-      ];
-
-      // Also fetch ALL tasks from linked projects (any assignee) so dashboard shows full team work
+      // Fetch ALL tasks from linked projects (any assignee) — but only assigned tasks show up here
       if (projectGids && projectGids.length > 0) {
         const projectAllUrl = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/tasks/search?opt_fields=${fields}&projects.any=${projectGids.join(",")}&is_subtask=false&completed=false&sort_by=modified_at&sort_ascending=false&limit=50`;
         fetches.push(fetch(projectAllUrl, { headers: this.headers() }));
       }
+
+      console.log("[AsanaService] GET my tasks (assigned + project-wide, no collaborator)");
 
       const responses = await Promise.all(fetches);
 
@@ -534,12 +530,12 @@ class AsanaService {
 
       const jsons = await Promise.all(responses.map(r => r.json()));
 
-      // Merge & deduplicate by GID
+      // Merge & deduplicate by GID, only include tasks that have an assignee
       const seen = new Set<string>();
       const merged: any[] = [];
       for (const json of jsons) {
         for (const task of (json.data || [])) {
-          if (!seen.has(task.gid)) {
+          if (!seen.has(task.gid) && task.assignee) {
             seen.add(task.gid);
             merged.push(task);
           }
