@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, DollarSign, TrendingUp, ShieldCheck, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, DollarSign, TrendingUp, ShieldCheck, Pencil, Trash2, Landmark } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
