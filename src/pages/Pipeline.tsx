@@ -227,36 +227,44 @@ export default function Pipeline() {
           </Dialog>
         </div>
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Summary cards — Revenue vs AUM */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Revenue Pipeline: Consulting + Insurance */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <DollarSign className="h-4 w-4" />Pending
+                <DollarSign className="h-4 w-4" />Revenue Pipeline
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalPending)}</p>
+            <CardContent className="space-y-3">
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalActiveRevenue)}</p>
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span>Pending: <strong className="text-foreground">{formatCurrency(revenuePending)}</strong></span>
+                <span>In Process: <strong className="text-foreground">{formatCurrency(revenueInProcess)}</strong></span>
+              </div>
+              {revenueCompleted > 0 && (
+                <p className="text-xs text-muted-foreground">Completed: {formatCurrency(revenueCompleted)}</p>
+              )}
             </CardContent>
           </Card>
+
+          {/* AUM Deposits */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <TrendingUp className="h-4 w-4" />In Process
+                <Landmark className="h-4 w-4" />New AUM Deposits
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalInProcess)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <ShieldCheck className="h-4 w-4" />Completed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalCompleted)}</p>
+            <CardContent className="space-y-3">
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(totalActiveAum)}</p>
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span>Pending: <strong className="text-foreground">{formatCurrency(aumPending)}</strong></span>
+                <span>In Process: <strong className="text-foreground">{formatCurrency(aumInProcess)}</strong></span>
+              </div>
+              <p className="text-xs text-muted-foreground italic">Subject to AUM fees</p>
+              {aumCompleted > 0 && (
+                <p className="text-xs text-muted-foreground">Completed: {formatCurrency(aumCompleted)}</p>
+              )}
             </CardContent>
           </Card>
         </div>
