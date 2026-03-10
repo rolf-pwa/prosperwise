@@ -7,9 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Calendar, Mail, Plus, Send, Loader2, Link2Off, Inbox, ExternalLink, ChevronRight,
-  MessageSquare, CheckSquare, FileText, X,
+  MessageSquare, CheckSquare, FileText, X, UserCircle,
 } from "lucide-react";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
+import { parseLocalDate } from "@/lib/date-utils";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
