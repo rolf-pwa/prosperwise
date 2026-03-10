@@ -143,10 +143,21 @@ export default function Pipeline() {
     return true;
   });
 
-  // Summary stats
-  const totalPending = items.filter((i) => i.status === "pending").reduce((s, i) => s + Number(i.amount), 0);
-  const totalInProcess = items.filter((i) => i.status === "in_process").reduce((s, i) => s + Number(i.amount), 0);
-  const totalCompleted = items.filter((i) => i.status === "completed").reduce((s, i) => s + Number(i.amount), 0);
+  // Summary stats — split revenue (consulting + insurance) vs AUM
+  const revenue = items.filter((i) => i.category === "pws_consulting" || i.category === "insurance");
+  const aum = items.filter((i) => i.category === "new_aum");
+  const sumByStatus = (arr: PipelineItem[], status: string) =>
+    arr.filter((i) => i.status === status).reduce((s, i) => s + Number(i.amount), 0);
+
+  const revenuePending = sumByStatus(revenue, "pending");
+  const revenueInProcess = sumByStatus(revenue, "in_process");
+  const revenueCompleted = sumByStatus(revenue, "completed");
+  const totalActiveRevenue = revenuePending + revenueInProcess;
+
+  const aumPending = sumByStatus(aum, "pending");
+  const aumInProcess = sumByStatus(aum, "in_process");
+  const aumCompleted = sumByStatus(aum, "completed");
+  const totalActiveAum = aumPending + aumInProcess;
 
   return (
     <AppLayout>
