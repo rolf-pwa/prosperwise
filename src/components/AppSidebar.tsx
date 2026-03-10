@@ -63,8 +63,6 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
-  { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
@@ -76,6 +74,11 @@ const directoryItems = [
   { to: "/households", label: "Households", icon: Home },
   { to: "/corporations", label: "Corporations", icon: Building2 },
   { to: "/contacts", label: "Contacts", icon: Users },
+];
+
+const growthItems = [
+  { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
+  { to: "/leads", label: "Leads", icon: UserPlus },
 ];
 
 const externalLinks = [
@@ -202,11 +205,33 @@ export function AppSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 space-y-1 px-2 pt-8">
-          {navItems.slice(0, 2).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {navItems.slice(0, 1).map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
           })}
+
+          {/* Growth group: Pipeline, Leads */}
+          {collapsed ? (
+            growthItems.map(({ to, label, icon: Icon }) => {
+              const active = location.pathname === to || location.pathname.startsWith(to + "/");
+              return renderNavLink(to, label, Icon, null, active, collapsed);
+            })
+          ) : (
+            <Collapsible defaultOpen={growthItems.some(({ to }) => location.pathname === to || location.pathname.startsWith(to + "/"))}>
+              <CollapsibleTrigger className="flex w-full items-center gap-4 rounded-lg px-5 py-3 text-[15px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <TrendingUp className="h-5 w-5 shrink-0" />
+                <span className="flex-1 text-left">Growth</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5 pl-4">
+                {growthItems.map(({ to, label, icon: Icon }) => {
+                  const active = location.pathname === to || location.pathname.startsWith(to + "/");
+                  return renderNavLink(to, label, Icon, null, active, false, true);
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
           {/* Directory group: Families, Households, Corporations, Contacts */}
           {collapsed ? (
@@ -230,7 +255,7 @@ export function AppSidebar() {
             </Collapsible>
           )}
 
-          {navItems.slice(2).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {navItems.slice(1).map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
