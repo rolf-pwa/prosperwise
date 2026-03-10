@@ -1306,22 +1306,13 @@ function TaskDetailPanel({
 
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
-          {editing ? (
-            <select
-              value={editAssignee}
-              onChange={(e) => setEditAssignee(e.target.value)}
-              className="h-7 rounded-md border bg-background px-2 text-xs text-foreground"
-            >
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.gid} value={m.gid}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span>{task.assignee?.name || "Unassigned"}</span>
-          )}
+          <AssigneePicker
+            currentAssignee={task.assignee}
+            taskGid={task.gid}
+            onAssigneeChanged={(newAssignee) => {
+              onUpdated({ ...task, assignee: newAssignee });
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-2">
