@@ -20,6 +20,7 @@ import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { AssigneePicker } from "@/components/AssigneePicker";
 import {
   useGoogleStatus,
   useConnectGoogle,
