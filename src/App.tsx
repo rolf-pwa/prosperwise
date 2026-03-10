@@ -27,6 +27,7 @@ import Corporations from "./pages/Corporations";
 import CorporationDetail from "./pages/CorporationDetail";
 import MarketingUpdates from "./pages/MarketingUpdates";
 import Workbench from "./pages/Workbench";
+import Pipeline from "./pages/Pipeline";
 
 const queryClient = new QueryClient();
 
