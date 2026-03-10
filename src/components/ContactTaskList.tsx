@@ -438,11 +438,14 @@ function TaskRow({
               <Eye className="h-2.5 w-2.5 mr-0.5" />Viewed
             </Badge>
           )}
-          {task.assignee?.name && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-              {task.assignee.name.split(" ")[0]}
-            </Badge>
-          )}
+          <AssigneePicker
+            currentAssignee={task.assignee}
+            taskGid={task.gid}
+            onAssigneeChanged={(newAssignee) => {
+              const updated = { ...task, assignee: newAssignee };
+              onTaskUpdated?.(updated);
+            }}
+          />
           {visibility && (
             <Badge
               variant={visibility === "Client Visible" ? "default" : "secondary"}
