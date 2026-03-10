@@ -135,6 +135,52 @@ export function AppSidebar() {
     return null;
   };
 
+  const renderNavLink = (to: string, label: string, Icon: any, badge: number | null, active: boolean, isCollapsed: boolean, nested = false) => {
+    const linkContent = (
+      <Link
+        key={to}
+        to={to}
+        className={cn(
+          "flex items-center gap-4 rounded-lg transition-colors",
+          isCollapsed ? "justify-center px-3 py-3" : nested ? "px-5 py-2.5" : "px-5 py-4",
+          nested ? "text-sm font-medium" : "text-[15px] font-medium",
+          active
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+      >
+        <Icon className={cn("shrink-0", nested ? "h-4 w-4" : "h-5 w-5")} />
+        {!isCollapsed && label}
+        {!isCollapsed && badge !== null && (
+          <span
+            className={cn(
+              "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+              active
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-accent/25 text-accent border border-accent/30"
+            )}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+      </Link>
+    );
+
+    if (isCollapsed) {
+      return (
+        <Tooltip key={to}>
+          <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {label}
+            {badge !== null && ` (${badge})`}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return <div key={to}>{linkContent}</div>;
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
