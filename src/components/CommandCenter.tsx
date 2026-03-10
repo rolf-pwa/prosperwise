@@ -660,9 +660,8 @@ function AsanaMyTasksWidget() {
           const tc = taskBasedContacts[i];
           const subtaskData = results[i + 1]?.data?.data || [];
           for (const sub of subtaskData) {
-            if (!seen.has(sub.gid)) {
+            if (!seen.has(sub.gid) && sub.assignee) {
               seen.add(sub.gid);
-              // Tag the subtask with the parent task GID so getLinkedContact can find it
               sub._parentTaskGid = tc.taskGid;
               allTasks.push(sub);
             }
