@@ -302,13 +302,14 @@ class AsanaService {
   }
 
   // -------------------------------------------------------------------------
-  // updateTask – LIVE: Update task fields (name, notes, due_on, completed)
+  // updateTask – LIVE: Update task fields (name, notes, due_on, completed, assignee)
   // -------------------------------------------------------------------------
   async updateTask(taskGid: string, updates: {
     name?: string;
     notes?: string;
     due_on?: string | null;
     completed?: boolean;
+    assignee?: string | null;
     custom_fields?: Record<string, string>;
   }) {
     return withFailSafe("updateTask", async () => {
@@ -326,6 +327,23 @@ class AsanaService {
       }
       const json = await res.json();
       return json.data;
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // getWorkspaceUsers – LIVE: Fetch users in the workspace for assignee picker
+  // -------------------------------------------------------------------------
+  async getWorkspaceUsers() {
+    return withFailSafe("getWorkspaceUsers", async () => {
+      const url = `${ASANA_BASE_URL}/workspaces/${this.workspaceId}/users?opt_fields=name,email,photo.image_36x36`;
+      console.log("[AsanaService] GET", url);
+      const res = await fetch(url, { headers: this.headers() });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Asana API error ${res.status}: ${body}`);
+      }
+      const json = await res.json();
+      return json.data || [];
     });
   }
 
@@ -1006,6 +1024,11 @@ serve(async (req) => {
 
       case "getDashboardTasks": {
         result = await service.getDashboardTasks();
+        break;
+      }
+
+      case "getWorkspaceUsers": {
+        result = await service.getWorkspaceUsers();
         break;
       }
 
