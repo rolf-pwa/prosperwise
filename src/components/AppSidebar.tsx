@@ -230,7 +230,7 @@ export function AppSidebar() {
             </Collapsible>
           )}
 
-          {navItems.slice(1).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {navItems.slice(2).map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
