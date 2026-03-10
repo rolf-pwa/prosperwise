@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { AssigneePicker } from "@/components/AssigneePicker";
 
 // ── Types ──
 interface AsanaTask {
@@ -438,11 +439,14 @@ function TaskRow({
               <Eye className="h-2.5 w-2.5 mr-0.5" />Viewed
             </Badge>
           )}
-          {task.assignee?.name && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-              {task.assignee.name.split(" ")[0]}
-            </Badge>
-          )}
+          <AssigneePicker
+            currentAssignee={task.assignee}
+            taskGid={task.gid}
+            onAssigneeChanged={(newAssignee) => {
+              const updated = { ...task, assignee: newAssignee };
+              onTaskUpdated?.(updated);
+            }}
+          />
           {visibility && (
             <Badge
               variant={visibility === "Client Visible" ? "default" : "secondary"}
@@ -1302,22 +1306,13 @@ function TaskDetailPanel({
 
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
-          {editing ? (
-            <select
-              value={editAssignee}
-              onChange={(e) => setEditAssignee(e.target.value)}
-              className="h-7 rounded-md border bg-background px-2 text-xs text-foreground"
-            >
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.gid} value={m.gid}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span>{task.assignee?.name || "Unassigned"}</span>
-          )}
+          <AssigneePicker
+            currentAssignee={task.assignee}
+            taskGid={task.gid}
+            onAssigneeChanged={(newAssignee) => {
+              onUpdated({ ...task, assignee: newAssignee });
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-2">
