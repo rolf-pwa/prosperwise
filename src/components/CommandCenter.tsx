@@ -290,6 +290,8 @@ interface AsanaComment {
 
 function extractProjectGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
+  const newMatch = asanaUrl.match(/\/project\/(\d+)/);
+  if (newMatch) return newMatch[1];
   const match = asanaUrl.match(/app\.asana\.com\/(?:0|project)\/(\d+)/);
   return match ? match[1] : null;
 }
@@ -298,8 +300,19 @@ function extractTaskGid(asanaUrl: string | null): string | null {
   if (!asanaUrl) return null;
   const taskMatch = asanaUrl.match(/\/task\/(\d+)/);
   if (taskMatch) return taskMatch[1];
+  const listTaskMatch = asanaUrl.match(/\/project\/\d+\/list\/(\d+)/);
+  if (listTaskMatch) return listTaskMatch[1];
   const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
   return twoSegment ? twoSegment[1] : null;
+}
+
+function isTaskBasedUrl(asanaUrl: string | null): boolean {
+  if (!asanaUrl) return false;
+  if (/\/task\/\d+/.test(asanaUrl)) return true;
+  if (/\/project\/\d+\/list\/\d+/.test(asanaUrl)) return true;
+  if (/app\.asana\.com\/0\/\d+\/f/.test(asanaUrl)) return true;
+  if (/app\.asana\.com\/0\/\d+\/\d+/.test(asanaUrl) && !/\/(list|board|timeline|calendar)/.test(asanaUrl)) return true;
+  return false;
 }
 
 // ── Dashboard Task Detail Panel ──
@@ -588,34 +601,81 @@ function AsanaMyTasksWidget() {
 
         const map: Record<string, { id: string; name: string }> = {};
         const projectGids: string[] = [];
+        const taskBasedContacts: { taskGid: string; contactId: string; contactName: string }[] = [];
+
         if (contactRes.data) {
           for (const c of contactRes.data) {
-            const projGid = extractProjectGid(c.asana_url);
-            if (projGid) {
-              map[projGid] = { id: c.id, name: c.full_name };
-              projectGids.push(projGid);
-            }
-            const taskGid = extractTaskGid(c.asana_url);
-            if (taskGid) {
-              map[taskGid] = { id: c.id, name: c.full_name };
+            // Determine if this is a task-based or project-based URL
+            const isTask = isTaskBasedUrl(c.asana_url);
+            if (isTask) {
+              const taskGid = extractTaskGid(c.asana_url);
+              if (taskGid) {
+                map[taskGid] = { id: c.id, name: c.full_name };
+                taskBasedContacts.push({ taskGid, contactId: c.id, contactName: c.full_name });
+              }
+            } else {
+              const projGid = extractProjectGid(c.asana_url);
+              if (projGid) {
+                map[projGid] = { id: c.id, name: c.full_name };
+                projectGids.push(projGid);
+              }
             }
           }
         }
         setContactMap(map);
 
-        const taskRes = await supabase.functions.invoke("asana-service", {
-          body: { action: "getMyTasks", project_gids: projectGids.length > 0 ? projectGids : undefined },
-        });
+        // Fetch project-level tasks AND subtasks from task-based contacts in parallel
+        const fetches: Promise<any>[] = [
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getMyTasks", project_gids: projectGids.length > 0 ? projectGids : undefined },
+          }),
+        ];
 
-        if (taskRes.data?.data) {
-          const sorted = (taskRes.data.data as AsanaTask[]).sort((a, b) => {
-            if (!a.due_on && !b.due_on) return 0;
-            if (!a.due_on) return 1;
-            if (!b.due_on) return -1;
-            return parseLocalDate(a.due_on).getTime() - parseLocalDate(b.due_on).getTime();
-          });
-          setTasks(sorted);
+        // For each task-based contact, fetch its subtasks
+        for (const tc of taskBasedContacts) {
+          fetches.push(
+            supabase.functions.invoke("asana-service", {
+              body: { action: "getSubtasks", task_gid: tc.taskGid },
+            }),
+          );
         }
+
+        const results = await Promise.all(fetches);
+
+        // Merge all tasks, dedup by GID
+        const seen = new Set<string>();
+        const allTasks: AsanaTask[] = [];
+
+        // Project-level tasks from getMyTasks
+        const myTasksData = results[0]?.data?.data || [];
+        for (const t of myTasksData) {
+          if (!seen.has(t.gid)) {
+            seen.add(t.gid);
+            allTasks.push(t);
+          }
+        }
+
+        // Subtasks from task-based contacts
+        for (let i = 0; i < taskBasedContacts.length; i++) {
+          const tc = taskBasedContacts[i];
+          const subtaskData = results[i + 1]?.data?.data || [];
+          for (const sub of subtaskData) {
+            if (!seen.has(sub.gid)) {
+              seen.add(sub.gid);
+              // Tag the subtask with the parent task GID so getLinkedContact can find it
+              sub._parentTaskGid = tc.taskGid;
+              allTasks.push(sub);
+            }
+          }
+        }
+
+        const sorted = allTasks.sort((a, b) => {
+          if (!a.due_on && !b.due_on) return 0;
+          if (!a.due_on) return 1;
+          if (!b.due_on) return -1;
+          return parseLocalDate(a.due_on).getTime() - parseLocalDate(b.due_on).getTime();
+        });
+        setTasks(sorted);
       } catch {
         setError(true);
       } finally {
@@ -625,6 +685,10 @@ function AsanaMyTasksWidget() {
   }, []);
 
   function getLinkedContact(task: AsanaTask) {
+    // Check if subtask was tagged with a parent task GID
+    const parentGid = (task as any)._parentTaskGid;
+    if (parentGid && contactMap[parentGid]) return contactMap[parentGid];
+    // Check project memberships
     for (const m of task.memberships || []) {
       const gid = m.project?.gid;
       if (gid && contactMap[gid]) return contactMap[gid];
