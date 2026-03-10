@@ -588,7 +588,14 @@ function DashboardTaskDetail({
         )}
         {section && <span>Section: {section}</span>}
         {linked && <span>Client: {linked.name}</span>}
-        {task.assignee?.name && <span>Assignee: {task.assignee.name}</span>}
+        <span className="flex items-center gap-1">
+          Assignee:
+          <AssigneePicker
+            currentAssignee={task.assignee}
+            taskGid={task.gid}
+            onAssigneeChanged={(a) => onTaskUpdated?.({ ...task, assignee: a })}
+          />
+        </span>
         {task.modified_at && (
           <span>Updated {formatDistanceToNow(new Date(task.modified_at), { addSuffix: true })}</span>
         )}
