@@ -72,6 +72,7 @@ const navItems = [
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/workbench", label: "Workbench", icon: Cpu },
+  { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
 ];
 
 const externalLinks = [
