@@ -63,16 +63,19 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/families", label: "Families", icon: TreesIcon },
-  { to: "/households", label: "Households", icon: Home },
-  { to: "/corporations", label: "Corporations", icon: Building2 },
-  { to: "/contacts", label: "Contacts", icon: Users },
   { to: "/leads", label: "Leads", icon: UserPlus },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/workbench", label: "Workbench", icon: Cpu },
   { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
+];
+
+const directoryItems = [
+  { to: "/families", label: "Families", icon: TreesIcon },
+  { to: "/households", label: "Households", icon: Home },
+  { to: "/corporations", label: "Corporations", icon: Building2 },
+  { to: "/contacts", label: "Contacts", icon: Users },
 ];
 
 const externalLinks = [
