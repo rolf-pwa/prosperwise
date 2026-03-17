@@ -28,6 +28,7 @@ interface Props {
   onCancel: () => void;
   prefillType?: string;
   prefillDescription?: string;
+  chatTranscript?: { role: string; content: string }[];
 }
 
 type Phase = "form" | "uploading" | "submitted";
@@ -39,6 +40,7 @@ export function PortalAdminRequestForm({
   onCancel,
   prefillType,
   prefillDescription,
+  chatTranscript,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("form");
   const [requestType, setRequestType] = useState(prefillType || "");
@@ -107,6 +109,7 @@ export function PortalAdminRequestForm({
               request_details: {
                 contact_name: contactName,
                 submitted_from: "portal_georgia_chat",
+                chat_transcript: chatTranscript || [],
               },
             },
           }),

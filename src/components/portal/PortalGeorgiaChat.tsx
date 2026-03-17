@@ -175,6 +175,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, 
                   onCancel={handleFormCancel}
                   prefillType={formTrigger.requestType}
                   prefillDescription={formTrigger.prefillDescription}
+                  chatTranscript={messages.map((m) => ({ role: m.role, content: m.content }))}
                 />
               </div>
             )}
