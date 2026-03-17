@@ -67,6 +67,7 @@ const navItems = [
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/workbench", label: "Workbench", icon: Cpu },
+  { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
 
 const directoryItems = [
