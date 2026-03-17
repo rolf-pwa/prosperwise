@@ -94,6 +94,7 @@ export default function KnowledgeBase() {
             category: entry.category,
             source_type: entry.source_type,
             file_path: entry.file_path,
+            target: entry.target,
           })
           .eq("id", entry.id);
         if (error) throw error;
