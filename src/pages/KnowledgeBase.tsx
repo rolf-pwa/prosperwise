@@ -51,6 +51,7 @@ type PortalLink = {
   group_label: string | null;
   sort_order: number;
   is_active: boolean;
+  is_system: boolean;
   link_type: string;
   created_at: string;
   updated_at: string;
