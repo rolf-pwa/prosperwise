@@ -40,6 +40,7 @@ export function PortalAdminRequestForm({
   onCancel,
   prefillType,
   prefillDescription,
+  chatTranscript,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("form");
   const [requestType, setRequestType] = useState(prefillType || "");
