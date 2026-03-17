@@ -351,6 +351,17 @@ export default function KnowledgeBase() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={filterTarget} onValueChange={setFilterTarget}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All targets" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Targets</SelectItem>
+              <SelectItem value="transition">Transition Assistant</SelectItem>
+              <SelectItem value="portal">Client Portal</SelectItem>
+              <SelectItem value="both">Both</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Entries */}
