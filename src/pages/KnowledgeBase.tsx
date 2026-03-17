@@ -85,6 +85,7 @@ export default function KnowledgeBase() {
       category: string;
       source_type: string;
       file_path?: string | null;
+      target?: string;
     }) => {
       if (entry.id) {
         const { error } = await (supabase.from("knowledge_base" as any) as any)
