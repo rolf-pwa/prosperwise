@@ -417,6 +417,9 @@ export default function KnowledgeBase() {
                       <Badge variant="secondary" className="text-[10px]">
                         {CATEGORIES.find((c) => c.value === entry.category)?.label || entry.category}
                       </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {entry.target === "both" ? "Both" : entry.target === "transition" ? "Transition" : "Portal"}
+                      </Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       <Switch

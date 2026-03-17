@@ -189,8 +189,9 @@ serve(async (req) => {
     );
     const { data: kbEntries } = await supabaseAdmin
       .from("knowledge_base")
-      .select("title, content, category")
+      .select("title, content, category, target")
       .eq("is_active", true)
+      .in("target", ["transition", "both"])
       .order("category");
 
     let knowledgeBlock = "";

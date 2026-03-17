@@ -192,8 +192,26 @@ serve(async (req) => {
       );
     }
 
+    // Fetch active knowledge base entries scoped to portal
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: kbEntries } = await supabaseAdmin
+      .from("knowledge_base")
+      .select("title, content, category")
+      .eq("is_active", true)
+      .in("target", ["portal", "both"])
+      .order("category");
+
+    let knowledgeBlock = "";
+    if (kbEntries && kbEntries.length > 0) {
+      knowledgeBlock = "\n\n## Knowledge Base\nUse the following information to answer questions accurately:\n\n" +
+        kbEntries.map((e: any) => `### ${e.title} [${e.category}]\n${e.content}`).join("\n\n");
+    }
+
     const apiMessages = [
-      { role: "system", content: GEORGIA_CLIENT_PROMPT },
+      { role: "system", content: GEORGIA_CLIENT_PROMPT + knowledgeBlock },
       ...messages.filter((m: any) => m.role !== "system").map((m: any) => ({
         role: m.role,
         content: m.content,
