@@ -23,6 +23,7 @@ import {
   Megaphone,
   Cpu,
   TrendingUp,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -67,6 +68,7 @@ const navItems = [
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/workbench", label: "Workbench", icon: Cpu },
+  { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
 
 const directoryItems = [

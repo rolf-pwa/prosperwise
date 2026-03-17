@@ -29,6 +29,7 @@ import MarketingUpdates from "./pages/MarketingUpdates";
 import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
 import SideDrawer from "./pages/SideDrawer";
+import KnowledgeBase from "./pages/KnowledgeBase";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />
             <Route path="/contacts/:id/edit" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/sidedrawer/:contactId" element={<ProtectedRoute><SideDrawer /></ProtectedRoute>} />
+            <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
