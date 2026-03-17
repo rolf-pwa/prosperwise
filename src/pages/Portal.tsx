@@ -128,10 +128,13 @@ function PortalDynamicLinks({ contact }: { contact: any }) {
     );
   };
 
+  const systemUngrouped = ungrouped.filter((l: any) => l.is_system);
+  const customUngrouped = ungrouped.filter((l: any) => !l.is_system);
+
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Ungrouped links */}
-      {ungrouped.map((link: any) => {
+      {/* System ungrouped links first */}
+      {systemUngrouped.map((link: any) => {
         const IconComp = LINK_ICONS[link.icon] || ExternalLink;
         const isSidedrawer = link.link_type === "sidedrawer";
         const href = isSidedrawer && contact.sidedrawer_url
@@ -158,7 +161,7 @@ function PortalDynamicLinks({ contact }: { contact: any }) {
         );
       })}
 
-      {/* Grouped links */}
+      {/* Grouped links (e.g. My Accounts) */}
       {Object.entries(grouped).map(([groupName, groupLinks]) => {
         const isOpen = openGroups.has(groupName);
         return (
