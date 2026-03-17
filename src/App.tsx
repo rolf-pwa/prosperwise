@@ -29,6 +29,7 @@ import MarketingUpdates from "./pages/MarketingUpdates";
 import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
 import SideDrawer from "./pages/SideDrawer";
+import KnowledgeBase from "./pages/KnowledgeBase";
 
 const queryClient = new QueryClient();
 
