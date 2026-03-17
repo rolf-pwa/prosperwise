@@ -651,6 +651,45 @@ export type Database = {
           },
         ]
       }
+      knowledge_base: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          created_by: string
+          file_path: string | null
+          id: string
+          is_active: boolean
+          source_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by: string
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          source_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          source_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       marketing_update_reads: {
         Row: {
           contact_id: string
