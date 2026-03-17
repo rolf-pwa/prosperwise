@@ -33,6 +33,7 @@ type KnowledgeEntry = {
   source_type: string;
   file_path: string | null;
   is_active: boolean;
+  target: string;
   created_at: string;
   updated_at: string;
 };
