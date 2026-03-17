@@ -152,6 +152,7 @@ export default function KnowledgeBase() {
     setTitle("");
     setContent("");
     setCategory("general");
+    setTarget("both");
     setFile(null);
     setEditing(null);
     setDialogOpen(false);
