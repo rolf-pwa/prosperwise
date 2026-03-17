@@ -762,6 +762,48 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          group_label: string | null
+          icon: string
+          id: string
+          is_active: boolean
+          label: string
+          link_type: string
+          sort_order: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          group_label?: string | null
+          icon?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          link_type?: string
+          sort_order?: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          group_label?: string | null
+          icon?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          link_type?: string
+          sort_order?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       portal_otps: {
         Row: {
           code: string
