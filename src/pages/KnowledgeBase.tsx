@@ -229,7 +229,8 @@ export default function KnowledgeBase() {
       e.title.toLowerCase().includes(search.toLowerCase()) ||
       e.content.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = filterCategory === "all" || e.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    const matchesTarget = filterTarget === "all" || e.target === filterTarget || e.target === "both";
+    return matchesSearch && matchesCategory && matchesTarget;
   });
 
   const activeCount = entries.filter((e) => e.is_active).length;
