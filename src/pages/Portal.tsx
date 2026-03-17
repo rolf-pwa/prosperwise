@@ -205,6 +205,7 @@ function PortalDynamicLinks({ contact }: { contact: any }) {
         );
       })}
     </div>
+  );
 }
 
 const Portal = () => {
