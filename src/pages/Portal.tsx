@@ -103,10 +103,11 @@ function PortalDynamicLinks({ contact }: { contact: any }) {
   const renderLink = (link: any) => {
     const IconComp = LINK_ICONS[link.icon] || ExternalLink;
     // Special case: if label is "My Documents", use contact's sidedrawer_url
-    const href = link.label === "My Documents" && contact.sidedrawer_url
+    const isSidedrawer = link.link_type === "sidedrawer";
+    const href = isSidedrawer && contact.sidedrawer_url
       ? contact.sidedrawer_url
       : link.url;
-    const isDisabled = link.label === "My Documents" && !contact.sidedrawer_url;
+    const isDisabled = isSidedrawer && !contact.sidedrawer_url;
 
     return (
       <a
