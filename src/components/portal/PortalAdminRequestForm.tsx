@@ -109,6 +109,7 @@ export function PortalAdminRequestForm({
               request_details: {
                 contact_name: contactName,
                 submitted_from: "portal_georgia_chat",
+                chat_transcript: chatTranscript || [],
               },
             },
           }),
