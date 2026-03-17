@@ -52,6 +52,7 @@ export default function KnowledgeBase() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterTarget, setFilterTarget] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<KnowledgeEntry | null>(null);
 
