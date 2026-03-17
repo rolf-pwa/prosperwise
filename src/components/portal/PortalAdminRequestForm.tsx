@@ -28,6 +28,7 @@ interface Props {
   onCancel: () => void;
   prefillType?: string;
   prefillDescription?: string;
+  chatTranscript?: { role: string; content: string }[];
 }
 
 type Phase = "form" | "uploading" | "submitted";
