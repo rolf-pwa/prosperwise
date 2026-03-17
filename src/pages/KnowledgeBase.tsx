@@ -60,6 +60,7 @@ export default function KnowledgeBase() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("general");
+  const [target, setTarget] = useState("both");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
