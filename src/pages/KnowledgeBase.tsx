@@ -105,6 +105,7 @@ export default function KnowledgeBase() {
           category: entry.category,
           source_type: entry.source_type,
           file_path: entry.file_path || null,
+          target: entry.target,
           created_by: user?.id,
         });
         if (error) throw error;
