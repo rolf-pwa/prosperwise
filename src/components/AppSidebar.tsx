@@ -23,6 +23,7 @@ import {
   Megaphone,
   Cpu,
   TrendingUp,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
