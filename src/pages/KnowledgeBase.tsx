@@ -163,6 +163,7 @@ export default function KnowledgeBase() {
     setTitle(entry.title);
     setContent(entry.content);
     setCategory(entry.category);
+    setTarget(entry.target || "both");
     setDialogOpen(true);
   };
 
