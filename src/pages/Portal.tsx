@@ -944,62 +944,8 @@ const Portal = () => {
           {/* Charter */}
           <PortalCharter charterUrl={contact.charter_url} />
 
-          {/* Quick Links */}
-          {isSelf && (
-            <div className="flex flex-col gap-1.5">
-              <a
-                href={contact.sidedrawer_url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-2 rounded-md border border-border px-3 py-2.5 text-sm font-medium transition-colors ${
-                  contact.sidedrawer_url
-                    ? "text-foreground hover:bg-muted/50"
-                    : "pointer-events-none text-muted-foreground/40"
-                }`}
-              >
-                <FolderOpen className="h-4 w-4" />
-                My Documents
-                {contact.sidedrawer_url && <ExternalLink className="ml-auto h-3 w-3 opacity-40" />}
-              </a>
-
-              {/* My Accounts collapsible group */}
-              <div className="rounded-md border border-border">
-                <button
-                  type="button"
-                  onClick={() => setAccountsOpen(!accountsOpen)}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
-                >
-                  <Landmark className="h-4 w-4" />
-                  My Accounts
-                  {accountsOpen ? <ChevronDown className="ml-auto h-3.5 w-3.5 opacity-60" /> : <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-60" />}
-                </button>
-                {accountsOpen && (
-                  <div className="flex flex-col gap-0.5 px-2 pb-2">
-                    <a
-                      href="https://clients.ia.ca/account/login"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      IA Financial
-                      <ExternalLink className="ml-auto h-3 w-3 opacity-40" />
-                    </a>
-                    <a
-                      href="https://portal.justwealth.com/login"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      <Landmark className="h-3.5 w-3.5" />
-                      Just Wealth (Coming Soon)
-                      <ExternalLink className="ml-auto h-3 w-3 opacity-40" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Dynamic Quick Links */}
+          {isSelf && <PortalDynamicLinks contact={contact} />}
 
           {/* Vineyard & Storehouses */}
           <PortalTerritory
