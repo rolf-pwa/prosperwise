@@ -133,10 +133,11 @@ function PortalDynamicLinks({ contact }: { contact: any }) {
       {/* Ungrouped links */}
       {ungrouped.map((link: any) => {
         const IconComp = LINK_ICONS[link.icon] || ExternalLink;
-        const href = link.label === "My Documents" && contact.sidedrawer_url
+        const isSidedrawer = link.link_type === "sidedrawer";
+        const href = isSidedrawer && contact.sidedrawer_url
           ? contact.sidedrawer_url
           : link.url;
-        const isDisabled = link.label === "My Documents" && !contact.sidedrawer_url;
+        const isDisabled = isSidedrawer && !contact.sidedrawer_url;
 
         return (
           <a
