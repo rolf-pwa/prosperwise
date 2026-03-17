@@ -57,7 +57,11 @@ const C = {
 
 export default function DiscoveryEmbed() {
   const saved = loadSavedState();
-  const [messages, setMessages] = useState<Message[]>(saved?.messages || []);
+  const welcomeMessage: Message = {
+    role: "assistant",
+    content: "Welcome to ProsperWise. My name is Georgia, and I am your Transition Assistant. Most people come here during a time of significant transition — a business sale, a separation, or a legacy event. How can I help you navigate your transition?"
+  };
+  const [messages, setMessages] = useState<Message[]>(saved?.messages?.length ? saved.messages : [welcomeMessage]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [phase, setPhase] = useState<Phase>(saved?.phase || "chat");
@@ -76,14 +80,6 @@ export default function DiscoveryEmbed() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{
-        role: "assistant",
-        content: "Welcome to ProsperWise. My name is Georgia, and I am your Transition Assistant. Most people come here during a time of significant transition — a business sale, a separation, or a legacy event. How can I help you navigate your transition?"
-      }]);
-    }
-  }, []);
 
   async function sendToGeorgia(msgs: Message[], isGreeting = false) {
     setIsLoading(true);
