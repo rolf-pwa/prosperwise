@@ -33,6 +33,7 @@ type KnowledgeEntry = {
   source_type: string;
   file_path: string | null;
   is_active: boolean;
+  target: string;
   created_at: string;
   updated_at: string;
 };
@@ -51,6 +52,7 @@ export default function KnowledgeBase() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterTarget, setFilterTarget] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<KnowledgeEntry | null>(null);
 
@@ -58,6 +60,7 @@ export default function KnowledgeBase() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("general");
+  const [target, setTarget] = useState("both");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -82,6 +85,7 @@ export default function KnowledgeBase() {
       category: string;
       source_type: string;
       file_path?: string | null;
+      target?: string;
     }) => {
       if (entry.id) {
         const { error } = await (supabase.from("knowledge_base" as any) as any)
@@ -91,6 +95,7 @@ export default function KnowledgeBase() {
             category: entry.category,
             source_type: entry.source_type,
             file_path: entry.file_path,
+            target: entry.target,
           })
           .eq("id", entry.id);
         if (error) throw error;
@@ -101,6 +106,7 @@ export default function KnowledgeBase() {
           category: entry.category,
           source_type: entry.source_type,
           file_path: entry.file_path || null,
+          target: entry.target,
           created_by: user?.id,
         });
         if (error) throw error;
@@ -147,6 +153,7 @@ export default function KnowledgeBase() {
     setTitle("");
     setContent("");
     setCategory("general");
+    setTarget("both");
     setFile(null);
     setEditing(null);
     setDialogOpen(false);
@@ -157,6 +164,7 @@ export default function KnowledgeBase() {
     setTitle(entry.title);
     setContent(entry.content);
     setCategory(entry.category);
+    setTarget(entry.target || "both");
     setDialogOpen(true);
   };
 
@@ -210,6 +218,7 @@ export default function KnowledgeBase() {
       title: title.trim(),
       content: finalContent,
       category,
+      target,
       source_type: sourceType,
       file_path: filePath,
     });
@@ -221,7 +230,8 @@ export default function KnowledgeBase() {
       e.title.toLowerCase().includes(search.toLowerCase()) ||
       e.content.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = filterCategory === "all" || e.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    const matchesTarget = filterTarget === "all" || e.target === filterTarget || e.target === "both";
+    return matchesSearch && matchesCategory && matchesTarget;
   });
 
   const activeCount = entries.filter((e) => e.is_active).length;
@@ -257,20 +267,35 @@ export default function KnowledgeBase() {
                     placeholder="e.g. Fee Structure Overview"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={category} onValueChange={setCategory}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Target Bot</Label>
+                    <Select value={target} onValueChange={setTarget}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="both">Both Georgias</SelectItem>
+                        <SelectItem value="transition">Transition Assistant</SelectItem>
+                        <SelectItem value="portal">Client Portal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Content</Label>
@@ -342,6 +367,17 @@ export default function KnowledgeBase() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={filterTarget} onValueChange={setFilterTarget}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All targets" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Targets</SelectItem>
+              <SelectItem value="transition">Transition Assistant</SelectItem>
+              <SelectItem value="portal">Client Portal</SelectItem>
+              <SelectItem value="both">Both</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Entries */}
@@ -381,6 +417,9 @@ export default function KnowledgeBase() {
                       </CardTitle>
                       <Badge variant="secondary" className="text-[10px]">
                         {CATEGORIES.find((c) => c.value === entry.category)?.label || entry.category}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {entry.target === "both" ? "Both" : entry.target === "transition" ? "Transition" : "Portal"}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">

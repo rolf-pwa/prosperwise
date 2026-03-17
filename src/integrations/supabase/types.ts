@@ -661,6 +661,7 @@ export type Database = {
           id: string
           is_active: boolean
           source_type: string
+          target: string
           title: string
           updated_at: string
         }
@@ -673,6 +674,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           source_type?: string
+          target?: string
           title: string
           updated_at?: string
         }
@@ -685,6 +687,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           source_type?: string
+          target?: string
           title?: string
           updated_at?: string
         }
