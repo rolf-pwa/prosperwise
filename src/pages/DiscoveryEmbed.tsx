@@ -80,14 +80,6 @@ export default function DiscoveryEmbed() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{
-        role: "assistant",
-        content: "Welcome to ProsperWise. My name is Georgia, and I am your Transition Assistant. Most people come here during a time of significant transition — a business sale, a separation, or a legacy event. How can I help you navigate your transition?"
-      }]);
-    }
-  }, []);
 
   async function sendToGeorgia(msgs: Message[], isGreeting = false) {
     setIsLoading(true);
