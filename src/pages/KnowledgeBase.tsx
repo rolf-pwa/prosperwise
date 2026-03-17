@@ -758,6 +758,11 @@ function PortalLinksTab() {
                           <p className="text-sm font-medium">{link.label}</p>
                           <p className="text-[11px] text-muted-foreground truncate max-w-[300px]">{link.url}</p>
                         </div>
+                        {link.is_system && (
+                          <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                            System
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="text-[10px]">
                           {ICON_OPTIONS.find((i) => i.value === link.icon)?.label || link.icon}
                         </Badge>
@@ -772,17 +777,21 @@ function PortalLinksTab() {
                             toggleMutation.mutate({ id: link.id, is_active: checked })
                           }
                         />
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(link)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => deleteMutation.mutate(link.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {!link.is_system && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(link)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={() => deleteMutation.mutate(link.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
