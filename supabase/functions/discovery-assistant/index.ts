@@ -182,9 +182,26 @@ serve(async (req) => {
       );
     }
 
+    // Fetch active knowledge base entries to augment system prompt
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: kbEntries } = await supabaseAdmin
+      .from("knowledge_base")
+      .select("title, content, category")
+      .eq("is_active", true)
+      .order("category");
+
+    let knowledgeBlock = "";
+    if (kbEntries && kbEntries.length > 0) {
+      knowledgeBlock = "\n\n## Knowledge Base\nUse the following information to answer questions accurately:\n\n" +
+        kbEntries.map((e: any) => `### ${e.title} [${e.category}]\n${e.content}`).join("\n\n");
+    }
+
     // Build messages for OpenAI-compatible API
     const apiMessages: any[] = [
-      { role: "system", content: GEORGIA_SYSTEM_PROMPT },
+      { role: "system", content: GEORGIA_SYSTEM_PROMPT + knowledgeBlock },
     ];
     for (const m of messages) {
       if (m.role === "system") continue;
