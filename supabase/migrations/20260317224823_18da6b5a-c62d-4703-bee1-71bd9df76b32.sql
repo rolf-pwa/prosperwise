@@ -1,0 +1,1 @@
+ALTER TABLE public.portal_links ADD COLUMN is_system boolean NOT NULL DEFAULT false;

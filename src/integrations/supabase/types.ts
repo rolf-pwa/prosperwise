@@ -770,6 +770,7 @@ export type Database = {
           icon: string
           id: string
           is_active: boolean
+          is_system: boolean
           label: string
           link_type: string
           sort_order: number
@@ -783,6 +784,7 @@ export type Database = {
           icon?: string
           id?: string
           is_active?: boolean
+          is_system?: boolean
           label: string
           link_type?: string
           sort_order?: number
@@ -796,6 +798,7 @@ export type Database = {
           icon?: string
           id?: string
           is_active?: boolean
+          is_system?: boolean
           label?: string
           link_type?: string
           sort_order?: number
