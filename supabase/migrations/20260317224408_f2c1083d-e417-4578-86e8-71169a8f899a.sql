@@ -1,0 +1,1 @@
+UPDATE public.portal_links SET link_type = 'sidedrawer' WHERE id = '810588ea-1f50-4c74-98e3-c39bb959411f';
