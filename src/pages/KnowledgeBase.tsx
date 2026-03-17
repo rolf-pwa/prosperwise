@@ -217,6 +217,7 @@ export default function KnowledgeBase() {
       title: title.trim(),
       content: finalContent,
       category,
+      target,
       source_type: sourceType,
       file_path: filePath,
     });
