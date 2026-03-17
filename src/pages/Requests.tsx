@@ -372,6 +372,34 @@ const Requests = () => {
                   </p>
                 </div>
 
+                {/* Chat Transcript from Georgia */}
+                {selected.request_details?.chat_transcript?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      Georgia Chat Transcript
+                    </p>
+                    <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2 max-h-48 overflow-y-auto">
+                      {(selected.request_details.chat_transcript as { role: string; content: string }[]).map((msg, i) => (
+                        <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-xs ${
+                              msg.role === "user"
+                                ? "bg-accent/20 text-foreground"
+                                : "bg-background text-foreground"
+                            }`}
+                          >
+                            <p className="text-[10px] font-medium opacity-50 mb-0.5">
+                              {msg.role === "user" ? "Client" : "Georgia"}
+                            </p>
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Attachments */}
                 {selected.file_urls && selected.file_urls.length > 0 && (
                   <div className="space-y-1.5">
