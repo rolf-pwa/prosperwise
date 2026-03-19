@@ -937,7 +937,7 @@ const Portal = () => {
           )}
 
           {/* Main Tabs */}
-          <Tabs defaultValue="tasks" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full bg-muted border border-border">
               <TabsTrigger value="tasks" className="flex-1 gap-1.5">
                 <CheckSquare className="h-4 w-4" />
