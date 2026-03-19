@@ -214,7 +214,7 @@ const Portal = () => {
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!token);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("tasks");
 
   // Drill-down state
   const [drilldown, setDrilldown] = useState<DrilldownState>({ level: "individual" });
