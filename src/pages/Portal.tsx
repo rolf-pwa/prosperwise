@@ -1189,7 +1189,7 @@ const Portal = () => {
                 {notificationsEnabled ? (
                   <Mail className="h-4 w-4" />
                 ) : (
-                  <MailOff className="h-4 w-4" />
+                  <MailX className="h-4 w-4" />
                 )}
               </Button>
               <Button
