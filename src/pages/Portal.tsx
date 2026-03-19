@@ -274,12 +274,13 @@ const Portal = () => {
   }, [data?.contact?.email_notifications_enabled]);
 
   const handleToggleNotifications = async () => {
-    if (!data?.portal_token) return;
+    const activeToken = token || data?.portal_token;
+    if (!activeToken) return;
     setTogglingNotif(true);
     try {
       const newVal = !notificationsEnabled;
       const res = await supabase.functions.invoke("portal-update-scope", {
-        body: { portal_token: data.portal_token, action: "toggle_notifications", enabled: newVal },
+        body: { portal_token: activeToken, action: "toggle_notifications", enabled: newVal },
       });
       if (res.error || res.data?.error) throw new Error(res.data?.error || "Failed");
       setNotificationsEnabled(newVal);
