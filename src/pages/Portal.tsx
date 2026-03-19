@@ -1187,9 +1187,9 @@ const Portal = () => {
                 title={notificationsEnabled ? "Email notifications on" : "Email notifications off"}
               >
                 {notificationsEnabled ? (
-                  <Bell className="h-4 w-4" />
+                  <Mail className="h-4 w-4" />
                 ) : (
-                  <BellOff className="h-4 w-4" />
+                  <MailOff className="h-4 w-4" />
                 )}
               </Button>
               <Button
