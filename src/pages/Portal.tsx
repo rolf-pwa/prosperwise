@@ -1173,6 +1173,11 @@ const Portal = () => {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <PortalNotificationBell
+                requests={portal_requests || []}
+                contactId={contact.id}
+                onNavigateToRequests={() => setActiveTab("requests")}
+              />
               <Button
                 variant="ghost"
                 size="sm"
