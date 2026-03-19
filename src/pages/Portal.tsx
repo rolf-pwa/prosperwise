@@ -11,6 +11,7 @@ import { PortalTimeline } from "@/components/portal/PortalTimeline";
 import { PortalTasks } from "@/components/portal/PortalTasks";
 import { PortalUpdates, useUnreadUpdateCount } from "@/components/portal/PortalUpdates";
 import { PortalGeorgiaChat } from "@/components/portal/PortalGeorgiaChat";
+import { PortalNotificationBell } from "@/components/portal/PortalNotificationBell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -213,7 +214,7 @@ const Portal = () => {
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!token);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("tasks");
 
   // Drill-down state
   const [drilldown, setDrilldown] = useState<DrilldownState>({ level: "individual" });
@@ -936,7 +937,7 @@ const Portal = () => {
           )}
 
           {/* Main Tabs */}
-          <Tabs defaultValue="tasks" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full bg-muted border border-border">
               <TabsTrigger value="tasks" className="flex-1 gap-1.5">
                 <CheckSquare className="h-4 w-4" />
@@ -1172,6 +1173,11 @@ const Portal = () => {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <PortalNotificationBell
+                requests={portal_requests || []}
+                contactId={contact.id}
+                onNavigateToRequests={() => setActiveTab("requests")}
+              />
               <Button
                 variant="ghost"
                 size="sm"
