@@ -357,6 +357,84 @@ const ContentEditor = () => {
                     {aiLoading === "improve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
                     Improve
                   </Button>
+                  <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (o && importTab === "browse" && importDocs.length === 0) handleBrowseDocs(); }}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <FileDown className="h-3.5 w-3.5" />
+                        Import from Docs
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Import from Google Docs</DialogTitle>
+                      </DialogHeader>
+                      <Tabs value={importTab} onValueChange={(v) => { setImportTab(v as any); if (v === "browse" && importDocs.length === 0) handleBrowseDocs(); }}>
+                        <TabsList className="w-full">
+                          <TabsTrigger value="url" className="flex-1">Paste URL</TabsTrigger>
+                          <TabsTrigger value="browse" className="flex-1">Browse Docs</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="url" className="space-y-3 pt-2">
+                          <Input
+                            value={importUrl}
+                            onChange={(e) => setImportUrl(e.target.value)}
+                            placeholder="https://docs.google.com/document/d/..."
+                          />
+                          <Button
+                            onClick={handleImportFromUrl}
+                            disabled={importLoading || !importUrl.trim()}
+                            className="w-full gap-2"
+                          >
+                            {importLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                            Import
+                          </Button>
+                        </TabsContent>
+                        <TabsContent value="browse" className="space-y-3 pt-2">
+                          <div className="flex gap-2">
+                            <Input
+                              value={importSearch}
+                              onChange={(e) => setImportSearch(e.target.value)}
+                              placeholder="Search your Docs…"
+                              onKeyDown={(e) => e.key === "Enter" && handleBrowseDocs(importSearch)}
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleBrowseDocs(importSearch)}
+                              disabled={browseLoading}
+                            >
+                              {browseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <ScrollArea className="h-[280px]">
+                            {browseLoading && importDocs.length === 0 ? (
+                              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                            ) : importDocs.length === 0 ? (
+                              <p className="text-sm text-muted-foreground text-center py-8">No Google Docs found</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {importDocs.map((doc) => (
+                                  <button
+                                    key={doc.id}
+                                    onClick={() => handlePickDoc(doc.id)}
+                                    disabled={importLoading}
+                                    className="w-full flex items-center gap-3 p-2.5 rounded-md hover:bg-accent text-left transition-colors"
+                                  >
+                                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium truncate">{doc.name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Modified {format(new Date(doc.modifiedTime), "MMM d, yyyy")}
+                                      </p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </ScrollArea>
+                        </TabsContent>
+                      </Tabs>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <Textarea
                   value={body}
