@@ -39,3 +39,6 @@ verify_jwt = false
 [functions.cashflow-analyst]
 verify_jwt = false
 
+[functions.export-data]
+verify_jwt = false
+
