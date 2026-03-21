@@ -133,3 +133,28 @@ export async function createGmailDraft(to: string, subject: string, body: string
   return data;
 }
 
+// --- Google Docs ---
+
+export async function listGoogleDocs(query?: string) {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ action: "list" });
+  if (query) params.set("q", query);
+  const res = await fetch(`${FUNCTIONS_URL}/google-docs?${params}`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to list docs");
+  return data.files as { id: string; name: string; modifiedTime: string; webViewLink: string }[];
+}
+
+export async function getGoogleDoc(docIdOrUrl: string) {
+  const headers = await getAuthHeaders();
+  const isUrl = docIdOrUrl.startsWith("http");
+  const params = new URLSearchParams({
+    action: "get",
+    ...(isUrl ? { url: docIdOrUrl } : { docId: docIdOrUrl }),
+  });
+  const res = await fetch(`${FUNCTIONS_URL}/google-docs?${params}`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to get doc");
+  return data as { id: string; name: string; modifiedTime: string; content: string };
+}
+
