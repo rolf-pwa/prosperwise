@@ -287,7 +287,7 @@ const ContentEditor = () => {
     }
   };
 
-
+  const markPublished = (platform: string) => {
     setVersions((prev) =>
       prev.map((v) =>
         v.platform === platform ? { ...v, published: true, published_at: new Date().toISOString() } : v
