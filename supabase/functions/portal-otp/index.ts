@@ -417,7 +417,7 @@ serve(async (req) => {
 
       const { data: contact } = await supabase
         .from("contacts")
-        .select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor")
+        .select("id, first_name, last_name, full_name, email, email_notifications_enabled, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, charter_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor")
         .ilike("email", cleanEmail)
         .maybeSingle();
 
@@ -438,10 +438,11 @@ serve(async (req) => {
         .single();
 
       // Load portal data (same as OTP verify flow)
-      const [accountsRes, storehousesRes, auditRes] = await Promise.all([
+      const [accountsRes, storehousesRes, auditRes, requestsRes] = await Promise.all([
         supabase.from("vineyard_accounts").select("*").eq("contact_id", contact.id).order("created_at"),
         supabase.from("storehouses").select("*").eq("contact_id", contact.id).order("storehouse_number"),
         supabase.from("sovereignty_audit_trail").select("*").eq("contact_id", contact.id).order("created_at", { ascending: false }).limit(50),
+        supabase.from("portal_requests").select("*, messages:portal_request_messages(*)").eq("contact_id", contact.id).order("created_at", { ascending: false }),
       ]);
 
       let family = null;
@@ -470,6 +471,31 @@ serve(async (req) => {
 
       const hierarchy = await buildHierarchy(supabase, contact);
 
+      // Fetch corporations via shareholders
+      let corporations: any[] = [];
+      const allMemberIds = [contact.id, ...householdMembers.map((m: any) => m.id)];
+      const { data: shareholders } = await supabase
+        .from("shareholders")
+        .select("contact_id, corporation_id, ownership_percentage, share_class, role_title")
+        .in("contact_id", allMemberIds)
+        .eq("is_active", true);
+
+      if (shareholders && shareholders.length > 0) {
+        const corpIds = [...new Set(shareholders.map((s: any) => s.corporation_id))];
+        const [corpsRes, corpVineyardRes] = await Promise.all([
+          supabase.from("corporations").select("id, name, corporation_type, jurisdiction").in("id", corpIds),
+          supabase.from("corporate_vineyard_accounts").select("*").in("corporation_id", corpIds),
+        ]);
+        corporations = (corpsRes.data || []).map((corp: any) => ({
+          ...corp,
+          shareholders: shareholders.filter((s: any) => s.corporation_id === corp.id),
+          vineyard_accounts: (corpVineyardRes.data || []).filter((v: any) => v.corporation_id === corp.id),
+          total_assets: (corpVineyardRes.data || [])
+            .filter((v: any) => v.corporation_id === corp.id)
+            .reduce((sum: number, v: any) => sum + (Number(v.current_value) || 0), 0),
+        }));
+      }
+
       // Fetch calendar meetings
       const meetings = await fetchMeetingsForContact(supabase, contact.email);
 
@@ -479,11 +505,13 @@ serve(async (req) => {
         vineyard_accounts: accountsRes.data || [],
         storehouses: storehousesRes.data || [],
         audit_trail: auditRes.data || [],
+        portal_requests: requestsRes.data || [],
         meetings,
         family,
         household,
         household_members: householdMembers,
         hierarchy,
+        corporations,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
