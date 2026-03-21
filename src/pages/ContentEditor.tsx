@@ -288,6 +288,33 @@ const ContentEditor = () => {
     }
   };
 
+  const handlePushToWix = async () => {
+    const wixVersion = versions.find((v) => v.platform === "wix_blog");
+    if (!wixVersion) {
+      toast.error("Generate a Wix Blog version first");
+      return;
+    }
+    setPushingToWix(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wix-blog", {
+        body: { title: wixVersion.title || title, body: wixVersion.body },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success("Draft pushed to Wix Blog! Open your Wix dashboard to review and publish.");
+      // Mark as published
+      setVersions((prev) =>
+        prev.map((v) =>
+          v.platform === "wix_blog" ? { ...v, published: true, published_at: new Date().toISOString() } : v
+        )
+      );
+    } catch (e: any) {
+      toast.error(e.message || "Failed to push to Wix Blog");
+    } finally {
+      setPushingToWix(false);
+    }
+  };
+
   const markPublished = (platform: string) => {
     setVersions((prev) =>
       prev.map((v) =>
