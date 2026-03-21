@@ -734,6 +734,8 @@ export type Database = {
           created_at: string
           id: string
           published_by: string
+          scheduled_at: string | null
+          sent: boolean
           target_contact_ids: string[] | null
           target_governance_status: string
           target_household_ids: string[] | null
@@ -744,6 +746,8 @@ export type Database = {
           created_at?: string
           id?: string
           published_by: string
+          scheduled_at?: string | null
+          sent?: boolean
           target_contact_ids?: string[] | null
           target_governance_status?: string
           target_household_ids?: string[] | null
@@ -754,6 +758,8 @@ export type Database = {
           created_at?: string
           id?: string
           published_by?: string
+          scheduled_at?: string | null
+          sent?: boolean
           target_contact_ids?: string[] | null
           target_governance_status?: string
           target_household_ids?: string[] | null
