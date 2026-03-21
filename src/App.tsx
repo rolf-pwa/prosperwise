@@ -30,6 +30,8 @@ import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
 import SideDrawer from "./pages/SideDrawer";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import ContentHub from "./pages/ContentHub";
+import ContentEditor from "./pages/ContentEditor";
 
 const queryClient = new QueryClient();
 
