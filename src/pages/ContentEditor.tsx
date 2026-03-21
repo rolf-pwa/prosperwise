@@ -13,13 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Save, Loader2, Sparkles, Linkedin, BookText, Globe,
   Copy, Check, Clock, CalendarIcon, Wand2, RefreshCw, ChevronRight,
+  FileDown, Search, FileText, ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { listGoogleDocs, getGoogleDoc } from "@/lib/google-api";
 
 const PLATFORMS = [
   { key: "linkedin", label: "LinkedIn", icon: Linkedin, desc: "Short-form post with hashtags" },
@@ -68,6 +72,14 @@ const ContentEditor = () => {
   const [activePlatform, setActivePlatform] = useState<string>("linkedin");
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
 
+  // Google Docs import
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTab, setImportTab] = useState<"url" | "browse">("url");
+  const [importUrl, setImportUrl] = useState("");
+  const [importSearch, setImportSearch] = useState("");
+  const [importDocs, setImportDocs] = useState<{ id: string; name: string; modifiedTime: string; webViewLink: string }[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [browseLoading, setBrowseLoading] = useState(false);
   const fetchPost = useCallback(async () => {
     if (!id) return;
     const { data, error } = await (supabase.from("content_posts" as any) as any)
@@ -231,6 +243,50 @@ const ContentEditor = () => {
     );
   };
 
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim()) return;
+    setImportLoading(true);
+    try {
+      const doc = await getGoogleDoc(importUrl.trim());
+      setTitle(doc.name);
+      setBody(doc.content);
+      setImportOpen(false);
+      setImportUrl("");
+      toast.success(`Imported "${doc.name}" from Google Docs`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleBrowseDocs = async (searchQuery?: string) => {
+    setBrowseLoading(true);
+    try {
+      const docs = await listGoogleDocs(searchQuery || undefined);
+      setImportDocs(docs);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBrowseLoading(false);
+    }
+  };
+
+  const handlePickDoc = async (docId: string) => {
+    setImportLoading(true);
+    try {
+      const doc = await getGoogleDoc(docId);
+      setTitle(doc.name);
+      setBody(doc.content);
+      setImportOpen(false);
+      toast.success(`Imported "${doc.name}" from Google Docs`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   const markPublished = (platform: string) => {
     setVersions((prev) =>
       prev.map((v) =>
@@ -301,6 +357,84 @@ const ContentEditor = () => {
                     {aiLoading === "improve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
                     Improve
                   </Button>
+                  <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (o && importTab === "browse" && importDocs.length === 0) handleBrowseDocs(); }}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <FileDown className="h-3.5 w-3.5" />
+                        Import from Docs
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Import from Google Docs</DialogTitle>
+                      </DialogHeader>
+                      <Tabs value={importTab} onValueChange={(v) => { setImportTab(v as any); if (v === "browse" && importDocs.length === 0) handleBrowseDocs(); }}>
+                        <TabsList className="w-full">
+                          <TabsTrigger value="url" className="flex-1">Paste URL</TabsTrigger>
+                          <TabsTrigger value="browse" className="flex-1">Browse Docs</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="url" className="space-y-3 pt-2">
+                          <Input
+                            value={importUrl}
+                            onChange={(e) => setImportUrl(e.target.value)}
+                            placeholder="https://docs.google.com/document/d/..."
+                          />
+                          <Button
+                            onClick={handleImportFromUrl}
+                            disabled={importLoading || !importUrl.trim()}
+                            className="w-full gap-2"
+                          >
+                            {importLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                            Import
+                          </Button>
+                        </TabsContent>
+                        <TabsContent value="browse" className="space-y-3 pt-2">
+                          <div className="flex gap-2">
+                            <Input
+                              value={importSearch}
+                              onChange={(e) => setImportSearch(e.target.value)}
+                              placeholder="Search your Docs…"
+                              onKeyDown={(e) => e.key === "Enter" && handleBrowseDocs(importSearch)}
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleBrowseDocs(importSearch)}
+                              disabled={browseLoading}
+                            >
+                              {browseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <ScrollArea className="h-[280px]">
+                            {browseLoading && importDocs.length === 0 ? (
+                              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                            ) : importDocs.length === 0 ? (
+                              <p className="text-sm text-muted-foreground text-center py-8">No Google Docs found</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {importDocs.map((doc) => (
+                                  <button
+                                    key={doc.id}
+                                    onClick={() => handlePickDoc(doc.id)}
+                                    disabled={importLoading}
+                                    className="w-full flex items-center gap-3 p-2.5 rounded-md hover:bg-accent text-left transition-colors"
+                                  >
+                                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium truncate">{doc.name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Modified {format(new Date(doc.modifiedTime), "MMM d, yyyy")}
+                                      </p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </ScrollArea>
+                        </TabsContent>
+                      </Tabs>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <Textarea
                   value={body}
