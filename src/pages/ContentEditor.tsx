@@ -18,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Save, Loader2, Sparkles, Linkedin, BookText, Globe,
   Copy, Check, Clock, CalendarIcon, Wand2, RefreshCw, ChevronRight,
-  FileDown, Search, FileText, ExternalLink,
+  FileDown, Search, FileText, ExternalLink, Upload,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
