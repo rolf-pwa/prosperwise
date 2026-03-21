@@ -21,51 +21,6 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 // ── Wix relay helper ──
-
-// ── Direct email helper (Resend) for marketing updates ──
-async function sendViaResend(payload: {
-  to: string;
-  subject: string;
-  html: string;
-}): Promise<{ sent: boolean; reason?: string }> {
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  if (!RESEND_API_KEY) {
-    console.warn("[Notify] RESEND_API_KEY missing, cannot send direct email");
-    return { sent: false, reason: "no_resend_config" };
-  }
-
-  console.log(`[Notify] Sending direct email to ${payload.to} with subject: "${payload.subject}"`);
-
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "ProsperWise <notifications@prosperwise.ca>",
-        to: [payload.to],
-        subject: payload.subject,
-        html: payload.html,
-      }),
-    });
-
-    const resBody = await res.text();
-    console.log(`[Notify] Resend response: ${res.status} ${resBody}`);
-
-    if (!res.ok) {
-      console.error("[Notify] Resend failed:", res.status, resBody);
-      return { sent: false, reason: "resend_error" };
-    }
-
-    return { sent: true };
-  } catch (err) {
-    console.error("[Notify] Error calling Resend:", err);
-    return { sent: false, reason: "resend_error" };
-  }
-}
-
 async function sendViaWix(payload: {
   email: string;
   subject: string;
@@ -197,24 +152,11 @@ serve(async (req) => {
           link: url,
         });
 
-        const htmlBody = `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <p style="font-size: 16px; color: #333;">Hi ${firstName},</p>
-  <p style="font-size: 14px; color: #555; line-height: 1.6;">
-    A new update has been posted for you: <strong>"${title}"</strong>
-  </p>
-  <p style="font-size: 14px; color: #555; line-height: 1.6;">
-    Please log in to your portal to read it.
-  </p>
-  <p style="font-size: 14px; color: #555; margin-top: 30px;">
-    Thank you,<br/>ProsperWise Team
-  </p>
-</div>`;
-
-        await sendViaResend({
-          to: cleanEmail,
+        await sendViaWix({
+          email: cleanEmail,
           subject: title,
-          html: htmlBody,
+          message: `Hi ${firstName},\n\nA new update has been posted for you: "${title}"\n\nPlease log in to your portal to read it.\n\nThank you,\nProsperWise Team`,
+          event_type: "marketing_update",
         });
         sent++;
       }
