@@ -70,6 +70,8 @@ const App = () => (
             <Route path="/contacts/:id/edit" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/sidedrawer/:contactId" element={<ProtectedRoute><SideDrawer /></ProtectedRoute>} />
             <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+            <Route path="/content-hub" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
+            <Route path="/content-hub/:id" element={<ProtectedRoute><ContentEditor /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

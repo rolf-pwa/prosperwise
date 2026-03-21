@@ -68,6 +68,7 @@ const navItems = [
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
+  { to: "/content-hub", label: "Content Hub", icon: PenLine },
   { to: "/workbench", label: "Workbench", icon: Cpu },
   { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
