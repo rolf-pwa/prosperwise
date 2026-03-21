@@ -39,13 +39,25 @@ async function sendViaWix(payload: {
   const baseUrl = WIX_SITE_URL.replace(/\/sendOtp\/?$/, "");
   const notifyUrl = `${baseUrl}/sendNotification`;
 
-  console.log(`[Notify] Sending ${payload.event_type} notification to ${payload.email} via ${notifyUrl}`);
+  console.log(
+    `[Notify] Sending ${payload.event_type} notification to ${payload.email} via ${notifyUrl} (subject: ${payload.subject})`
+  );
+
+  const relayPayload = {
+    ...payload,
+    // Backward/forward compatibility with Wix relay field naming
+    title: payload.subject,
+    email_subject: payload.subject,
+    subject_line: payload.subject,
+    update_title: payload.subject,
+    secret: WIX_OTP_SECRET,
+  };
 
   try {
     const wixRes = await fetch(notifyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, secret: WIX_OTP_SECRET }),
+      body: JSON.stringify(relayPayload),
     });
 
     const wixBody = await wixRes.text();
