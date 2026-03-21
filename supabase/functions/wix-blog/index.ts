@@ -56,7 +56,7 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Wix-Secret": WIX_OTP_SECRET,
+        "x-wix-secret": WIX_OTP_SECRET,
       },
       body: JSON.stringify({ title, body }),
     });
