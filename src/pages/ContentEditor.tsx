@@ -18,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Save, Loader2, Sparkles, Linkedin, BookText, Globe,
   Copy, Check, Clock, CalendarIcon, Wand2, RefreshCw, ChevronRight,
-  FileDown, Search, FileText, ExternalLink,
+  FileDown, Search, FileText, ExternalLink, Upload,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -80,6 +80,7 @@ const ContentEditor = () => {
   const [importDocs, setImportDocs] = useState<{ id: string; name: string; modifiedTime: string; webViewLink: string }[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [browseLoading, setBrowseLoading] = useState(false);
+  const [pushingToWix, setPushingToWix] = useState(false);
   const fetchPost = useCallback(async () => {
     if (!id) return;
     const { data, error } = await (supabase.from("content_posts" as any) as any)
@@ -284,6 +285,33 @@ const ContentEditor = () => {
       toast.error(e.message);
     } finally {
       setImportLoading(false);
+    }
+  };
+
+  const handlePushToWix = async () => {
+    const wixVersion = versions.find((v) => v.platform === "wix_blog");
+    if (!wixVersion) {
+      toast.error("Generate a Wix Blog version first");
+      return;
+    }
+    setPushingToWix(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wix-blog", {
+        body: { title: wixVersion.title || title, body: wixVersion.body },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success("Draft pushed to Wix Blog! Open your Wix dashboard to review and publish.");
+      // Mark as published
+      setVersions((prev) =>
+        prev.map((v) =>
+          v.platform === "wix_blog" ? { ...v, published: true, published_at: new Date().toISOString() } : v
+        )
+      );
+    } catch (e: any) {
+      toast.error(e.message || "Failed to push to Wix Blog");
+    } finally {
+      setPushingToWix(false);
     }
   };
 
@@ -510,9 +538,23 @@ const ContentEditor = () => {
                           {copiedPlatform === activePlatform ? "Copied!" : "Copy"}
                         </Button>
                         {!activeVersion.published && (
-                          <Button size="sm" onClick={() => markPublished(activePlatform)} className="gap-1">
-                            Mark Published
-                          </Button>
+                          <>
+                            {activePlatform === "wix_blog" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handlePushToWix}
+                                disabled={pushingToWix}
+                                className="gap-1"
+                              >
+                                {pushingToWix ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                                Push to Wix
+                              </Button>
+                            )}
+                            <Button size="sm" onClick={() => markPublished(activePlatform)} className="gap-1">
+                              Mark Published
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
