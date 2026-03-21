@@ -26,7 +26,8 @@ async function sendViaWix(payload: {
   subject: string;
   message: string;
   event_type: string;
-  [key: string]: string;
+  template_id?: string;
+  [key: string]: string | undefined;
 }): Promise<{ sent: boolean; reason?: string }> {
   const WIX_SITE_URL = Deno.env.get("WIX_SITE_URL");
   const WIX_OTP_SECRET = Deno.env.get("WIX_OTP_SECRET");
