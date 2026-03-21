@@ -142,8 +142,8 @@ serve(async (req) => {
 
         await sendViaWix({
           email: cleanEmail,
-          subject: `New update from ProsperWise: ${title}`,
-          message: `Hi ${firstName},\n\nThere's a new update available for you.\n\n${title}\n\nView it here: ${url}\n\nYou can also log in to your portal to see all updates.\n\nThank you,\nProsperWise Team`,
+          subject: title,
+          message: `Hi ${firstName},\n\nA new update has been posted for you: "${title}"\n\nPlease log in to your portal to read it.\n\nThank you,\nProsperWise Team`,
           event_type: "marketing_update",
         });
         sent++;
