@@ -24,6 +24,7 @@ import {
   Cpu,
   TrendingUp,
   BookOpen,
+  PenLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -67,6 +68,7 @@ const navItems = [
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
+  { to: "/content-hub", label: "Content Hub", icon: PenLine },
   { to: "/workbench", label: "Workbench", icon: Cpu },
   { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];

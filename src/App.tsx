@@ -30,6 +30,8 @@ import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
 import SideDrawer from "./pages/SideDrawer";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import ContentHub from "./pages/ContentHub";
+import ContentEditor from "./pages/ContentEditor";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,8 @@ const App = () => (
             <Route path="/contacts/:id/edit" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/sidedrawer/:contactId" element={<ProtectedRoute><SideDrawer /></ProtectedRoute>} />
             <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+            <Route path="/content-hub" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
+            <Route path="/content-hub/:id" element={<ProtectedRoute><ContentEditor /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

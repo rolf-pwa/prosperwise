@@ -258,6 +258,98 @@ export type Database = {
           },
         ]
       }
+      content_platform_versions: {
+        Row: {
+          body: string
+          created_at: string
+          external_url: string | null
+          id: string
+          platform: Database["public"]["Enums"]["content_platform"]
+          post_id: string
+          published: boolean
+          published_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          platform: Database["public"]["Enums"]["content_platform"]
+          post_id: string
+          published?: boolean
+          published_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          platform?: Database["public"]["Enums"]["content_platform"]
+          post_id?: string
+          published?: boolean
+          published_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_platform_versions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "content_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_posts: {
+        Row: {
+          assigned_to: string | null
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          published_at: string | null
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["content_status"]
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          body?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["content_status"]
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["content_status"]
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       corporate_shareholders: {
         Row: {
           child_corporation_id: string
@@ -1473,6 +1565,8 @@ export type Database = {
     }
     Enums: {
       charter_alignment: "aligned" | "misaligned" | "pending_review"
+      content_platform: "linkedin" | "substack" | "wix_blog"
+      content_status: "draft" | "review" | "approved" | "published" | "archived"
       corporation_type: "opco" | "holdco" | "trust" | "partnership" | "other"
       family_role:
         | "head_of_family"
@@ -1615,6 +1709,8 @@ export const Constants = {
   public: {
     Enums: {
       charter_alignment: ["aligned", "misaligned", "pending_review"],
+      content_platform: ["linkedin", "substack", "wix_blog"],
+      content_status: ["draft", "review", "approved", "published", "archived"],
       corporation_type: ["opco", "holdco", "trust", "partnership", "other"],
       family_role: [
         "head_of_family",
