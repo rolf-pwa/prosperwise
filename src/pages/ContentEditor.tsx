@@ -72,6 +72,14 @@ const ContentEditor = () => {
   const [activePlatform, setActivePlatform] = useState<string>("linkedin");
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
 
+  // Google Docs import
+  const [importOpen, setImportOpen] = useState(false);
+  const [importTab, setImportTab] = useState<"url" | "browse">("url");
+  const [importUrl, setImportUrl] = useState("");
+  const [importSearch, setImportSearch] = useState("");
+  const [importDocs, setImportDocs] = useState<{ id: string; name: string; modifiedTime: string; webViewLink: string }[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [browseLoading, setBrowseLoading] = useState(false);
   const fetchPost = useCallback(async () => {
     if (!id) return;
     const { data, error } = await (supabase.from("content_posts" as any) as any)
