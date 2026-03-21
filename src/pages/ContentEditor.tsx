@@ -538,9 +538,23 @@ const ContentEditor = () => {
                           {copiedPlatform === activePlatform ? "Copied!" : "Copy"}
                         </Button>
                         {!activeVersion.published && (
-                          <Button size="sm" onClick={() => markPublished(activePlatform)} className="gap-1">
-                            Mark Published
-                          </Button>
+                          <>
+                            {activePlatform === "wix_blog" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handlePushToWix}
+                                disabled={pushingToWix}
+                                className="gap-1"
+                              >
+                                {pushingToWix ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                                Push to Wix
+                              </Button>
+                            )}
+                            <Button size="sm" onClick={() => markPublished(activePlatform)} className="gap-1">
+                              Mark Published
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
