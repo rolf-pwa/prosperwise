@@ -80,6 +80,7 @@ const ContentEditor = () => {
   const [importDocs, setImportDocs] = useState<{ id: string; name: string; modifiedTime: string; webViewLink: string }[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [browseLoading, setBrowseLoading] = useState(false);
+  const [pushingToWix, setPushingToWix] = useState(false);
   const fetchPost = useCallback(async () => {
     if (!id) return;
     const { data, error } = await (supabase.from("content_posts" as any) as any)
