@@ -52,6 +52,8 @@ async function sendViaWix(payload: {
     subject_line: payload.subject,
     update_title: payload.subject,
     secret: WIX_OTP_SECRET,
+    // Allow overriding the template ID per notification type
+    ...(payload.template_id ? { template_id: payload.template_id } : {}),
   };
 
   try {
