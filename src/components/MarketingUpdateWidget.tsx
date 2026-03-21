@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Megaphone, Plus, Loader2, Trash2, ExternalLink, X } from "lucide-react";
+import { Megaphone, Plus, Loader2, Trash2, ExternalLink, X, Clock, CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface MarketingUpdate {
   id: string;
@@ -22,6 +24,8 @@ interface MarketingUpdate {
   target_contact_ids: string[];
   target_household_ids: string[];
   created_at: string;
+  scheduled_at: string | null;
+  sent: boolean;
 }
 
 interface ContactOption {
@@ -45,6 +49,11 @@ export function MarketingUpdateWidget() {
   const [target, setTarget] = useState("all");
   const [publishing, setPublishing] = useState(false);
 
+  // Scheduling
+  const [sendMode, setSendMode] = useState<"now" | "scheduled">("now");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+  const [scheduledTime, setScheduledTime] = useState("09:00");
+
   // For specific targeting
   const [contacts, setContacts] = useState<ContactOption[]>([]);
   const [households, setHouseholds] = useState<HouseholdOption[]>([]);
@@ -58,11 +67,13 @@ export function MarketingUpdateWidget() {
       .from("marketing_updates")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(20);
     setUpdates(((data as any[]) || []).map((u) => ({
       ...u,
       target_contact_ids: u.target_contact_ids || [],
       target_household_ids: u.target_household_ids || [],
+      scheduled_at: u.scheduled_at || null,
+      sent: u.sent ?? true,
     })));
     setLoading(false);
   };
@@ -75,7 +86,6 @@ export function MarketingUpdateWidget() {
 
     setContacts((contactsRes.data as any[]) || []);
 
-    // Enrich households with family name
     if (householdsRes.data && householdsRes.data.length > 0) {
       const familyIds = [...new Set((householdsRes.data as any[]).map((h) => h.family_id))];
       const { data: families } = await supabase.from("families").select("id, name").in("id", familyIds);
@@ -106,10 +116,26 @@ export function MarketingUpdateWidget() {
       return;
     }
 
+    if (sendMode === "scheduled" && !scheduledDate) {
+      toast.error("Please select a date for scheduling");
+      return;
+    }
+
     setPublishing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      let scheduled_at: string | null = null;
+      let sent = true;
+
+      if (sendMode === "scheduled" && scheduledDate) {
+        const [hours, minutes] = scheduledTime.split(":").map(Number);
+        const dt = new Date(scheduledDate);
+        dt.setHours(hours, minutes, 0, 0);
+        scheduled_at = dt.toISOString();
+        sent = false;
+      }
 
       const insertPayload: any = {
         title: title.trim(),
@@ -118,19 +144,36 @@ export function MarketingUpdateWidget() {
         published_by: user.id,
         target_contact_ids: target === "specific_contacts" ? selectedContactIds : [],
         target_household_ids: target === "specific_households" ? selectedHouseholdIds : [],
+        scheduled_at,
+        sent,
       };
 
       const { error } = await supabase.from("marketing_updates").insert(insertPayload as any);
       if (error) throw error;
 
-      await supabase.functions.invoke("notify-portal-request", {
-        body: { notify_type: "marketing_update", title: title.trim(), url: url.trim(), target_governance_status: insertPayload.target_governance_status, target_contact_ids: insertPayload.target_contact_ids, target_household_ids: insertPayload.target_household_ids },
-      });
+      // If sending now, trigger notifications immediately
+      if (sendMode === "now") {
+        await supabase.functions.invoke("notify-portal-request", {
+          body: {
+            notify_type: "marketing_update",
+            title: title.trim(),
+            url: url.trim(),
+            target_governance_status: insertPayload.target_governance_status,
+            target_contact_ids: insertPayload.target_contact_ids,
+            target_household_ids: insertPayload.target_household_ids,
+          },
+        });
+        toast.success("Update published & notifications sent");
+      } else {
+        toast.success(`Update scheduled for ${format(new Date(scheduled_at!), "MMM d, yyyy 'at' h:mm a")}`);
+      }
 
-      toast.success("Update published & notifications sent");
       setTitle("");
       setUrl("");
       setTarget("all");
+      setSendMode("now");
+      setScheduledDate(undefined);
+      setScheduledTime("09:00");
       setSelectedContactIds([]);
       setSelectedHouseholdIds([]);
       setOpen(false);
@@ -324,9 +367,69 @@ export function MarketingUpdateWidget() {
                 </div>
               )}
 
+              {/* Schedule toggle */}
+              <div className="space-y-2">
+                <Label>When to Send</Label>
+                <Select value={sendMode} onValueChange={(v) => setSendMode(v as "now" | "scheduled")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="now">Send Now</SelectItem>
+                    <SelectItem value="scheduled">Schedule for Later</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {sendMode === "scheduled" && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !scheduledDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {scheduledDate ? format(scheduledDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduledDate}
+                          onSelect={setScheduledDate}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Time</Label>
+                    <Input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Button onClick={handlePublish} disabled={publishing || !title.trim() || !url.trim()} className="w-full">
-                {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Megaphone className="mr-2 h-4 w-4" />}
-                Publish & Notify
+                {publishing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : sendMode === "scheduled" ? (
+                  <Clock className="mr-2 h-4 w-4" />
+                ) : (
+                  <Megaphone className="mr-2 h-4 w-4" />
+                )}
+                {sendMode === "scheduled" ? "Schedule Update" : "Publish & Notify"}
               </Button>
             </div>
           </DialogContent>
@@ -348,8 +451,19 @@ export function MarketingUpdateWidget() {
                     {u.title}
                     <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                   </a>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">{format(new Date(u.created_at), "MMM d, yyyy")}</span>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {u.scheduled_at && !u.sent ? (
+                      <Badge variant="outline" className="text-[10px] gap-1 text-amber-600 border-amber-300">
+                        <Clock className="h-2.5 w-2.5" />
+                        Scheduled {format(new Date(u.scheduled_at), "MMM d 'at' h:mm a")}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {u.scheduled_at
+                          ? `Sent ${format(new Date(u.scheduled_at), "MMM d, yyyy")}`
+                          : format(new Date(u.created_at), "MMM d, yyyy")}
+                      </span>
+                    )}
                     <Badge variant="outline" className="text-[10px]">{getUpdateAudienceLabel(u)}</Badge>
                   </div>
                 </div>
