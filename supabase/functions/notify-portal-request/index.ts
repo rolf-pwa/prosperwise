@@ -26,7 +26,8 @@ async function sendViaWix(payload: {
   subject: string;
   message: string;
   event_type: string;
-  [key: string]: string;
+  template_id?: string;
+  [key: string]: string | undefined;
 }): Promise<{ sent: boolean; reason?: string }> {
   const WIX_SITE_URL = Deno.env.get("WIX_SITE_URL");
   const WIX_OTP_SECRET = Deno.env.get("WIX_OTP_SECRET");
@@ -51,6 +52,8 @@ async function sendViaWix(payload: {
     subject_line: payload.subject,
     update_title: payload.subject,
     secret: WIX_OTP_SECRET,
+    // Allow overriding the template ID per notification type
+    ...(payload.template_id ? { template_id: payload.template_id } : {}),
   };
 
   try {
@@ -157,6 +160,7 @@ serve(async (req) => {
           subject: title,
           message: `Hi ${firstName},\n\nA new update has been posted for you: "${title}"\n\nPlease log in to your portal to read it.\n\nThank you,\nProsperWise Team`,
           event_type: "marketing_update",
+          template_id: "VEXE9Be",
         });
         sent++;
       }
