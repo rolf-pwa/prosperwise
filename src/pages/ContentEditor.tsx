@@ -13,13 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Save, Loader2, Sparkles, Linkedin, BookText, Globe,
   Copy, Check, Clock, CalendarIcon, Wand2, RefreshCw, ChevronRight,
+  FileDown, Search, FileText, ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { listGoogleDocs, getGoogleDoc } from "@/lib/google-api";
 
 const PLATFORMS = [
   { key: "linkedin", label: "LinkedIn", icon: Linkedin, desc: "Short-form post with hashtags" },
