@@ -160,6 +160,7 @@ serve(async (req) => {
           subject: title,
           message: `Hi ${firstName},\n\nA new update has been posted for you: "${title}"\n\nPlease log in to your portal to read it.\n\nThank you,\nProsperWise Team`,
           event_type: "marketing_update",
+          template_id: "VEXE9Be",
         });
         sent++;
       }
