@@ -321,11 +321,12 @@ serve(async (req) => {
         .single();
 
       // Now load portal data
-      const [contactRes, accountsRes, storehousesRes, auditRes] = await Promise.all([
-        supabase.from("contacts").select("id, first_name, last_name, full_name, email, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor").eq("id", contactId).maybeSingle(),
+      const [contactRes, accountsRes, storehousesRes, auditRes, requestsRes] = await Promise.all([
+        supabase.from("contacts").select("id, first_name, last_name, full_name, email, email_notifications_enabled, governance_status, fiduciary_entity, quiet_period_start_date, google_drive_url, charter_url, sidedrawer_url, asana_url, ia_financial_url, vineyard_ebitda, vineyard_operating_income, vineyard_balance_sheet_summary, family_id, household_id, family_role, is_minor").eq("id", contactId).maybeSingle(),
         supabase.from("vineyard_accounts").select("*").eq("contact_id", contactId).order("created_at"),
         supabase.from("storehouses").select("*").eq("contact_id", contactId).order("storehouse_number"),
         supabase.from("sovereignty_audit_trail").select("*").eq("contact_id", contactId).order("created_at", { ascending: false }).limit(50),
+        supabase.from("portal_requests").select("*, messages:portal_request_messages(*)").eq("contact_id", contactId).order("created_at", { ascending: false }),
       ]);
 
       let family = null;
