@@ -243,7 +243,51 @@ const ContentEditor = () => {
     );
   };
 
-  const markPublished = (platform: string) => {
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim()) return;
+    setImportLoading(true);
+    try {
+      const doc = await getGoogleDoc(importUrl.trim());
+      setTitle(doc.name);
+      setBody(doc.content);
+      setImportOpen(false);
+      setImportUrl("");
+      toast.success(`Imported "${doc.name}" from Google Docs`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleBrowseDocs = async (searchQuery?: string) => {
+    setBrowseLoading(true);
+    try {
+      const docs = await listGoogleDocs(searchQuery || undefined);
+      setImportDocs(docs);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBrowseLoading(false);
+    }
+  };
+
+  const handlePickDoc = async (docId: string) => {
+    setImportLoading(true);
+    try {
+      const doc = await getGoogleDoc(docId);
+      setTitle(doc.name);
+      setBody(doc.content);
+      setImportOpen(false);
+      toast.success(`Imported "${doc.name}" from Google Docs`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+
     setVersions((prev) =>
       prev.map((v) =>
         v.platform === platform ? { ...v, published: true, published_at: new Date().toISOString() } : v
