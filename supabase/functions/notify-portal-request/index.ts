@@ -79,7 +79,7 @@ serve(async (req) => {
 
     // ─── Marketing update notifications ───
     if (notify_type === "marketing_update") {
-      const { title, url, target_governance_status } = body;
+      const { title, url, target_governance_status, target_contact_ids, target_household_ids } = body;
       if (!title || !url) {
         return new Response(JSON.stringify({ error: "title and url required" }), {
           status: 400,
@@ -87,18 +87,43 @@ serve(async (req) => {
         });
       }
 
-      // Fetch targeted contacts
-      let query = supabase
-        .from("contacts")
-        .select("id, email, first_name, email_notifications_enabled")
-        .not("email", "is", null)
-        .eq("email_notifications_enabled", true);
+      // Fetch targeted contacts based on targeting rules
+      let contacts: any[] = [];
 
-      if (target_governance_status && target_governance_status !== "all") {
-        query = query.eq("governance_status", target_governance_status);
+      if (target_contact_ids && target_contact_ids.length > 0) {
+        // Targeted to specific contacts
+        const { data } = await supabase
+          .from("contacts")
+          .select("id, email, first_name, email_notifications_enabled")
+          .in("id", target_contact_ids)
+          .not("email", "is", null)
+          .eq("email_notifications_enabled", true);
+        contacts = data || [];
+      } else if (target_household_ids && target_household_ids.length > 0) {
+        // Targeted to specific households — get all contacts in those households
+        const { data } = await supabase
+          .from("contacts")
+          .select("id, email, first_name, email_notifications_enabled")
+          .in("household_id", target_household_ids)
+          .not("email", "is", null)
+          .eq("email_notifications_enabled", true);
+        contacts = data || [];
+      } else {
+        // Governance-status-based targeting (or all)
+        let query = supabase
+          .from("contacts")
+          .select("id, email, first_name, email_notifications_enabled")
+          .not("email", "is", null)
+          .eq("email_notifications_enabled", true);
+
+        if (target_governance_status && target_governance_status !== "all") {
+          query = query.eq("governance_status", target_governance_status);
+        }
+
+        const { data } = await query;
+        contacts = data || [];
       }
 
-      const { data: contacts } = await query;
       let sent = 0;
 
       for (const c of contacts || []) {
