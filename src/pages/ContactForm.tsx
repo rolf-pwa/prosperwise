@@ -111,6 +111,7 @@ const ContactForm = () => {
         email: data.email || "",
         phone: data.phone || "",
         address: data.address || "",
+        family_role: (data.family_role as any) || "head_of_family",
         governance_status: data.governance_status as any,
         fiduciary_entity: data.fiduciary_entity as any,
         lawyer_name: data.lawyer_name || "",
