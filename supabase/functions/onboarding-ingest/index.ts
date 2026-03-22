@@ -85,7 +85,9 @@ Return a JSON object with this exact structure:
 }
 
 Guidelines:
-- Extract EVERY individual mentioned across all statements
+- Extract EVERY individual mentioned across all statements (account holders, beneficiaries, spouses, joint holders)
+- Do NOT include dealer firms, advisory companies, or financial institutions as individuals (e.g. "Issler Group Management", "iA Financial Group", "RBC Wealth Management" are NOT people)
+- Only include actual human persons as individuals
 - Match account owners to individuals by name
 - "book_value" = beginning of year / cost basis / original investment
 - "current_value" = most recent market value
