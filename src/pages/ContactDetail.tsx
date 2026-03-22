@@ -24,6 +24,8 @@ import {
   Bell,
   BellOff,
   Landmark,
+  FileUp,
+  Loader2,
 } from "lucide-react";
 import { differenceInDays, addDays, format } from "date-fns";
 import { toast } from "sonner";
@@ -52,6 +54,7 @@ import { AssetContainer, type AssetAccount, type MoveTarget } from "@/components
 import { Grape, Building2 } from "lucide-react";
 import { ContactTaskList } from "@/components/ContactTaskList";
 import { HoldingTank } from "@/components/HoldingTank";
+import { StatementUpload } from "@/components/StatementUpload";
 
 interface Storehouse {
   id: string;
@@ -113,6 +116,8 @@ const ContactDetail = () => {
   const [newAccountValue, setNewAccountValue] = useState("");
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [statementFiles, setStatementFiles] = useState<File[]>([]);
+  const [isIngesting, setIsIngesting] = useState(false);
   const [corporateStakes, setCorporateStakes] = useState<Array<{
     corporation_id: string;
     corporation_name: string;
@@ -273,6 +278,46 @@ const ContactDetail = () => {
     fetchData();
   }, [fetchData]);
 
+  const handleIngestStatements = async () => {
+    if (!statementFiles.length || !contact) return;
+    setIsIngesting(true);
+    try {
+      for (const file of statementFiles) {
+        const filePath = `${id}/${Date.now()}_${file.name}`;
+        const { error: upErr } = await supabase.storage
+          .from("statement-uploads")
+          .upload(filePath, file);
+        if (upErr) { toast.error(`Upload failed: ${upErr.message}`); continue; }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-statement`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({
+              contactId: id,
+              householdId: contact.household_id,
+              filePath,
+              contactName: contact.full_name,
+            }),
+          }
+        );
+        const result = await res.json();
+        if (result.error) { toast.error(result.error); }
+        else { toast.success(`Extracted ${result.accountsExtracted} account(s) from ${file.name}`); }
+      }
+      setStatementFiles([]);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Ingestion failed");
+    } finally {
+      setIsIngesting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -605,6 +650,25 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
             
+            {/* Statement Upload for Existing Contact */}
+            <StatementUpload
+              files={statementFiles}
+              onFilesChange={setStatementFiles}
+              isIngesting={isIngesting}
+            />
+            {statementFiles.length > 0 && !isIngesting && (
+              <Button onClick={handleIngestStatements} className="w-full">
+                <FileUp className="h-4 w-4 mr-2" />
+                Ingest {statementFiles.length} Statement{statementFiles.length !== 1 ? "s" : ""}
+              </Button>
+            )}
+            {isIngesting && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                AI is parsing statements…
+              </div>
+            )}
+
             {/* Holding Tank */}
             <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
 
