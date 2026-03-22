@@ -148,6 +148,13 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     fetchAccounts();
   };
 
+  const handleScopeChange = async (id: string, scope: string) => {
+    await (supabase.from("holding_tank" as any) as any)
+      .update({ visibility_scope: scope })
+      .eq("id", id);
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, visibility_scope: scope } : a));
+  };
+
   if (loading) {
     return (
       <Card>
