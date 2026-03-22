@@ -1109,6 +1109,11 @@ const Portal = () => {
           {/* Dynamic Quick Links */}
           {isSelf && <PortalDynamicLinks contact={contact} />}
 
+          {/* Holding Tank */}
+          {isSelf && holding_tank.length > 0 && (
+            <PortalHoldingTank accounts={holding_tank} />
+          )}
+
           {/* Vineyard & Storehouses */}
           <PortalTerritory
             vineyardAccounts={ind.vineyardAccounts}
