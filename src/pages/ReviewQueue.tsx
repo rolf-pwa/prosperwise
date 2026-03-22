@@ -129,6 +129,18 @@ const ReviewQueue = () => {
         }
       }
 
+      // If rejecting, remove associated holding tank records
+      if (status === "rejected") {
+        const item = items.find((i) => i.id === id);
+        if (item?.contact_id) {
+          await supabase
+            .from("holding_tank")
+            .delete()
+            .eq("contact_id", item.contact_id)
+            .eq("status", "holding");
+        }
+      }
+
       const { error } = await (supabase.from("review_queue" as any) as any)
         .update(updates)
         .eq("id", id);
@@ -138,6 +150,7 @@ const ReviewQueue = () => {
       queryClient.invalidateQueries({ queryKey: ["review-queue"] });
       queryClient.invalidateQueries({ queryKey: ["contact-detail"] });
       queryClient.invalidateQueries({ queryKey: ["vineyard-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["holding-tank"] });
       toast.success(`Item ${vars.status === "escalated" ? "escalated to Rolf" : vars.status}.`);
     },
     onError: (err: Error) => toast.error(err.message),
