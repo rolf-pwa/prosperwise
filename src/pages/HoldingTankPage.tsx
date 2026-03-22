@@ -141,7 +141,14 @@ const HoldingTankPage = () => {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-base">{g.contact_name}</CardTitle>
+                      <CardTitle className="text-base">
+                        <button
+                          className="hover:underline text-left"
+                          onClick={() => navigate(`/contacts/${g.contact_id}`)}
+                        >
+                          {g.contact_name}
+                        </button>
+                      </CardTitle>
                       {g.household_label && (
                         <p className="text-xs text-muted-foreground">{g.household_label}</p>
                       )}
