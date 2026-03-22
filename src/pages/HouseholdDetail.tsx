@@ -426,6 +426,9 @@ const HouseholdDetail = () => {
         {/* Household Actions Rollup */}
         <HouseholdTaskRollup members={members} />
 
+        {/* Holding Tank */}
+        <HoldingTank householdId={id!} onAccountMoved={() => fetchData()} />
+
         {/* The Vineyard */}
         <Card>
           <CardHeader>
