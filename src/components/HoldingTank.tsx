@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2 } from "lucide-react";
+import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2, Eye, Users, Home } from "lucide-react";
 import { toast } from "sonner";
 
 interface HoldingTankAccount {
