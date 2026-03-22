@@ -34,6 +34,7 @@ import ContentHub from "./pages/ContentHub";
 import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
+import BulkOnboarding from "./pages/BulkOnboarding";
 
 const queryClient = new QueryClient();
 
