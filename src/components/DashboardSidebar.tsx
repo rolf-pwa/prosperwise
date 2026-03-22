@@ -21,14 +21,17 @@ export function DashboardSidebar() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: families } = await supabase
-          .from("families")
-          .select("id, total_family_assets");
+        const { data: vineyardAccounts } = await supabase
+          .from("vineyard_accounts")
+          .select("current_value");
 
-        const totalAssets = (families || []).reduce(
-          (sum, f) => sum + (Number(f.total_family_assets) || 0),
-          0
-        );
+        const { data: storehouseAccounts } = await supabase
+          .from("storehouses")
+          .select("current_value");
+
+        const totalAssets =
+          (vineyardAccounts || []).reduce((sum, a) => sum + (Number(a.current_value) || 0), 0) +
+          (storehouseAccounts || []).reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
 
         const { count: totalHouseholds } = await supabase
           .from("households")
