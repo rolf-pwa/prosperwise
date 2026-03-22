@@ -221,6 +221,7 @@ const ContactForm = () => {
       email: form.email || null,
       phone: form.phone || null,
       address: form.address || null,
+      family_role: form.family_role,
       governance_status: form.governance_status,
       fiduciary_entity: form.fiduciary_entity,
       lawyer_name: form.lawyer_name || null,
