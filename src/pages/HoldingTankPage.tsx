@@ -98,7 +98,7 @@ const HoldingTankPage = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <PageBreadcrumbs items={[{ label: "Dashboard", to: "/dashboard" }, { label: "Holding Tank" }]} />
+        <PageBreadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Holding Tank" }]} />
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
