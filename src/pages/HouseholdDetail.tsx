@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { Progress } from "@/components/ui/progress";
 import { HouseholdTaskRollup } from "@/components/HouseholdTaskRollup";
+import { HoldingTank } from "@/components/HoldingTank";
 import {
   Home,
   User,
