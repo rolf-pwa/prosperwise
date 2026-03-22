@@ -128,11 +128,17 @@ export default function Onboarding() {
     <AppLayout>
       <div className="mx-auto max-w-4xl space-y-6 p-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Client Onboarding</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Upload statements to automatically create family records and stage accounts in the Holding Tank.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Client Onboarding</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Upload statements to automatically create family records and stage accounts in the Holding Tank.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => navigate("/onboarding/bulk")} className="gap-2">
+            <Users className="h-4 w-4" />
+            Bulk Onboarding
+          </Button>
         </div>
 
         {/* Progress Steps */}
