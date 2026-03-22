@@ -26,6 +26,7 @@ interface PortalData {
   contact: any;
   vineyard_accounts: any[];
   storehouses: any[];
+  holding_tank?: any[];
   audit_trail: any[];
   portal_requests: any[];
   meetings: any[];
