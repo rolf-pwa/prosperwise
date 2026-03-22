@@ -118,7 +118,7 @@ Guidelines:
           { role: "user", content: userContent },
         ],
         temperature: 0.1,
-        max_tokens: 8000,
+        max_tokens: 16000,
       }),
     });
 
@@ -145,7 +145,22 @@ Guidelines:
     try {
       parsed = JSON.parse(jsonStr);
     } catch {
-      throw new Error("Failed to parse AI response: " + jsonStr.slice(0, 300));
+      // If JSON is truncated, try to repair it by closing open structures
+      let repaired = jsonStr;
+      // Count open brackets/braces
+      const openBraces = (repaired.match(/{/g) || []).length - (repaired.match(/}/g) || []).length;
+      const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+      // Trim trailing incomplete values (e.g. truncated strings)
+      repaired = repaired.replace(/,\s*"[^"]*"?\s*:?\s*[^,}\]]*$/, "");
+      // Close structures
+      for (let i = 0; i < openBrackets; i++) repaired += "]";
+      for (let i = 0; i < openBraces; i++) repaired += "}";
+      try {
+        parsed = JSON.parse(repaired);
+        console.log("Repaired truncated JSON successfully");
+      } catch {
+        throw new Error("Failed to parse AI response: " + jsonStr.slice(0, 300));
+      }
     }
 
     // Use provided family name or AI-suggested
