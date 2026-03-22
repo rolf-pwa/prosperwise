@@ -38,7 +38,12 @@ Deno.serve(async (req) => {
         .download(fp);
       if (dlErr || !fileData) throw new Error("Failed to download: " + fp);
       const ab = await fileData.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+      const bytes = new Uint8Array(ab);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const b64 = btoa(binary);
       fileContents.push({ path: fp, base64: b64 });
     }
 
