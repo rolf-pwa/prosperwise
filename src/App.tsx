@@ -33,6 +33,7 @@ import KnowledgeBase from "./pages/KnowledgeBase";
 import ContentHub from "./pages/ContentHub";
 import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/holding-tank" element={<ProtectedRoute><HoldingTankPage /></ProtectedRoute>} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             
             <Route path="/families" element={<ProtectedRoute><Families /></ProtectedRoute>} />
             <Route path="/households" element={<ProtectedRoute><Households /></ProtectedRoute>} />
