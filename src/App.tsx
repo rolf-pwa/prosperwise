@@ -33,6 +33,7 @@ import KnowledgeBase from "./pages/KnowledgeBase";
 import ContentHub from "./pages/ContentHub";
 import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
