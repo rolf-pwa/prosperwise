@@ -25,6 +25,7 @@ import {
   TrendingUp,
   BookOpen,
   PenLine,
+  Anchor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -65,6 +66,7 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
