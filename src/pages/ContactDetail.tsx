@@ -55,6 +55,7 @@ import { Grape, Building2 } from "lucide-react";
 import { ContactTaskList } from "@/components/ContactTaskList";
 import { HoldingTank } from "@/components/HoldingTank";
 import { StatementUpload } from "@/components/StatementUpload";
+import { ContactMerge } from "@/components/ContactMerge";
 
 interface Storehouse {
   id: string;
