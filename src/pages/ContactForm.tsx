@@ -374,6 +374,21 @@ const ContactForm = () => {
               <Label htmlFor="address">Address</Label>
               <Input id="address" value={form.address} onChange={(e) => update("address", e.target.value)} />
             </div>
+            <div>
+              <Label htmlFor="family_role">Role</Label>
+              <Select value={form.family_role} onValueChange={(v) => update("family_role", v)}>
+                <SelectTrigger id="family_role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="head_of_family">Head of Family</SelectItem>
+                  <SelectItem value="head_of_household">Head of Household</SelectItem>
+                  <SelectItem value="spouse">Spouse</SelectItem>
+                  <SelectItem value="beneficiary">Beneficiary</SelectItem>
+                  <SelectItem value="minor">Minor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
