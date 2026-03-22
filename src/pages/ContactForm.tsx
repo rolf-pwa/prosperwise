@@ -45,6 +45,7 @@ const ContactForm = () => {
     email: "",
     phone: "",
     address: "",
+    family_role: "head_of_family" as "head_of_family" | "spouse" | "beneficiary" | "minor" | "head_of_household",
     governance_status: "stabilization" as "stabilization" | "sovereign",
     fiduciary_entity: "pws" as "pws" | "pwa",
     lawyer_name: "",
@@ -110,6 +111,7 @@ const ContactForm = () => {
         email: data.email || "",
         phone: data.phone || "",
         address: data.address || "",
+        family_role: (data.family_role as any) || "head_of_family",
         governance_status: data.governance_status as any,
         fiduciary_entity: data.fiduciary_entity as any,
         lawyer_name: data.lawyer_name || "",
@@ -219,6 +221,7 @@ const ContactForm = () => {
       email: form.email || null,
       phone: form.phone || null,
       address: form.address || null,
+      family_role: form.family_role,
       governance_status: form.governance_status,
       fiduciary_entity: form.fiduciary_entity,
       lawyer_name: form.lawyer_name || null,
@@ -370,6 +373,21 @@ const ContactForm = () => {
             <div className="sm:col-span-2">
               <Label htmlFor="address">Address</Label>
               <Input id="address" value={form.address} onChange={(e) => update("address", e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="family_role">Role</Label>
+              <Select value={form.family_role} onValueChange={(v) => update("family_role", v)}>
+                <SelectTrigger id="family_role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="head_of_family">Head of Family</SelectItem>
+                  <SelectItem value="head_of_household">Head of Household</SelectItem>
+                  <SelectItem value="spouse">Spouse</SelectItem>
+                  <SelectItem value="beneficiary">Beneficiary</SelectItem>
+                  <SelectItem value="minor">Minor</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
