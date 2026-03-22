@@ -606,7 +606,7 @@ const ContactDetail = () => {
             </Card>
             
             {/* Holding Tank */}
-            <HoldingTank contactId={id!} onAccountMoved={() => fetchContact()} />
+            <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
 
             {/* Vineyard & Storehouses */}
             <Card>
