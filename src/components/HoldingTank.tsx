@@ -229,12 +229,15 @@ function HoldingTankRow({
   account,
   onMove,
   onDelete,
+  onScopeChange,
 }: {
   account: HoldingTankAccount;
   onMove: (destination: string, storehouseNum?: number) => void;
   onDelete: () => void;
+  onScopeChange: (id: string, scope: string) => void;
 }) {
   const [destination, setDestination] = useState<string>("");
+  const currentScope = SCOPE_OPTIONS.find(s => s.value === account.visibility_scope) || SCOPE_OPTIONS[1];
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
@@ -267,6 +270,20 @@ function HoldingTankRow({
       </div>
 
       <div className="flex items-center gap-2">
+        <Select value={account.visibility_scope || "household_shared"} onValueChange={(val) => onScopeChange(account.id, val)}>
+          <SelectTrigger className="h-8 text-xs w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCOPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <span className="flex items-center gap-1.5">
+                  <opt.icon className="h-3.5 w-3.5" /> {opt.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={destination} onValueChange={setDestination}>
           <SelectTrigger className="h-8 text-xs flex-1">
             <SelectValue placeholder="Move to…" />
