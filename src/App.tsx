@@ -34,6 +34,7 @@ import ContentHub from "./pages/ContentHub";
 import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
+import BulkOnboarding from "./pages/BulkOnboarding";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/holding-tank" element={<ProtectedRoute><HoldingTankPage /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/onboarding/bulk" element={<ProtectedRoute><BulkOnboarding /></ProtectedRoute>} />
             
             <Route path="/families" element={<ProtectedRoute><Families /></ProtectedRoute>} />
             <Route path="/households" element={<ProtectedRoute><Households /></ProtectedRoute>} />
