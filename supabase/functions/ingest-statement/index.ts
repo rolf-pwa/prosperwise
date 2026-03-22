@@ -19,17 +19,15 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
-    // Auth check with user token
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
 
-    // Service client for admin operations
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { contactId, filePath, contactName } = await req.json();
+    const { contactId, householdId, filePath, contactName } = await req.json();
     if (!contactId || !filePath) throw new Error("Missing contactId or filePath");
 
     // Download the file from storage
@@ -55,30 +53,40 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a financial statement parser. Extract investment/brokerage account data from the uploaded document.
+            content: `You are a financial statement parser for a Canadian family office. Extract investment/brokerage account data from the uploaded document.
 Return a JSON object with this exact structure:
 {
   "accounts": [
     {
-      "account_name": "Institution - Account Type",
+      "account_name": "Institution - Account Type (e.g. iA Financial - RRSP)",
       "account_number": "string or null",
       "account_type": "Portfolio|RRSP|TFSA|RESP|LIRA|LIF|Corporate|Trust|Other",
+      "account_owner": "Full name of the account holder or null",
+      "custodian": "Name of the financial institution (e.g. iA Financial, JustWealth, RBC)",
+      "book_value": number or null,
       "current_value": number or null,
       "notes": "Any classification notes (e.g. Eligible Harvest, Protected Growth)"
     }
   ],
   "summary": "Brief one-line summary of total holdings",
-  "ebitda": number or null,
-  "operating_income": number or null
+  "missing_fields": ["list of fields that could not be confidently extracted"]
 }
-Only include data you can confidently extract. Use null for uncertain values. Return ONLY the JSON, no markdown.`,
+
+Guidelines:
+- "book_value" is the beginning-of-year value, cost basis, or original investment amount
+- "current_value" is the most recent market value shown
+- If the document shows multiple dates, use the earliest as book_value and latest as current_value
+- Extract the account owner name from the statement header/title
+- Identify the custodian/institution from the statement branding
+- Use null for any values you cannot confidently extract
+- Return ONLY the JSON, no markdown`,
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Parse this financial statement for ${contactName || "the client"}. Extract all investment accounts with their values, account numbers, and types.`,
+                text: `Parse this financial statement for ${contactName || "the client"}. Extract all investment accounts with their values, account numbers, types, owners, and custodian information.`,
               },
               {
                 type: "image_url",
@@ -107,12 +115,14 @@ Only include data you can confidently extract. Use null for uncertain values. Re
         account_name: string;
         account_number: string | null;
         account_type: string;
+        account_owner: string | null;
+        custodian: string | null;
+        book_value: number | null;
         current_value: number | null;
         notes: string | null;
       }>;
       summary: string | null;
-      ebitda: number | null;
-      operating_income: number | null;
+      missing_fields: string[];
     };
 
     try {
@@ -121,65 +131,54 @@ Only include data you can confidently extract. Use null for uncertain values. Re
       throw new Error("Failed to parse AI response as JSON: " + jsonStr.slice(0, 200));
     }
 
-    // Create review queue items for each extracted account
-    const reviewItems = [];
+    // Insert extracted accounts into the Holding Tank
+    const insertedAccounts = [];
 
     for (const account of parsed.accounts || []) {
-      const { data: rqItem, error: rqErr } = await adminClient
-        .from("review_queue")
+      const { data: htItem, error: htErr } = await adminClient
+        .from("holding_tank")
         .insert({
-          action_type: "statement_ingestion",
-          action_description: `Create vineyard account: ${account.account_name}${account.current_value ? ` ($${account.current_value.toLocaleString()})` : ""}`,
           contact_id: contactId,
-          created_by: user.id,
-          proposed_data: {
-            table: "vineyard_accounts",
-            action: "insert",
-            data: {
-              contact_id: contactId,
-              account_name: account.account_name,
-              account_number: account.account_number,
-              account_type: account.account_type || "Portfolio",
-              current_value: account.current_value,
-              notes: account.notes,
-            },
-          },
-          logic_trace: `Extracted from uploaded statement via AI parsing. File: ${filePath}`,
-          status: "pending",
+          household_id: householdId || null,
+          account_name: account.account_name,
+          account_number: account.account_number,
+          account_type: account.account_type || "Portfolio",
+          account_owner: account.account_owner,
+          custodian: account.custodian,
+          book_value: account.book_value,
+          current_value: account.current_value,
+          notes: account.notes,
+          source_file: filePath,
+          status: "holding",
         })
         .select("id")
         .single();
 
-      if (!rqErr && rqItem) reviewItems.push(rqItem);
+      if (!htErr && htItem) insertedAccounts.push(htItem);
     }
 
-    // If summary data was extracted, create a review item for contact updates
-    if (parsed.summary || parsed.ebitda || parsed.operating_income) {
-      const contactUpdate: Record<string, unknown> = {};
-      if (parsed.summary) contactUpdate.vineyard_balance_sheet_summary = parsed.summary;
-      if (parsed.ebitda) contactUpdate.vineyard_ebitda = parsed.ebitda;
-      if (parsed.operating_income) contactUpdate.vineyard_operating_income = parsed.operating_income;
-
-      await adminClient.from("review_queue").insert({
-        action_type: "statement_ingestion",
-        action_description: `Update contact vineyard data from statement${parsed.summary ? `: ${parsed.summary}` : ""}`,
-        contact_id: contactId,
-        created_by: user.id,
-        proposed_data: {
-          table: "contacts",
-          action: "update",
-          data: contactUpdate,
-        },
-        logic_trace: `Financial summary extracted from uploaded statement via AI parsing. File: ${filePath}`,
-        status: "pending",
-      });
-    }
+    // Create a review queue item summarizing the ingestion
+    await adminClient.from("review_queue").insert({
+      action_type: "statement_ingestion",
+      action_description: `Parsed ${insertedAccounts.length} account(s) from statement into Holding Tank${parsed.summary ? `: ${parsed.summary}` : ""}`,
+      contact_id: contactId,
+      created_by: user.id,
+      proposed_data: {
+        holding_tank_ids: insertedAccounts.map(a => a.id),
+        summary: parsed.summary,
+        missing_fields: parsed.missing_fields || [],
+      },
+      logic_trace: `AI extracted ${parsed.accounts?.length || 0} accounts from uploaded statement. File: ${filePath}. Missing fields: ${(parsed.missing_fields || []).join(", ") || "none"}`,
+      status: "pending",
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
         accountsExtracted: parsed.accounts?.length || 0,
-        reviewItemsCreated: reviewItems.length + (parsed.summary || parsed.ebitda || parsed.operating_income ? 1 : 0),
+        accountsInserted: insertedAccounts.length,
+        missingFields: parsed.missing_fields || [],
+        summary: parsed.summary,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

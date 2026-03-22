@@ -1,0 +1,309 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface HoldingTankAccount {
+  id: string;
+  contact_id: string;
+  household_id: string | null;
+  account_name: string;
+  account_number: string | null;
+  account_type: string;
+  account_owner: string | null;
+  custodian: string | null;
+  book_value: number | null;
+  current_value: number | null;
+  notes: string | null;
+  source_file: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface HoldingTankProps {
+  contactId?: string;
+  householdId?: string;
+  onAccountMoved?: () => void;
+}
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const STOREHOUSE_CONFIG = [
+  { num: 1, name: "The Keep", icon: Castle },
+  { num: 2, name: "The Armoury", icon: Sword },
+  { num: 3, name: "The Granary", icon: Wheat },
+  { num: 4, name: "The Vault", icon: Lock },
+];
+
+export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingTankProps) {
+  const [accounts, setAccounts] = useState<HoldingTankAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [moveTarget, setMoveTarget] = useState<{ id: string; destination: string; storehouseNum?: number } | null>(null);
+  const [moving, setMoving] = useState(false);
+
+  const fetchAccounts = useCallback(async () => {
+    setLoading(true);
+    let query = (supabase.from("holding_tank" as any) as any)
+      .select("*")
+      .eq("status", "holding")
+      .order("created_at", { ascending: false });
+
+    if (contactId) query = query.eq("contact_id", contactId);
+    if (householdId) query = query.eq("household_id", householdId);
+
+    const { data, error } = await query;
+    if (!error && data) setAccounts(data as HoldingTankAccount[]);
+    setLoading(false);
+  }, [contactId, householdId]);
+
+  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+
+  const handleMove = async () => {
+    if (!moveTarget) return;
+    setMoving(true);
+
+    const account = accounts.find(a => a.id === moveTarget.id);
+    if (!account) { setMoving(false); return; }
+
+    try {
+      if (moveTarget.destination === "vineyard") {
+        // Insert into vineyard_accounts
+        const { error } = await supabase.from("vineyard_accounts").insert({
+          contact_id: account.contact_id,
+          account_name: account.account_name,
+          account_number: account.account_number,
+          account_type: account.account_type,
+          current_value: account.current_value,
+          book_value: account.book_value,
+          notes: account.notes,
+        } as any);
+        if (error) throw error;
+      } else if (moveTarget.destination === "storehouse" && moveTarget.storehouseNum) {
+        // Insert into storehouses
+        const { error } = await supabase.from("storehouses").insert({
+          contact_id: account.contact_id,
+          storehouse_number: moveTarget.storehouseNum,
+          label: account.account_name,
+          current_value: account.current_value,
+          book_value: account.book_value,
+          notes: account.notes,
+          asset_type: account.account_type,
+        } as any);
+        if (error) throw error;
+      }
+
+      // Mark holding tank account as moved
+      await (supabase.from("holding_tank" as any) as any)
+        .update({ status: "moved" })
+        .eq("id", moveTarget.id);
+
+      toast.success(`Account moved to ${moveTarget.destination === "vineyard" ? "The Vineyard" : STOREHOUSE_CONFIG.find(s => s.num === moveTarget.storehouseNum)?.name}`);
+      setMoveTarget(null);
+      fetchAccounts();
+      onAccountMoved?.();
+    } catch (err: any) {
+      toast.error("Failed to move account: " + err.message);
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    await (supabase.from("holding_tank" as any) as any).delete().eq("id", id);
+    toast.success("Account removed from Holding Tank");
+    fetchAccounts();
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (accounts.length === 0) return null;
+
+  const totalValue = accounts.reduce((sum, a) => sum + (a.current_value || 0), 0);
+  const totalBookValue = accounts.reduce((sum, a) => sum + (a.book_value || 0), 0);
+
+  return (
+    <>
+      <Card className="border-amber-500/30 bg-amber-50/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Anchor className="h-5 w-5 text-amber-600" />
+            The Holding Tank
+            <Badge variant="secondary" className="ml-auto text-xs bg-amber-100 text-amber-800">
+              {accounts.length} account{accounts.length !== 1 ? "s" : ""}
+            </Badge>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Newly parsed accounts awaiting Charter ratification. Move to The Vineyard or Storehouses when ready.
+          </p>
+          {totalValue > 0 && (
+            <div className="flex gap-4 mt-1">
+              <span className="text-sm font-medium">Current: {formatCurrency(totalValue)}</span>
+              {totalBookValue > 0 && (
+                <span className="text-sm text-muted-foreground">Book: {formatCurrency(totalBookValue)}</span>
+              )}
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {accounts.map((account) => (
+            <HoldingTankRow
+              key={account.id}
+              account={account}
+              onMove={(destination, storehouseNum) =>
+                setMoveTarget({ id: account.id, destination, storehouseNum })
+              }
+              onDelete={() => handleDelete(account.id)}
+            />
+          ))}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={!!moveTarget} onOpenChange={(open) => !open && setMoveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Account Move</AlertDialogTitle>
+            <AlertDialogDescription>
+              Move "{accounts.find(a => a.id === moveTarget?.id)?.account_name}" to{" "}
+              {moveTarget?.destination === "vineyard"
+                ? "The Vineyard"
+                : STOREHOUSE_CONFIG.find(s => s.num === moveTarget?.storehouseNum)?.name}
+              ? This action can be reversed by your advisor team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={moving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMove} disabled={moving}>
+              {moving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Move Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function HoldingTankRow({
+  account,
+  onMove,
+  onDelete,
+}: {
+  account: HoldingTankAccount;
+  onMove: (destination: string, storehouseNum?: number) => void;
+  onDelete: () => void;
+}) {
+  const [destination, setDestination] = useState<string>("");
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{account.account_name}</p>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+            {account.account_number && (
+              <span className="text-xs text-muted-foreground">#{account.account_number}</span>
+            )}
+            {account.custodian && (
+              <span className="text-xs text-muted-foreground">{account.custodian}</span>
+            )}
+            {account.account_owner && (
+              <span className="text-xs text-muted-foreground">{account.account_owner}</span>
+            )}
+            <Badge variant="outline" className="text-[10px] h-4">
+              {account.account_type}
+            </Badge>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          {account.current_value != null && (
+            <p className="text-sm font-semibold">{formatCurrency(account.current_value)}</p>
+          )}
+          {account.book_value != null && (
+            <p className="text-xs text-muted-foreground">Book: {formatCurrency(account.book_value)}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Select value={destination} onValueChange={setDestination}>
+          <SelectTrigger className="h-8 text-xs flex-1">
+            <SelectValue placeholder="Move to…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="vineyard">
+              <span className="flex items-center gap-1.5">
+                <Grape className="h-3.5 w-3.5" /> The Vineyard
+              </span>
+            </SelectItem>
+            {STOREHOUSE_CONFIG.map((s) => (
+              <SelectItem key={s.num} value={`storehouse-${s.num}`}>
+                <span className="flex items-center gap-1.5">
+                  <s.icon className="h-3.5 w-3.5" /> {s.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          size="sm"
+          variant="default"
+          className="h-8 text-xs"
+          disabled={!destination}
+          onClick={() => {
+            if (destination === "vineyard") {
+              onMove("vineyard");
+            } else {
+              const num = parseInt(destination.replace("storehouse-", ""));
+              onMove("storehouse", num);
+            }
+          }}
+        >
+          <ArrowRight className="h-3.5 w-3.5 mr-1" />
+          Move
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -657,6 +657,75 @@ export type Database = {
         }
         Relationships: []
       }
+      holding_tank: {
+        Row: {
+          account_name: string
+          account_number: string | null
+          account_owner: string | null
+          account_type: string
+          book_value: number | null
+          contact_id: string
+          created_at: string
+          current_value: number | null
+          custodian: string | null
+          household_id: string | null
+          id: string
+          notes: string | null
+          source_file: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number?: string | null
+          account_owner?: string | null
+          account_type?: string
+          book_value?: number | null
+          contact_id: string
+          created_at?: string
+          current_value?: number | null
+          custodian?: string | null
+          household_id?: string | null
+          id?: string
+          notes?: string | null
+          source_file?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string | null
+          account_owner?: string | null
+          account_type?: string
+          book_value?: number | null
+          contact_id?: string
+          created_at?: string
+          current_value?: number | null
+          custodian?: string | null
+          household_id?: string | null
+          id?: string
+          notes?: string | null
+          source_file?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holding_tank_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holding_tank_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       household_relationships: {
         Row: {
           contact_id: string
@@ -1380,6 +1449,7 @@ export type Database = {
       storehouses: {
         Row: {
           asset_type: string | null
+          book_value: number | null
           charter_alignment: Database["public"]["Enums"]["charter_alignment"]
           contact_id: string
           created_at: string
@@ -1395,6 +1465,7 @@ export type Database = {
         }
         Insert: {
           asset_type?: string | null
+          book_value?: number | null
           charter_alignment?: Database["public"]["Enums"]["charter_alignment"]
           contact_id: string
           created_at?: string
@@ -1410,6 +1481,7 @@ export type Database = {
         }
         Update: {
           asset_type?: string | null
+          book_value?: number | null
           charter_alignment?: Database["public"]["Enums"]["charter_alignment"]
           contact_id?: string
           created_at?: string
@@ -1470,6 +1542,7 @@ export type Database = {
           account_name: string
           account_number: string | null
           account_type: string
+          book_value: number | null
           contact_id: string
           created_at: string
           current_value: number | null
@@ -1482,6 +1555,7 @@ export type Database = {
           account_name: string
           account_number?: string | null
           account_type?: string
+          book_value?: number | null
           contact_id: string
           created_at?: string
           current_value?: number | null
@@ -1494,6 +1568,7 @@ export type Database = {
           account_name?: string
           account_number?: string | null
           account_type?: string
+          book_value?: number | null
           contact_id?: string
           created_at?: string
           current_value?: number | null

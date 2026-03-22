@@ -51,6 +51,7 @@ import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton
 import { AssetContainer, type AssetAccount, type MoveTarget } from "@/components/AssetContainer";
 import { Grape, Building2 } from "lucide-react";
 import { ContactTaskList } from "@/components/ContactTaskList";
+import { HoldingTank } from "@/components/HoldingTank";
 
 interface Storehouse {
   id: string;
@@ -604,6 +605,9 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
             
+            {/* Holding Tank */}
+            <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
+
             {/* Vineyard & Storehouses */}
             <Card>
               <CardHeader>

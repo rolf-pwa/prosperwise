@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { Progress } from "@/components/ui/progress";
 import { HouseholdTaskRollup } from "@/components/HouseholdTaskRollup";
+import { HoldingTank } from "@/components/HoldingTank";
 import {
   Home,
   User,
@@ -424,6 +425,9 @@ const HouseholdDetail = () => {
 
         {/* Household Actions Rollup */}
         <HouseholdTaskRollup members={members} />
+
+        {/* Holding Tank */}
+        <HoldingTank householdId={id!} onAccountMoved={() => fetchData()} />
 
         {/* The Vineyard */}
         <Card>

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { signInWithGoogle } from "@/lib/auth";
 import { PortalTerritory } from "@/components/portal/PortalTerritory";
+import { PortalHoldingTank } from "@/components/portal/PortalHoldingTank";
 import { PortalRequests } from "@/components/portal/PortalRequests";
 import { PortalMeetings } from "@/components/portal/PortalMeetings";
 import { PortalCharter } from "@/components/portal/PortalCharter";
@@ -25,6 +26,7 @@ interface PortalData {
   contact: any;
   vineyard_accounts: any[];
   storehouses: any[];
+  holding_tank?: any[];
   audit_trail: any[];
   portal_requests: any[];
   meetings: any[];
@@ -514,7 +516,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
+  const { contact, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
   const portalToken = token || data.portal_token || "";
   const hierarchyLevel = hierarchy?.level || "individual";
 
@@ -1106,6 +1108,11 @@ const Portal = () => {
 
           {/* Dynamic Quick Links */}
           {isSelf && <PortalDynamicLinks contact={contact} />}
+
+          {/* Holding Tank */}
+          {isSelf && holding_tank.length > 0 && (
+            <PortalHoldingTank accounts={holding_tank} />
+          )}
 
           {/* Vineyard & Storehouses */}
           <PortalTerritory

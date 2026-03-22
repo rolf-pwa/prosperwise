@@ -291,14 +291,14 @@ const ContactForm = () => {
           }
 
           const { data, error } = await supabase.functions.invoke("ingest-statement", {
-            body: { contactId, filePath, contactName },
+            body: { contactId, householdId: null, filePath, contactName },
           });
 
           if (error) {
             toast.error(`Ingestion failed for ${file.name}`);
           } else {
             toast.success(
-              `${file.name} — ${data?.accountsExtracted || 0} accounts sent to Review Queue`
+              `${file.name} — ${data?.accountsInserted || 0} accounts added to Holding Tank`
             );
           }
         } catch {
