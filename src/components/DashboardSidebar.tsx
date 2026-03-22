@@ -1,23 +1,26 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingUp, Home, ShieldCheck, Clock } from "lucide-react";
+import { Loader2, TrendingUp, Home, ShieldCheck, Clock, Anchor } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface Stats {
   totalAssets: number;
   totalHouseholds: number;
   sovereignCount: number;
   stabilizationCount: number;
+  holdingTankTotal: number;
+  holdingTankCount: number;
 }
 
 export function DashboardSidebar() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
       try {
-        // Fetch families for asset totals and governance counts
         const { data: families } = await supabase
           .from("families")
           .select("id, total_family_assets");
@@ -27,12 +30,10 @@ export function DashboardSidebar() {
           0
         );
 
-        // Fetch all households
         const { count: totalHouseholds } = await supabase
           .from("households")
           .select("id", { count: "exact", head: true });
 
-        // Count sovereign vs stabilization by checking contacts with governance_status
         const { data: contacts } = await supabase
           .from("contacts")
           .select("household_id, governance_status")
@@ -53,11 +54,25 @@ export function DashboardSidebar() {
           (s) => s === "stabilization"
         ).length;
 
+        // Holding tank summary
+        const { data: holdingAccounts } = await supabase
+          .from("holding_tank")
+          .select("id, current_value")
+          .eq("status", "holding");
+
+        const holdingTankCount = holdingAccounts?.length ?? 0;
+        const holdingTankTotal = (holdingAccounts || []).reduce(
+          (sum, a) => sum + (Number(a.current_value) || 0),
+          0
+        );
+
         setStats({
           totalAssets,
           totalHouseholds: totalHouseholds ?? 0,
           sovereignCount,
           stabilizationCount,
+          holdingTankTotal,
+          holdingTankCount,
         });
       } catch {
         // silently fail
@@ -86,7 +101,7 @@ export function DashboardSidebar() {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Total Assets */}
       <Card>
         <CardHeader className="pb-2">
@@ -101,6 +116,29 @@ export function DashboardSidebar() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Holding Tank */}
+      {stats.holdingTankCount > 0 && (
+        <Card
+          className="border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition-colors"
+          onClick={() => navigate("/holding-tank")}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-amber-600">
+              <Anchor className="h-4 w-4" />
+              Holding Tank
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-amber-600">
+              {formatCurrency(stats.holdingTankTotal)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {stats.holdingTankCount} account{stats.holdingTankCount !== 1 ? "s" : ""} staged
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Household Total */}
       <Card>
