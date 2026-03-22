@@ -295,6 +295,7 @@ serve(async (req) => {
       contact: contactRes.data,
       vineyard_accounts: accountsRes.data || [],
       storehouses: storehousesRes.data || [],
+      holding_tank: holdingTankRes.data || [],
       audit_trail: auditRes.data || [],
       portal_requests: requestsRes.data || [],
       meetings,
