@@ -37,8 +37,15 @@ interface HoldingTankAccount {
   notes: string | null;
   source_file: string | null;
   status: string;
+  visibility_scope: string;
   created_at: string;
 }
+
+const SCOPE_OPTIONS = [
+  { value: "private", label: "Private", icon: Eye },
+  { value: "household_shared", label: "Household", icon: Home },
+  { value: "family_shared", label: "Family", icon: Users },
+];
 
 interface HoldingTankProps {
   contactId?: string;
