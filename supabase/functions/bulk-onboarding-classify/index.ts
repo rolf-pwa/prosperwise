@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `Extract the primary account holder's full name from this financial statement's first page. Return ONLY a JSON object: {"client_name": "Firstname Lastname", "institutions": ["institution names"]}. No markdown.`,
+              content: `Extract the primary account holder's full name (a real person, NOT the dealer firm or advisory company) from this financial statement's first page. Return ONLY a JSON object: {"client_name": "Firstname Lastname", "institutions": ["institution names"]}. No markdown.`,
             },
             {
               role: "user",
