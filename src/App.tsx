@@ -32,6 +32,7 @@ import SideDrawer from "./pages/SideDrawer";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import ContentHub from "./pages/ContentHub";
 import ContentEditor from "./pages/ContentEditor";
+import HoldingTankPage from "./pages/HoldingTankPage";
 
 const queryClient = new QueryClient();
 
