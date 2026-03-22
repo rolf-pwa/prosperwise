@@ -115,6 +115,8 @@ const ContactDetail = () => {
   const [newAccountValue, setNewAccountValue] = useState("");
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [statementFiles, setStatementFiles] = useState<File[]>([]);
+  const [isIngesting, setIsIngesting] = useState(false);
   const [corporateStakes, setCorporateStakes] = useState<Array<{
     corporation_id: string;
     corporation_name: string;
