@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { CommandCenter } from "@/components/CommandCenter";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
+import { DashboardHoldingTank } from "@/components/DashboardHoldingTank";
 import { PipelineWidget } from "@/components/PipelineWidget";
 
 const Dashboard = () => {
@@ -9,6 +10,7 @@ const Dashboard = () => {
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-foreground">Command Center</h1>
         <DashboardSidebar />
+        <DashboardHoldingTank />
         <PipelineWidget />
         <CommandCenter />
       </div>
