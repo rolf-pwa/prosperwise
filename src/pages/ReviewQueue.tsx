@@ -132,12 +132,22 @@ const ReviewQueue = () => {
       // If rejecting, remove associated holding tank records
       if (status === "rejected") {
         const item = items.find((i) => i.id === id);
-        if (item?.contact_id) {
-          await supabase
-            .from("holding_tank")
-            .delete()
-            .eq("contact_id", item.contact_id)
-            .eq("status", "holding");
+        if (item?.proposed_data) {
+          const pd = item.proposed_data as Record<string, any>;
+          // Use holding_tank_ids from proposed_data if available (onboarding items)
+          if (Array.isArray(pd.holding_tank_ids) && pd.holding_tank_ids.length > 0) {
+            await supabase
+              .from("holding_tank")
+              .delete()
+              .in("id", pd.holding_tank_ids);
+          } else if (item.contact_id) {
+            // Fallback: delete by contact_id
+            await supabase
+              .from("holding_tank")
+              .delete()
+              .eq("contact_id", item.contact_id)
+              .eq("status", "holding");
+          }
         }
       }
 
