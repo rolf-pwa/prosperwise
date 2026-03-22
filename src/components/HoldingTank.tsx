@@ -99,8 +99,8 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     if (!account) { setMoving(false); return; }
 
     try {
+      const scope = account.visibility_scope || "household_shared";
       if (moveTarget.destination === "vineyard") {
-        // Insert into vineyard_accounts
         const { error } = await supabase.from("vineyard_accounts").insert({
           contact_id: account.contact_id,
           account_name: account.account_name,
@@ -109,10 +109,10 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
           current_value: account.current_value,
           book_value: account.book_value,
           notes: account.notes,
+          visibility_scope: scope,
         } as any);
         if (error) throw error;
       } else if (moveTarget.destination === "storehouse" && moveTarget.storehouseNum) {
-        // Insert into storehouses
         const { error } = await supabase.from("storehouses").insert({
           contact_id: account.contact_id,
           storehouse_number: moveTarget.storehouseNum,
@@ -121,6 +121,7 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
           book_value: account.book_value,
           notes: account.notes,
           asset_type: account.account_type,
+          visibility_scope: scope,
         } as any);
         if (error) throw error;
       }
