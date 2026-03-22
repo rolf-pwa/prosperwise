@@ -202,6 +202,8 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
                 setMoveTarget({ id: account.id, destination, storehouseNum })
               }
               onDelete={() => handleDelete(account.id)}
+              onScopeChange={handleScopeChange}
+            />
             />
           ))}
         </CardContent>
