@@ -55,6 +55,7 @@ import { Grape, Building2 } from "lucide-react";
 import { ContactTaskList } from "@/components/ContactTaskList";
 import { HoldingTank } from "@/components/HoldingTank";
 import { StatementUpload } from "@/components/StatementUpload";
+import { ContactMerge } from "@/components/ContactMerge";
 
 interface Storehouse {
   id: string;
@@ -428,6 +429,11 @@ const ContactDetail = () => {
                 <BellOff className="h-4 w-4 text-muted-foreground" />
               )}
             </Button>
+            <ContactMerge
+              contactId={id!}
+              contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+              onMerged={fetchData}
+            />
             <Button
               variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}
