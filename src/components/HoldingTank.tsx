@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2 } from "lucide-react";
+import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2, Eye, Users, Home } from "lucide-react";
 import { toast } from "sonner";
 
 interface HoldingTankAccount {
@@ -37,8 +37,15 @@ interface HoldingTankAccount {
   notes: string | null;
   source_file: string | null;
   status: string;
+  visibility_scope: string;
   created_at: string;
 }
+
+const SCOPE_OPTIONS = [
+  { value: "private", label: "Private", icon: Eye },
+  { value: "household_shared", label: "Household", icon: Home },
+  { value: "family_shared", label: "Family", icon: Users },
+];
 
 interface HoldingTankProps {
   contactId?: string;
@@ -92,8 +99,8 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     if (!account) { setMoving(false); return; }
 
     try {
+      const scope = account.visibility_scope || "household_shared";
       if (moveTarget.destination === "vineyard") {
-        // Insert into vineyard_accounts
         const { error } = await supabase.from("vineyard_accounts").insert({
           contact_id: account.contact_id,
           account_name: account.account_name,
@@ -102,10 +109,10 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
           current_value: account.current_value,
           book_value: account.book_value,
           notes: account.notes,
+          visibility_scope: scope,
         } as any);
         if (error) throw error;
       } else if (moveTarget.destination === "storehouse" && moveTarget.storehouseNum) {
-        // Insert into storehouses
         const { error } = await supabase.from("storehouses").insert({
           contact_id: account.contact_id,
           storehouse_number: moveTarget.storehouseNum,
@@ -114,6 +121,7 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
           book_value: account.book_value,
           notes: account.notes,
           asset_type: account.account_type,
+          visibility_scope: scope,
         } as any);
         if (error) throw error;
       }
@@ -138,6 +146,13 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     await (supabase.from("holding_tank" as any) as any).delete().eq("id", id);
     toast.success("Account removed from Holding Tank");
     fetchAccounts();
+  };
+
+  const handleScopeChange = async (id: string, scope: string) => {
+    await (supabase.from("holding_tank" as any) as any)
+      .update({ visibility_scope: scope })
+      .eq("id", id);
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, visibility_scope: scope } : a));
   };
 
   if (loading) {
@@ -187,6 +202,7 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
                 setMoveTarget({ id: account.id, destination, storehouseNum })
               }
               onDelete={() => handleDelete(account.id)}
+              onScopeChange={handleScopeChange}
             />
           ))}
         </CardContent>
@@ -221,12 +237,15 @@ function HoldingTankRow({
   account,
   onMove,
   onDelete,
+  onScopeChange,
 }: {
   account: HoldingTankAccount;
   onMove: (destination: string, storehouseNum?: number) => void;
   onDelete: () => void;
+  onScopeChange: (id: string, scope: string) => void;
 }) {
   const [destination, setDestination] = useState<string>("");
+  const currentScope = SCOPE_OPTIONS.find(s => s.value === account.visibility_scope) || SCOPE_OPTIONS[1];
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
@@ -259,6 +278,20 @@ function HoldingTankRow({
       </div>
 
       <div className="flex items-center gap-2">
+        <Select value={account.visibility_scope || "household_shared"} onValueChange={(val) => onScopeChange(account.id, val)}>
+          <SelectTrigger className="h-8 text-xs w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCOPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <span className="flex items-center gap-1.5">
+                  <opt.icon className="h-3.5 w-3.5" /> {opt.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={destination} onValueChange={setDestination}>
           <SelectTrigger className="h-8 text-xs flex-1">
             <SelectValue placeholder="Move to…" />

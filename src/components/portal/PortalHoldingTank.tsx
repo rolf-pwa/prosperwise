@@ -13,6 +13,7 @@ interface PortalHoldingTankProps {
     book_value: number | null;
     current_value: number | null;
     notes: string | null;
+    visibility_scope?: string;
   }>;
 }
 
