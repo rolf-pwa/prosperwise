@@ -674,6 +674,7 @@ export type Database = {
           source_file: string | null
           status: string
           updated_at: string
+          visibility_scope: Database["public"]["Enums"]["visibility_scope"]
         }
         Insert: {
           account_name: string
@@ -691,6 +692,7 @@ export type Database = {
           source_file?: string | null
           status?: string
           updated_at?: string
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
         }
         Update: {
           account_name?: string
@@ -708,6 +710,7 @@ export type Database = {
           source_file?: string | null
           status?: string
           updated_at?: string
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
         }
         Relationships: [
           {

@@ -1,0 +1,1 @@
+ALTER TABLE public.holding_tank ADD COLUMN visibility_scope public.visibility_scope NOT NULL DEFAULT 'household_shared'::visibility_scope;
