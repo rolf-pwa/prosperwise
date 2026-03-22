@@ -26,6 +26,7 @@ import {
   BookOpen,
   PenLine,
   Anchor,
+  PackagePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
