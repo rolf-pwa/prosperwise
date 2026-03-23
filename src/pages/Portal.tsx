@@ -882,11 +882,9 @@ const Portal = () => {
         {/* Right Sidebar: Household-Shared Territory */}
         <div className="space-y-4">
           {/* Household Holding Tank */}
-          {(() => {
-            const hhId = drilldown.householdId || contact.household_id;
-            const hhHoldingTank = holding_tank.filter((a: any) => a.household_id === hhId);
-            return hhHoldingTank.length > 0 ? <PortalHoldingTank accounts={hhHoldingTank} /> : null;
-          })()}
+          {holding_tank.length > 0 && (
+            <PortalHoldingTank accounts={holding_tank} />
+          )}
 
           <PortalTerritory
             vineyardAccounts={hhAssets.vineyard}

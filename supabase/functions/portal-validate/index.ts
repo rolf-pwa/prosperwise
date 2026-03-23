@@ -255,13 +255,14 @@ serve(async (req) => {
     // Build hierarchy data based on role
     const hierarchy = contactRes.data ? await buildHierarchy(supabase, contactRes.data) : { level: "individual" };
 
-    // Fetch household-wide holding tank if contact belongs to a household
+    // Fetch household-wide holding tank by contact membership (not household_id field which may be stale)
     let householdHoldingTank: any[] = [];
     if (householdId) {
+      const hhMemberIds = [contactId, ...householdMembers.map((m: any) => m.id)];
       const { data: hhHolding } = await supabase
         .from("holding_tank")
         .select("*")
-        .eq("household_id", householdId)
+        .in("contact_id", hhMemberIds)
         .eq("status", "holding")
         .order("created_at");
       householdHoldingTank = hhHolding || [];
