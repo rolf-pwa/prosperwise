@@ -39,6 +39,7 @@ interface PortalData {
 
 const ROLE_LABELS: Record<string, string> = {
   head_of_family: "Head of Family",
+  head_of_household: "Head of Household",
   spouse: "Spouse",
   beneficiary: "Beneficiary",
   minor: "Minor",
