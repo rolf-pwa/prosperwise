@@ -307,7 +307,12 @@ serve(async (req) => {
       contact: contactRes.data,
       vineyard_accounts: accountsRes.data || [],
       storehouses: storehousesRes.data || [],
-      holding_tank: holdingTankRes.data || [],
+      holding_tank: (() => {
+        const individual = holdingTankRes.data || [];
+        const individualIds = new Set(individual.map((r: any) => r.id));
+        const merged = [...individual, ...householdHoldingTank.filter((r: any) => !individualIds.has(r.id))];
+        return merged;
+      })(),
       audit_trail: auditRes.data || [],
       portal_requests: requestsRes.data || [],
       meetings,
