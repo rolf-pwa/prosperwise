@@ -1099,6 +1099,24 @@ const Portal = () => {
                     </div>
                   </div>
                 )}
+                {/* Navigate to household view for HoH/spouse roles */}
+                {(hierarchyLevel === "household" || hierarchyLevel === "family") && isSelf && (
+                  <div className="border-t border-border pt-3">
+                    <button
+                      onClick={() => {
+                        if (hierarchyLevel === "family") {
+                          setDrilldown({ level: "family" });
+                        } else {
+                          setDrilldown({ level: "household", householdId: contact.household_id });
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-md border border-accent/20 bg-accent/5 px-3 py-2 text-xs font-medium text-accent hover:bg-accent/10 transition-colors"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      {hierarchyLevel === "family" ? "View Family Overview" : "View Household"}
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
