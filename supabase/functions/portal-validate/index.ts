@@ -255,6 +255,18 @@ serve(async (req) => {
     // Build hierarchy data based on role
     const hierarchy = contactRes.data ? await buildHierarchy(supabase, contactRes.data) : { level: "individual" };
 
+    // Fetch household-wide holding tank if contact belongs to a household
+    let householdHoldingTank: any[] = [];
+    if (householdId) {
+      const { data: hhHolding } = await supabase
+        .from("holding_tank")
+        .select("*")
+        .eq("household_id", householdId)
+        .eq("status", "holding")
+        .order("created_at");
+      householdHoldingTank = hhHolding || [];
+    }
+
     // Fetch corporations via shareholders for all household members + self
     let corporations: any[] = [];
     const allMemberIds = [contactId, ...householdMembers.map((m: any) => m.id)];
@@ -295,7 +307,12 @@ serve(async (req) => {
       contact: contactRes.data,
       vineyard_accounts: accountsRes.data || [],
       storehouses: storehousesRes.data || [],
-      holding_tank: holdingTankRes.data || [],
+      holding_tank: (() => {
+        const individual = holdingTankRes.data || [];
+        const individualIds = new Set(individual.map((r: any) => r.id));
+        const merged = [...individual, ...householdHoldingTank.filter((r: any) => !individualIds.has(r.id))];
+        return merged;
+      })(),
       audit_trail: auditRes.data || [],
       portal_requests: requestsRes.data || [],
       meetings,
