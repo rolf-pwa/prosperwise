@@ -139,8 +139,8 @@ async function buildHierarchy(supabase: any, contact: any) {
     return { level: "family", households: householdsWithMembers };
   }
 
-  if ((role === "head_of_family" || role === "head_of_household" || role === "spouse") && householdId) {
-    // Head of household or spouse: see household members
+  if ((role === "head_of_family" || role === "head_of_household" || role === "spouse" || role === "beneficiary") && householdId) {
+    // Head of household, spouse, or beneficiary: see household members
     const { data: members } = await supabase
       .from("contacts")
       .select("id, first_name, last_name, family_role, is_minor, email")
