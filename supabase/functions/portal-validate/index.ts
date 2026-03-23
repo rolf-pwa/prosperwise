@@ -213,9 +213,6 @@ serve(async (req) => {
       supabase.from("sovereignty_audit_trail").select("*").eq("contact_id", contactId).order("created_at", { ascending: false }).limit(50),
       supabase.from("portal_requests").select("*, messages:portal_request_messages(*)").eq("contact_id", contactId).order("created_at", { ascending: false }),
       supabase.from("holding_tank").select("*").eq("contact_id", contactId).eq("status", "holding").order("created_at"),
-      householdId
-        ? supabase.from("holding_tank").select("*").eq("household_id", householdId).eq("status", "holding").order("created_at")
-        : Promise.resolve({ data: [] }),
     ]);
 
     // Fetch family, household, and household members if available
