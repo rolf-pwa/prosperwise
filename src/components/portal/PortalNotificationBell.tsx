@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Bell } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -15,6 +16,16 @@ interface PortalRequest {
     content: string;
     created_at: string;
   }[];
+}
+
+interface ClientNotification {
+  id: string;
+  title: string;
+  body: string | null;
+  source_type: string;
+  link_tab: string | null;
+  read: boolean;
+  created_at: string;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -39,19 +50,39 @@ function markMessagesSeen(contactId: string, ids: string[]) {
   localStorage.setItem(`portal_seen_msgs_${contactId}`, JSON.stringify([...existing]));
 }
 
+const SOURCE_ICONS: Record<string, string> = {
+  task_comment: "🗨️",
+  task_completed: "✅",
+  task_reopened: "🔄",
+  task_updated: "📋",
+};
+
 interface Props {
   requests: PortalRequest[];
   contactId: string;
   onNavigateToRequests: () => void;
+  onNavigateToTasks?: () => void;
 }
 
-export function PortalNotificationBell({ requests, contactId, onNavigateToRequests }: Props) {
+export function PortalNotificationBell({ requests, contactId, onNavigateToRequests, onNavigateToTasks }: Props) {
   const [open, setOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const [clientNotifs, setClientNotifs] = useState<ClientNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSeenIds(getSeenMessageIds(contactId));
+    // Fetch portal client notifications
+    (async () => {
+      const { data } = await supabase
+        .from("portal_client_notifications" as any)
+        .select("*")
+        .eq("contact_id", contactId)
+        .eq("read", false)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (data) setClientNotifs(data as unknown as ClientNotification[]);
+    })();
   }, [contactId]);
 
   // Close on outside click
@@ -67,33 +98,75 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
   const unreadMessages = requests.flatMap((req) =>
     (req.messages || [])
       .filter((m) => m.sender_type === "advisor" && !seenIds.has(m.id))
-      .map((m) => ({ ...m, requestType: req.request_type, requestId: req.id }))
-  ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .map((m) => ({ ...m, requestType: req.request_type, requestId: req.id, _kind: "request" as const }))
+  );
 
-  const unreadCount = unreadMessages.length;
+  // Merge both notification types into a single sorted list
+  const allNotifications = [
+    ...unreadMessages.map((m) => ({
+      id: m.id,
+      title: `New reply on ${TYPE_LABELS[m.requestType] || m.requestType}`,
+      body: m.content,
+      icon: "💬",
+      created_at: m.created_at,
+      kind: "request" as const,
+      requestId: m.requestId,
+    })),
+    ...clientNotifs.map((n) => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      icon: SOURCE_ICONS[n.source_type] || "🔔",
+      created_at: n.created_at,
+      kind: "task" as const,
+      linkTab: n.link_tab,
+    })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const handleOpen = () => {
-    setOpen(!open);
-  };
+  const unreadCount = allNotifications.length;
 
-  const handleMarkAllRead = () => {
+  const handleOpen = () => setOpen(!open);
+
+  const handleMarkAllRead = async () => {
+    // Mark request messages seen
     const allAdvisorMsgIds = requests.flatMap((req) =>
       (req.messages || []).filter((m) => m.sender_type === "advisor").map((m) => m.id)
     );
     markMessagesSeen(contactId, allAdvisorMsgIds);
     setSeenIds(getSeenMessageIds(contactId));
+
+    // Mark client notifications read
+    if (clientNotifs.length > 0) {
+      const ids = clientNotifs.map((n) => n.id);
+      await supabase
+        .from("portal_client_notifications" as any)
+        .update({ read: true } as any)
+        .in("id", ids);
+      setClientNotifs([]);
+    }
   };
 
-  const handleClickNotif = (requestId: string) => {
-    // Mark all messages in this request as seen
-    const req = requests.find((r) => r.id === requestId);
-    if (req) {
-      const ids = (req.messages || []).filter((m) => m.sender_type === "advisor").map((m) => m.id);
-      markMessagesSeen(contactId, ids);
-      setSeenIds(getSeenMessageIds(contactId));
+  const handleClickNotif = async (notif: (typeof allNotifications)[0]) => {
+    if (notif.kind === "request") {
+      // Mark all messages in this request as seen
+      const req = requests.find((r) => r.id === notif.requestId);
+      if (req) {
+        const ids = (req.messages || []).filter((m) => m.sender_type === "advisor").map((m) => m.id);
+        markMessagesSeen(contactId, ids);
+        setSeenIds(getSeenMessageIds(contactId));
+      }
+      setOpen(false);
+      onNavigateToRequests();
+    } else {
+      // Mark this client notification as read
+      await supabase
+        .from("portal_client_notifications" as any)
+        .update({ read: true } as any)
+        .eq("id", notif.id);
+      setClientNotifs((prev) => prev.filter((n) => n.id !== notif.id));
+      setOpen(false);
+      if (onNavigateToTasks) onNavigateToTasks();
     }
-    setOpen(false);
-    onNavigateToRequests();
   };
 
   return (
@@ -125,27 +198,29 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
           </div>
 
           <div className="max-h-80 overflow-y-auto">
-            {unreadMessages.length === 0 ? (
+            {allNotifications.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
                 No new notifications
               </div>
             ) : (
-              unreadMessages.slice(0, 20).map((msg) => (
+              allNotifications.slice(0, 20).map((notif) => (
                 <button
-                  key={msg.id}
-                  onClick={() => handleClickNotif(msg.requestId)}
+                  key={notif.id}
+                  onClick={() => handleClickNotif(notif)}
                   className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 border-b border-border last:border-0 bg-accent/5"
                 >
-                  <span className="text-base mt-0.5">💬</span>
+                  <span className="text-base mt-0.5">{notif.icon}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold leading-tight text-foreground">
-                      New reply on {TYPE_LABELS[msg.requestType] || msg.requestType}
+                      {notif.title}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {msg.content}
-                    </p>
+                    {notif.body && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {notif.body}
+                      </p>
+                    )}
                     <p className="text-[10px] text-muted-foreground/60 mt-1">
-                      {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                      {format(new Date(notif.created_at), "MMM d, h:mm a")}
                     </p>
                   </div>
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />

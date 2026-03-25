@@ -1209,6 +1209,7 @@ const Portal = () => {
                 requests={portal_requests || []}
                 contactId={contact.id}
                 onNavigateToRequests={() => setActiveTab("requests")}
+                onNavigateToTasks={() => setActiveTab("tasks")}
               />
               <Button
                 variant="ghost"

@@ -935,6 +935,47 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_client_notifications: {
+        Row: {
+          body: string | null
+          contact_id: string
+          created_at: string
+          id: string
+          link_tab: string | null
+          read: boolean
+          source_type: string
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          contact_id: string
+          created_at?: string
+          id?: string
+          link_tab?: string | null
+          read?: boolean
+          source_type?: string
+          title: string
+        }
+        Update: {
+          body?: string | null
+          contact_id?: string
+          created_at?: string
+          id?: string
+          link_tab?: string | null
+          read?: boolean
+          source_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_client_notifications_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_links: {
         Row: {
           created_at: string

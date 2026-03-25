@@ -190,6 +190,20 @@ serve(async (req) => {
         .eq("id", contact_id)
         .maybeSingle();
 
+      // Always insert a portal client notification regardless of email settings
+      let notifTitle = `Update on: ${task_name}`;
+      if (task_event === "comment") notifTitle = `New comment on: ${task_name}`;
+      else if (task_event === "completed") notifTitle = `Action item completed: ${task_name}`;
+      else if (task_event === "reopened") notifTitle = `Action item reopened: ${task_name}`;
+
+      await supabase.from("portal_client_notifications").insert({
+        contact_id,
+        title: notifTitle,
+        body: task_name,
+        source_type: `task_${task_event}`,
+        link_tab: "tasks",
+      });
+
       if (!contact?.email) {
         console.log("[Notify] No email for contact, skipping task notification");
         return new Response(JSON.stringify({ sent: false, reason: "no_email" }), {
