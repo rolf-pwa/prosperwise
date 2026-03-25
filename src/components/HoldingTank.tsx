@@ -257,6 +257,8 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
   const totalValue = accounts.reduce((sum, a) => sum + (a.current_value || 0), 0);
   const totalBookValue = accounts.reduce((sum, a) => sum + (a.book_value || 0), 0);
 
+  if (!showCard && !contactId) return null;
+
   return (
     <>
       <Card className="border-amber-500/30 bg-amber-50/5">
@@ -264,9 +266,24 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
           <CardTitle className="flex items-center gap-2 text-lg">
             <Anchor className="h-5 w-5 text-amber-600" />
             The Holding Tank
-            <Badge variant="secondary" className="ml-auto text-xs bg-amber-100 text-amber-800">
-              {accounts.length} account{accounts.length !== 1 ? "s" : ""}
-            </Badge>
+            <div className="ml-auto flex items-center gap-2">
+              {accounts.length > 0 && (
+                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
+                  {accounts.length} account{accounts.length !== 1 ? "s" : ""}
+                </Badge>
+              )}
+              {contactId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setShowAddForm(!showAddForm)}
+                >
+                  {showAddForm ? <X className="h-3.5 w-3.5 mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                  {showAddForm ? "Cancel" : "Add Account"}
+                </Button>
+              )}
+            </div>
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             Newly parsed accounts awaiting Charter ratification. Move to The Vineyard or Storehouses when ready.
@@ -281,6 +298,66 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
           )}
         </CardHeader>
         <CardContent className="space-y-2">
+          {showAddForm && (
+            <div className="rounded-md border border-dashed border-amber-500/40 bg-amber-50/10 p-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">New Manual Deposit</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Account name *"
+                  className="h-8 text-xs"
+                  value={addForm.account_name}
+                  onChange={(e) => setAddForm(f => ({ ...f, account_name: e.target.value }))}
+                />
+                <Input
+                  placeholder="Custodian"
+                  className="h-8 text-xs"
+                  value={addForm.custodian}
+                  onChange={(e) => setAddForm(f => ({ ...f, custodian: e.target.value }))}
+                />
+                <Input
+                  placeholder="Expected amount"
+                  type="number"
+                  className="h-8 text-xs"
+                  value={addForm.current_value}
+                  onChange={(e) => setAddForm(f => ({ ...f, current_value: e.target.value }))}
+                />
+                <Input
+                  type="date"
+                  className="h-8 text-xs"
+                  value={addForm.expected_deposit_date}
+                  onChange={(e) => setAddForm(f => ({ ...f, expected_deposit_date: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={addForm.account_type} onValueChange={(val) => setAddForm(f => ({ ...f, account_type: val }))}>
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Portfolio">Portfolio</SelectItem>
+                    <SelectItem value="RRSP">RRSP</SelectItem>
+                    <SelectItem value="TFSA">TFSA</SelectItem>
+                    <SelectItem value="RESP">RESP</SelectItem>
+                    <SelectItem value="RRIF">RRIF</SelectItem>
+                    <SelectItem value="Non-Registered">Non-Registered</SelectItem>
+                    <SelectItem value="Corporate">Corporate</SelectItem>
+                    <SelectItem value="LIRA">LIRA</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={!addForm.account_name || adding}
+                  onClick={handleAddAccount}
+                >
+                  {adding && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </div>
+          )}
           {accounts.map((account) => (
             <HoldingTankRow
               key={account.id}
@@ -293,6 +370,9 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
               onDateChange={handleDateChange}
             />
           ))}
+          {accounts.length === 0 && !showAddForm && (
+            <p className="text-xs text-muted-foreground text-center py-4">No staged accounts. Click "Add Account" to manually enter a deposit.</p>
+          )}
         </CardContent>
       </Card>
 
