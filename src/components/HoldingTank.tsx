@@ -248,14 +248,15 @@ function HoldingTankRow({
   onMove,
   onDelete,
   onScopeChange,
+  onDateChange,
 }: {
   account: HoldingTankAccount;
   onMove: (destination: string, storehouseNum?: number) => void;
   onDelete: () => void;
   onScopeChange: (id: string, scope: string) => void;
+  onDateChange: (id: string, date: string) => void;
 }) {
   const [destination, setDestination] = useState<string>("");
-  const currentScope = SCOPE_OPTIONS.find(s => s.value === account.visibility_scope) || SCOPE_OPTIONS[1];
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
