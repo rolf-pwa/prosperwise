@@ -302,7 +302,7 @@ function HoldingTankRow({
         />
       </div>
 
-        <Select value={account.visibility_scope || "household_shared"} onValueChange={(val) => onScopeChange(account.id, val)}>
+        <div className="flex items-center gap-2">
           <SelectTrigger className="h-8 text-xs w-[130px]">
             <SelectValue />
           </SelectTrigger>
