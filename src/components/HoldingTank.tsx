@@ -76,6 +76,9 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
   const [loading, setLoading] = useState(true);
   const [moveTarget, setMoveTarget] = useState<{ id: string; destination: string; storehouseNum?: number } | null>(null);
   const [moving, setMoving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({ account_name: "", account_type: "Portfolio", current_value: "", expected_deposit_date: "", custodian: "" });
+  const [adding, setAdding] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
