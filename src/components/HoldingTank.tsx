@@ -165,6 +165,8 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
       .eq("id", id);
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, expected_deposit_date: val } : a));
   };
+
+  if (loading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
