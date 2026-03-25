@@ -231,10 +231,24 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
       });
       if (error) throw error;
 
+      // Sync to pipeline if amount and date provided
+      if (addForm.current_value && addForm.expected_deposit_date) {
+        await supabase.from("business_pipeline").insert({
+          contact_id: contactId,
+          category: "new_aum" as any,
+          status: "pending" as any,
+          amount: parseFloat(addForm.current_value),
+          expected_close_date: addForm.expected_deposit_date,
+          created_by: user.id,
+          notes: `holding_tank:manual_deposit`,
+        });
+      }
+
       toast.success("Account added to Holding Tank");
       setAddForm({ account_name: "", account_type: "Portfolio", current_value: "", expected_deposit_date: "", custodian: "" });
       setShowAddForm(false);
       fetchAccounts();
+      onAccountMoved?.();
     } catch (err: any) {
       toast.error("Failed to add account: " + err.message);
     } finally {
