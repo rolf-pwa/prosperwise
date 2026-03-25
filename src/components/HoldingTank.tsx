@@ -212,6 +212,7 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
               }
               onDelete={() => handleDelete(account.id)}
               onScopeChange={handleScopeChange}
+              onDateChange={handleDateChange}
             />
           ))}
         </CardContent>
