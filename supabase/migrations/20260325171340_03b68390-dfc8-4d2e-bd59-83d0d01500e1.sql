@@ -1,0 +1,1 @@
+ALTER TABLE public.holding_tank ADD COLUMN expected_deposit_date date DEFAULT NULL;

@@ -668,6 +668,7 @@ export type Database = {
           created_at: string
           current_value: number | null
           custodian: string | null
+          expected_deposit_date: string | null
           household_id: string | null
           id: string
           notes: string | null
@@ -686,6 +687,7 @@ export type Database = {
           created_at?: string
           current_value?: number | null
           custodian?: string | null
+          expected_deposit_date?: string | null
           household_id?: string | null
           id?: string
           notes?: string | null
@@ -704,6 +706,7 @@ export type Database = {
           created_at?: string
           current_value?: number | null
           custodian?: string | null
+          expected_deposit_date?: string | null
           household_id?: string | null
           id?: string
           notes?: string | null
