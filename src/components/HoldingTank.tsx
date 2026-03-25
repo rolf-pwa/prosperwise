@@ -158,12 +158,46 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, visibility_scope: scope } : a));
   };
 
-  const handleDateChange = async (id: string, date: string) => {
+  const handleDateChange = async (accountId: string, date: string) => {
     const val = date || null;
     await (supabase.from("holding_tank" as any) as any)
       .update({ expected_deposit_date: val })
-      .eq("id", id);
-    setAccounts(prev => prev.map(a => a.id === id ? { ...a, expected_deposit_date: val } : a));
+      .eq("id", accountId);
+    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, expected_deposit_date: val } : a));
+
+    // Auto-create/update pipeline entry for this deposit
+    const account = accounts.find(a => a.id === accountId);
+    if (account && val && account.current_value) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Check if pipeline entry already exists for this holding tank account
+        const { data: existing } = await supabase
+          .from("business_pipeline")
+          .select("id")
+          .eq("contact_id", account.contact_id)
+          .eq("category", "new_aum" as any)
+          .eq("notes", `holding_tank:${accountId}`)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("business_pipeline")
+            .update({ amount: account.current_value, expected_close_date: val })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("business_pipeline").insert({
+            contact_id: account.contact_id,
+            category: "new_aum" as any,
+            status: "pending" as any,
+            amount: account.current_value,
+            expected_close_date: val,
+            created_by: user.id,
+            notes: `holding_tank:${accountId}`,
+          });
+        }
+        toast.success("Pipeline updated with expected deposit");
+      }
+    }
   };
 
   if (loading) {
