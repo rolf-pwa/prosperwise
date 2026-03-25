@@ -71,6 +71,12 @@ export function PortalHoldingTank({ accounts }: PortalHoldingTankProps) {
               {account.book_value != null && (
                 <p className="text-[10px] text-muted-foreground">Book: {formatCurrency(account.book_value)}</p>
               )}
+              {account.expected_deposit_date && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1 justify-end">
+                  <CalendarDays className="h-2.5 w-2.5" />
+                  Expected: {new Date(account.expected_deposit_date + "T00:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                </p>
+              )}
             </div>
           </div>
         ))}
