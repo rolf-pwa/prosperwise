@@ -14,6 +14,7 @@ interface PortalHoldingTankProps {
     current_value: number | null;
     notes: string | null;
     visibility_scope?: string;
+    expected_deposit_date?: string | null;
   }>;
 }
 
