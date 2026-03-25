@@ -39,6 +39,7 @@ interface HoldingTankAccount {
   status: string;
   visibility_scope: string;
   created_at: string;
+  expected_deposit_date: string | null;
 }
 
 const SCOPE_OPTIONS = [
