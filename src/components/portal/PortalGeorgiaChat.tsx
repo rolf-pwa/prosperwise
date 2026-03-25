@@ -32,13 +32,15 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, 
   const initialized = useRef(false);
 
   useEffect(() => {
-    if (open && !initialized.current) {
-      initialized.current = true;
+    if (open) {
+      // Reset chat state each time the dialog opens
       const greeting: Message = {
         role: "assistant",
         content: `Hello${contactName ? ` ${contactName}` : ""}! I'm Georgia, your ProsperWise support assistant. I can help you with questions about your accounts, submit admin requests, or direct you to the right resources. How can I help you today?`,
       };
       setMessages([greeting]);
+      setInput("");
+      setFormTrigger(null);
     }
   }, [open, contactName]);
 
