@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Anchor } from "lucide-react";
+import { Anchor, CalendarDays } from "lucide-react";
 
 interface PortalHoldingTankProps {
   accounts: Array<{
@@ -14,6 +14,7 @@ interface PortalHoldingTankProps {
     current_value: number | null;
     notes: string | null;
     visibility_scope?: string;
+    expected_deposit_date?: string | null;
   }>;
 }
 
@@ -69,6 +70,12 @@ export function PortalHoldingTank({ accounts }: PortalHoldingTankProps) {
               )}
               {account.book_value != null && (
                 <p className="text-[10px] text-muted-foreground">Book: {formatCurrency(account.book_value)}</p>
+              )}
+              {account.expected_deposit_date && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1 justify-end">
+                  <CalendarDays className="h-2.5 w-2.5" />
+                  Expected: {new Date(account.expected_deposit_date + "T00:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                </p>
               )}
             </div>
           </div>

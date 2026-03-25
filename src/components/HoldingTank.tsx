@@ -20,7 +20,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2, Eye, Users, Home } from "lucide-react";
+import { Anchor, Grape, Castle, Sword, Wheat, Lock, ArrowRight, Loader2, Trash2, Eye, Users, Home, CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface HoldingTankAccount {
@@ -39,6 +41,7 @@ interface HoldingTankAccount {
   status: string;
   visibility_scope: string;
   created_at: string;
+  expected_deposit_date: string | null;
 }
 
 const SCOPE_OPTIONS = [
@@ -155,6 +158,48 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, visibility_scope: scope } : a));
   };
 
+  const handleDateChange = async (accountId: string, date: string) => {
+    const val = date || null;
+    await (supabase.from("holding_tank" as any) as any)
+      .update({ expected_deposit_date: val })
+      .eq("id", accountId);
+    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, expected_deposit_date: val } : a));
+
+    // Auto-create/update pipeline entry for this deposit
+    const account = accounts.find(a => a.id === accountId);
+    if (account && val && account.current_value) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Check if pipeline entry already exists for this holding tank account
+        const { data: existing } = await supabase
+          .from("business_pipeline")
+          .select("id")
+          .eq("contact_id", account.contact_id)
+          .eq("category", "new_aum" as any)
+          .eq("notes", `holding_tank:${accountId}`)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("business_pipeline")
+            .update({ amount: account.current_value, expected_close_date: val })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("business_pipeline").insert({
+            contact_id: account.contact_id,
+            category: "new_aum" as any,
+            status: "pending" as any,
+            amount: account.current_value,
+            expected_close_date: val,
+            created_by: user.id,
+            notes: `holding_tank:${accountId}`,
+          });
+        }
+        toast.success("Pipeline updated with expected deposit");
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -203,6 +248,7 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
               }
               onDelete={() => handleDelete(account.id)}
               onScopeChange={handleScopeChange}
+              onDateChange={handleDateChange}
             />
           ))}
         </CardContent>
@@ -238,14 +284,15 @@ function HoldingTankRow({
   onMove,
   onDelete,
   onScopeChange,
+  onDateChange,
 }: {
   account: HoldingTankAccount;
   onMove: (destination: string, storehouseNum?: number) => void;
   onDelete: () => void;
   onScopeChange: (id: string, scope: string) => void;
+  onDateChange: (id: string, date: string) => void;
 }) {
   const [destination, setDestination] = useState<string>("");
-  const currentScope = SCOPE_OPTIONS.find(s => s.value === account.visibility_scope) || SCOPE_OPTIONS[1];
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
@@ -275,6 +322,17 @@ function HoldingTankRow({
             <p className="text-xs text-muted-foreground">Book: {formatCurrency(account.book_value)}</p>
           )}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Expected:</span>
+        <Input
+          type="date"
+          className="h-7 text-xs w-[140px]"
+          value={account.expected_deposit_date || ""}
+          onChange={(e) => onDateChange(account.id, e.target.value)}
+        />
       </div>
 
       <div className="flex items-center gap-2">

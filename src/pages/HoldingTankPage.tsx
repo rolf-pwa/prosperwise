@@ -183,6 +183,9 @@ const HoldingTankPage = () => {
                                 <span>{acc.account_type}</span>
                                 {acc.custodian && <><span>·</span><span>{acc.custodian}</span></>}
                                 {acc.account_number && <><span>·</span><span>#{acc.account_number}</span></>}
+                                {(acc as any).expected_deposit_date && (
+                                  <><span>·</span><span>Expected: {new Date((acc as any).expected_deposit_date + "T00:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}</span></>
+                                )}
                               </div>
                             </div>
                             <div className="text-right shrink-0">
