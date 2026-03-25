@@ -158,7 +158,13 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, visibility_scope: scope } : a));
   };
 
-  if (loading) {
+  const handleDateChange = async (id: string, date: string) => {
+    const val = date || null;
+    await (supabase.from("holding_tank" as any) as any)
+      .update({ expected_deposit_date: val })
+      .eq("id", id);
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, expected_deposit_date: val } : a));
+  };
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
