@@ -203,6 +203,45 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     }
   };
 
+  const handleAddAccount = async () => {
+    if (!addForm.account_name || !contactId) return;
+    setAdding(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Get contact's household_id
+      const { data: contact } = await supabase
+        .from("contacts")
+        .select("household_id")
+        .eq("id", contactId)
+        .single();
+
+      const { error } = await (supabase.from("holding_tank" as any) as any).insert({
+        contact_id: contactId,
+        household_id: contact?.household_id || null,
+        account_name: addForm.account_name,
+        account_type: addForm.account_type,
+        current_value: addForm.current_value ? parseFloat(addForm.current_value) : null,
+        expected_deposit_date: addForm.expected_deposit_date || null,
+        custodian: addForm.custodian || null,
+        status: "holding",
+        visibility_scope: "household_shared",
+        source_file: "manual_entry",
+      });
+      if (error) throw error;
+
+      toast.success("Account added to Holding Tank");
+      setAddForm({ account_name: "", account_type: "Portfolio", current_value: "", expected_deposit_date: "", custodian: "" });
+      setShowAddForm(false);
+      fetchAccounts();
+    } catch (err: any) {
+      toast.error("Failed to add account: " + err.message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -213,7 +252,7 @@ export function HoldingTank({ contactId, householdId, onAccountMoved }: HoldingT
     );
   }
 
-  if (accounts.length === 0) return null;
+  const showCard = accounts.length > 0 || showAddForm;
 
   const totalValue = accounts.reduce((sum, a) => sum + (a.current_value || 0), 0);
   const totalBookValue = accounts.reduce((sum, a) => sum + (a.book_value || 0), 0);
