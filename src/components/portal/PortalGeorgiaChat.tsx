@@ -29,7 +29,6 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, 
   const [isLoading, setIsLoading] = useState(false);
   const [formTrigger, setFormTrigger] = useState<FormTrigger | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const initialized = useRef(false);
 
   useEffect(() => {
     if (open) {
