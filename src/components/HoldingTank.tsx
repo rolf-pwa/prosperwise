@@ -290,7 +290,6 @@ function HoldingTankRow({
         </div>
       </div>
 
-      {/* Expected deposit date */}
       <div className="flex items-center gap-2">
         <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <span className="text-xs text-muted-foreground whitespace-nowrap">Expected:</span>
@@ -302,7 +301,8 @@ function HoldingTankRow({
         />
       </div>
 
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
+        <Select value={account.visibility_scope || "household_shared"} onValueChange={(val) => onScopeChange(account.id, val)}>
           <SelectTrigger className="h-8 text-xs w-[130px]">
             <SelectValue />
           </SelectTrigger>
