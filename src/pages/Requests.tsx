@@ -220,9 +220,13 @@ const Requests = () => {
             <p className="text-sm font-medium">
               {TYPE_LABELS[req.request_type] || req.request_type}
             </p>
-            <p className="text-xs text-accent font-medium mt-0.5">
+            <Link
+              to={`/contacts/${req.contact_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-accent font-medium mt-0.5 hover:underline block"
+            >
               {(req.contact as any)?.full_name || "Unknown"}
-            </p>
+            </Link>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
               {req.request_description}
             </p>
