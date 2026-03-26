@@ -926,21 +926,6 @@ const ContactDetail = () => {
 
 
 
-                    type: acc.account_type,
-                    currentValue: acc.current_value,
-                    notes: acc.notes,
-                    visibilityScope: acc.visibility_scope,
-                    sourceTable: "vineyard_accounts" as const,
-                  }))}
-                  moveTargets={[
-                    { label: "The Keep", key: "storehouse-1" },
-                    { label: "The Armoury", key: "storehouse-2" },
-                    { label: "The Granary", key: "storehouse-3" },
-                    { label: "The Vault", key: "storehouse-4" },
-                  ]}
-                  onMoveAccount={async (account, targetKey) => {
-                    const storehouseNum = parseInt(targetKey.split("-")[1]);
-                    // Move: create storehouse record, delete vineyard record
                     const { error: insertErr } = await supabase.from("storehouses").insert({
                       contact_id: id,
                       storehouse_number: storehouseNum,
