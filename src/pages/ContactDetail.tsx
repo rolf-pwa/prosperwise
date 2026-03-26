@@ -36,90 +36,206 @@ import {
 
 const STOREHOUSE_NAMES = ["The Keep", "The Armoury", "The Granary", "The Vault"];
 
+interface Storehouse {
+  id: string;
+  storehouse_number: number;
+  label: string;
+  asset_type: string | null;
+  risk_cap: string | null;
+  charter_alignment: string;
+  notes: string | null;
+  visibility_scope: string;
+  current_value: number | null;
+  target_value: number | null;
+}
+
+interface HouseholdMember {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  family_role: string;
+}
+
+interface VineyardAccount {
+  id: string;
+  account_name: string;
+  account_type: string;
+  current_value: number | null;
+  notes: string | null;
+  visibility_scope: string;
+}
+
 const ContactDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [contact, setContact] = useState<any>(null);
-  const [householdMembers, setHouseholdMembers] = useState<any[]>([]);
-  const [vineyardAccounts, setVineyardAccounts] = useState<any[]>([]);
-  const [storehouses, setStorehouses] = useState<any[]>([]);
-  const [corporateStakes, setCorporateStakes] = useState<any[]>([]);
-  const [professionalContacts, setProfessionalContacts] = useState<Record<string, any>>({});
-  const [statementFiles, setStatementFiles] = useState<File[]>([]);
-  const [isIngesting, setIsIngesting] = useState(false);
-  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
+  const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
+  const [familyName, setFamilyName] = useState<string | null>(null);
+  const [householdLabel, setHouseholdLabel] = useState<string | null>(null);
+  const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
+  const [professionalContacts, setProfessionalContacts] = useState<Record<string, { id: string; full_name: string } | null>>({});
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountType, setNewAccountType] = useState("Portfolio");
   const [newAccountValue, setNewAccountValue] = useState("");
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [statementFiles, setStatementFiles] = useState<File[]>([]);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [corporateStakes, setCorporateStakes] = useState<Array<{
+    corporation_id: string;
+    corporation_name: string;
+    corporation_type: string;
+    ownership_percentage: number;
+    share_class: string | null;
+    role_title: string | null;
+    total_assets: number;
+    pro_rata: number;
+    subsidiaries: Array<{
+      child_id: string;
+      child_name: string;
+      child_type: string;
+      parent_ownership_pct: number;
+      child_total_assets: number;
+      indirect_pro_rata: number;
+    }>;
+  }>>([]);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    
-    const { data: contactData } = await supabase
-      .from("contacts")
-      .select("*")
-      .eq("id", id)
-      .single();
-    
-    if (contactData) {
-      setContact(contactData);
-      
-      if (contactData.household_id) {
-        const { data: members } = await supabase
-          .from("contacts")
-          .select("*")
-          .eq("household_id", contactData.household_id)
-          .neq("id", id);
-        setHouseholdMembers(members || []);
-      }
+    const [contactRes, storehouseRes, , , accountsRes] = await Promise.all([
+      supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
+      supabase.from("storehouses").select("*").eq("contact_id", id).order("storehouse_number"),
+      Promise.resolve({ data: [] }),
+      supabase.from("family_relationships").select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)").eq("contact_id", id),
+      supabase.from("vineyard_accounts" as any).select("*").eq("contact_id", id).order("created_at"),
+    ]);
+    setContact(contactRes.data);
+    setStorehouses(storehouseRes.data || []);
+    setVineyardAccounts((accountsRes.data as any) || []);
+
+    if (contactRes.data?.household_id) {
+      const { data: hhMembers } = await supabase
+        .from("contacts")
+        .select("id, first_name, last_name, family_role")
+        .eq("household_id", contactRes.data.household_id)
+        .neq("id", id)
+        .order("first_name");
+      setHouseholdMembers((hhMembers as any) || []);
+    } else {
+      setHouseholdMembers([]);
     }
 
-    const { data: vAccounts } = await supabase
-      .from("vineyard_accounts")
-      .select("*")
-      .eq("contact_id", id);
-    setVineyardAccounts(vAccounts || []);
+    if (contactRes.data?.family_id) {
+      const { data: fam } = await supabase.from("families").select("name").eq("id", contactRes.data.family_id).maybeSingle();
+      setFamilyName(fam?.name || null);
+    }
+    if (contactRes.data?.household_id) {
+      const { data: hh } = await supabase.from("households").select("label").eq("id", contactRes.data.household_id).maybeSingle();
+      setHouseholdLabel(hh?.label || null);
+    }
 
-    const { data: sHouses } = await supabase
-      .from("storehouses")
-      .select("*")
-      .eq("contact_id", id);
-    setStorehouses(sHouses || []);
+    const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
+    if (names.length > 0) {
+      const { data: matchedContacts } = await supabase.from("contacts").select("id, first_name, last_name, full_name").in("full_name", names);
+      const map: Record<string, { id: string; full_name: string } | null> = {};
+      names.forEach((name) => {
+        const match = matchedContacts?.find((c) => c.full_name === name) || null;
+        map[name] = match ? { id: match.id, full_name: match.full_name } : null;
+      });
+      setProfessionalContacts(map);
+    }
 
-    const { data: cStakes } = await supabase
-      .from("corporate_stakes")
-      .select("*, subsidiaries:corporate_subsidiaries(*)")
-      .eq("contact_id", id);
-    setCorporateStakes(cStakes || []);
+    const { data: shareholdings } = await supabase.from("shareholders").select("corporation_id, ownership_percentage, share_class, role_title").eq("contact_id", id).eq("is_active", true);
+    if (shareholdings && shareholdings.length > 0) {
+      const corpIds = shareholdings.map((s) => s.corporation_id);
+      const [corpsRes, assetsRes, subsRes] = await Promise.all([
+        supabase.from("corporations").select("id, name, corporation_type").in("id", corpIds),
+        supabase.from("corporate_vineyard_accounts").select("corporation_id, current_value").in("corporation_id", corpIds),
+        supabase.from("corporate_shareholders").select("parent_corporation_id, child_corporation_id, ownership_percentage").in("parent_corporation_id", corpIds),
+      ]);
+      const childIds = (subsRes.data || []).map((s) => s.child_corporation_id);
+      let childCorps: any[] = [];
+      let childAssets: any[] = [];
+      if (childIds.length > 0) {
+        const [cc, ca] = await Promise.all([
+          supabase.from("corporations").select("id, name, corporation_type").in("id", childIds),
+          supabase.from("corporate_vineyard_accounts").select("corporation_id, current_value").in("corporation_id", childIds),
+        ]);
+        childCorps = cc.data || [];
+        childAssets = ca.data || [];
+      }
+      const stakes = shareholdings.map((sh) => {
+        const corp = (corpsRes.data || []).find((c) => c.id === sh.corporation_id);
+        const totalAssets = (assetsRes.data || []).filter((a) => a.corporation_id === sh.corporation_id).reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
+        const proRata = totalAssets * (sh.ownership_percentage / 100);
+        const subs = (subsRes.data || []).filter((s) => s.parent_corporation_id === sh.corporation_id).map((s) => {
+          const child = childCorps.find((c: any) => c.id === s.child_corporation_id);
+          const childTotal = childAssets.filter((a: any) => a.corporation_id === s.child_corporation_id).reduce((sum: number, a: any) => sum + (Number(a.current_value) || 0), 0);
+          const indirectPct = (sh.ownership_percentage / 100) * (s.ownership_percentage / 100);
+          return { child_id: s.child_corporation_id, child_name: child?.name || "Unknown", child_type: child?.corporation_type || "other", parent_ownership_pct: s.ownership_percentage, child_total_assets: childTotal, indirect_pro_rata: childTotal * indirectPct };
+        });
+        return { corporation_id: sh.corporation_id, corporation_name: corp?.name || "Unknown", corporation_type: corp?.corporation_type || "other", ownership_percentage: sh.ownership_percentage, share_class: sh.share_class, role_title: sh.role_title, total_assets: totalAssets, pro_rata: proRata, subsidiaries: subs };
+      });
+      setCorporateStakes(stakes);
+    } else {
+      setCorporateStakes([]);
+    }
+    setLoading(false);
   }, [id]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  if (!contact) return null;
+  const handleIngestStatements = async () => {
+    if (!statementFiles.length || !contact) return;
+    setIsIngesting(true);
+    try {
+      for (const file of statementFiles) {
+        const filePath = `${id}/${Date.now()}_${file.name}`;
+        const { error: upErr } = await supabase.storage.from("statement-uploads").upload(filePath, file);
+        if (upErr) { toast.error(`Upload failed: ${upErr.message}`); continue; }
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-statement`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ contactId: id, householdId: contact.household_id, filePath, contactName: contact.full_name }),
+        });
+        const result = await res.json();
+        if (result.error) { toast.error(result.error); }
+        else { toast.success(`Extracted ${result.accountsExtracted} account(s) from ${file.name}`); }
+      }
+      setStatementFiles([]);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Ingestion failed");
+    } finally {
+      setIsIngesting(false);
+    }
+  };
 
-  const isStabilization = contact.governance_status === "Stabilization";
+  if (loading) {
+    return (<AppLayout><p className="text-muted-foreground">Loading...</p></AppLayout>);
+  }
+  if (!contact) {
+    return (<AppLayout><p className="text-muted-foreground">Contact not found.</p></AppLayout>);
+  }
+
+  const isStabilization = contact.governance_status === "stabilization";
   const quietStart = contact.quiet_period_start_date ? new Date(contact.quiet_period_start_date) : null;
-  const quietEnd = quietStart ? new Date(quietStart.getTime() + 90 * 24 * 60 * 60 * 1000) : null;
-  const daysLeft = quietEnd ? Math.max(0, differenceInDays(quietEnd, new Date())) : null;
-  const progressPct = quietStart ? Math.min(100, ((90 - (daysLeft || 0)) / 90) * 100) : 0;
-
-  const familyName = contact.family_name;
-  const householdLabel = contact.household_name;
+  const quietEnd = quietStart ? addDays(quietStart, 90) : null;
+  const daysElapsed = quietStart ? Math.min(differenceInDays(new Date(), quietStart), 90) : 0;
+  const daysLeft = quietEnd ? Math.max(differenceInDays(quietEnd, new Date()), 0) : null;
+  const progressPct = quietStart ? Math.min((daysElapsed / 90) * 100, 100) : 0;
 
   const resourceLinks = [
-    { label: "Asana", url: contact.asana_url, icon: () => <div className="w-4 h-4 bg-pink-500 rounded-sm" />, internal: false },
-    { label: "Drive", url: contact.google_drive_url, icon: () => <div className="w-4 h-4 bg-blue-500 rounded-sm" />, internal: false },
-  ].filter(link => link.url);
-
-  const handleIngestStatements = async () => {
-    setIsIngesting(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsIngesting(false);
-    setStatementFiles([]);
-    toast.success("Statements ingested successfully");
-  };
+    { label: "SideDrawer", url: contact.sidedrawer_url, icon: Folder },
+    { label: "Google Drive", url: contact.google_drive_url, icon: FolderOpen },
+    { label: "Asana", url: contact.asana_url, icon: CheckSquare },
+    { label: "IA Financial", url: contact.ia_financial_url, icon: ShieldCheck },
+    { label: "Just Wealth", url: (contact as any).just_wealth_url, icon: Landmark },
+  ];
 
   const PHASES = [
     { num: 1, label: "Discovery" },
@@ -128,6 +244,7 @@ const ContactDetail = () => {
     { num: 4, label: "Ratification" },
     { num: 5, label: "Sovereign" },
   ];
+
 
   return (
     <AppLayout>
