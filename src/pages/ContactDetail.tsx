@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,23 +10,24 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Bell, BellOff, Trash2, Clock, AlertCircle, Shield, 
-  ExternalLink, Bot, Grape, FileUp, Loader2, Building2, Users, Plus, X 
+  ExternalLink, Bot, Grape, FileUp, Loader2, Building2, Users, Plus, X,
+  Folder, FolderOpen, CheckSquare, ShieldCheck, Landmark
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, differenceInDays } from "date-fns";
-import { PageBreadcrumbs } from "@/components/ui/breadcrumbs";
-import { ContactMerge } from "@/components/contacts/ContactMerge";
+import { format, differenceInDays, addDays } from "date-fns";
+import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
+import { ContactMerge } from "@/components/ContactMerge";
 import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
-import { ContactTaskList } from "@/components/contacts/ContactTaskList";
-import { ContactRequests } from "@/components/contacts/ContactRequests";
-import { ContactCalendar } from "@/components/contacts/ContactCalendar";
-import { ContactEmails } from "@/components/contacts/ContactEmails";
-import { SovereigntyAssistant } from "@/components/ai/SovereigntyAssistant";
-import { AuditTrail } from "@/components/ai/AuditTrail";
-import { StatementUpload } from "@/components/vineyard/StatementUpload";
-import { HoldingTank } from "@/components/portal/HoldingTank";
-import { AssetContainer } from "@/components/vineyard/AssetContainer";
-import { ProfessionalLinker } from "@/components/contacts/ProfessionalLinker";
+import { ContactTaskList } from "@/components/ContactTaskList";
+import { ContactRequests } from "@/components/ContactRequests";
+import { ContactCalendar } from "@/components/ContactCalendar";
+import { ContactEmails } from "@/components/ContactEmails";
+import { SovereigntyAssistant } from "@/components/SovereigntyAssistant";
+import { AuditTrail } from "@/components/AuditTrail";
+import { StatementUpload } from "@/components/StatementUpload";
+import { HoldingTank } from "@/components/HoldingTank";
+import { AssetContainer, type MoveTarget } from "@/components/AssetContainer";
+import { ProfessionalLinker } from "@/components/ProfessionalLinker";
 import { 
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
