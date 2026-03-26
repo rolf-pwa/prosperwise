@@ -924,12 +924,8 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-                  icon={<Grape className="h-3.5 w-3.5 text-sanctuary-green" />}
-                  containerKey="vineyard"
-                  contactId={id!}
-                  accounts={vineyardAccounts.map((acc) => ({
-                    id: acc.id,
-                    name: acc.account_name,
+
+
                     type: acc.account_type,
                     currentValue: acc.current_value,
                     notes: acc.notes,
