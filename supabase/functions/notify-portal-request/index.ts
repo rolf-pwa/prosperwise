@@ -243,6 +243,7 @@ serve(async (req) => {
         subject,
         message,
         event_type: `task_${task_event}`,
+        template_id: "VC9ofWh",
       });
 
       return new Response(JSON.stringify(result), {
