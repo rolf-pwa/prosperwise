@@ -56,6 +56,7 @@ import { ContactTaskList } from "@/components/ContactTaskList";
 import { HoldingTank } from "@/components/HoldingTank";
 import { StatementUpload } from "@/components/StatementUpload";
 import { ContactMerge } from "@/components/ContactMerge";
+import { ContactRequests } from "@/components/ContactRequests";
 
 interface Storehouse {
   id: string;
