@@ -573,6 +573,9 @@ const ContactDetail = () => {
             {/* Tasks */}
             <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
 
+            {/* Client Requests */}
+            <ContactRequests contactId={id!} />
+
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
@@ -676,8 +679,6 @@ const ContactDetail = () => {
               </div>
             )}
 
-            {/* Client Requests */}
-            <ContactRequests contactId={id!} />
 
             {/* Holding Tank */}
             <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
