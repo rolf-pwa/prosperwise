@@ -570,12 +570,6 @@ const ContactDetail = () => {
                 );
               })}
             </div>
-            {/* Tasks */}
-            <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
-
-            {/* Client Requests */}
-            <ContactRequests contactId={id!} />
-
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
@@ -583,8 +577,14 @@ const ContactDetail = () => {
                   <Bot className="mr-1.5 h-3.5 w-3.5" />
                   AI Assistant
                 </TabsTrigger>
+                <TabsTrigger value="vineyard" className="flex-1">
+                  <Grape className="mr-1.5 h-3.5 w-3.5" />
+                  The Vineyard
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="comms" className="space-y-6 mt-4">
+                <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
+                <ContactRequests contactId={id!} />
                 <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
                 <ContactEmails contactEmail={contact.email} />
               </TabsContent>
@@ -615,6 +615,270 @@ const ContactDetail = () => {
                   }}
                 />
                 <AuditTrail contactId={id!} />
+              </TabsContent>
+              <TabsContent value="vineyard" className="space-y-4 mt-4">
+                {/* Statement Upload */}
+                <StatementUpload
+                  files={statementFiles}
+                  onFilesChange={setStatementFiles}
+                  isIngesting={isIngesting}
+                />
+                {statementFiles.length > 0 && !isIngesting && (
+                  <Button onClick={handleIngestStatements} className="w-full">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Ingest {statementFiles.length} Statement{statementFiles.length !== 1 ? "s" : ""}
+                  </Button>
+                )}
+                {isIngesting && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI is parsing statements…
+                  </div>
+                )}
+
+                {/* Holding Tank */}
+                <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
+
+                {/* The Vineyard */}
+                <AssetContainer
+                  title="The Vineyard"
+                  icon={<Grape className="h-3.5 w-3.5 text-sanctuary-green" />}
+                  containerKey="vineyard"
+                  contactId={id!}
+                  accounts={vineyardAccounts.map((acc) => ({
+                    id: acc.id,
+                    name: acc.account_name,
+                    type: acc.account_type,
+                    currentValue: acc.current_value,
+                    notes: acc.notes,
+                    visibilityScope: acc.visibility_scope,
+                    sourceTable: "vineyard_accounts" as const,
+                  }))}
+                  moveTargets={[
+                    { label: "The Keep", key: "storehouse-1" },
+                    { label: "The Armoury", key: "storehouse-2" },
+                    { label: "The Granary", key: "storehouse-3" },
+                    { label: "The Vault", key: "storehouse-4" },
+                  ]}
+                  onMoveAccount={async (account, targetKey) => {
+                    const storehouseNum = parseInt(targetKey.split("-")[1]);
+                    const { error: insertErr } = await supabase.from("storehouses").insert({
+                      contact_id: id,
+                      storehouse_number: storehouseNum,
+                      label: account.name,
+                      current_value: account.currentValue,
+                      notes: account.notes,
+                      visibility_scope: account.visibilityScope,
+                    } as any);
+                    if (insertErr) { toast.error("Failed to move account."); return; }
+                    await supabase.from("vineyard_accounts" as any).delete().eq("id", account.id);
+                    toast.success(`Moved "${account.name}" to ${STOREHOUSE_NAMES[storehouseNum - 1]}.`);
+                    fetchData();
+                  }}
+                  onRefresh={fetchData}
+                  showAddForm={showAddAccount}
+                  onAddAccount={() => setShowAddAccount(true)}
+                  addFormContent={
+                    <div className="mt-2 space-y-2 rounded-md border p-3">
+                      <Input
+                        placeholder="Account name (e.g. Fidelity Portfolio)"
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={newAccountType}
+                          onChange={(e) => setNewAccountType(e.target.value)}
+                          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="Portfolio">Portfolio</option>
+                          <option value="Business Venture">Business Venture</option>
+                          <option value="Real Estate">Real Estate</option>
+                          <option value="Insurance">Insurance</option>
+                          <option value="Retirement">Retirement</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <Input
+                          type="number"
+                          placeholder="Value ($)"
+                          value={newAccountValue}
+                          onChange={(e) => setNewAccountValue(e.target.value)}
+                          className="w-28"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          disabled={!newAccountName.trim()}
+                          onClick={async () => {
+                            const { error } = await supabase.from("vineyard_accounts" as any).insert({
+                              contact_id: id,
+                              account_name: newAccountName.trim(),
+                              account_type: newAccountType,
+                              current_value: newAccountValue ? Number(newAccountValue) : null,
+                            } as any);
+                            if (error) {
+                              toast.error("Failed to add account.");
+                            } else {
+                              toast.success("Account added.");
+                              setNewAccountName("");
+                              setNewAccountType("Portfolio");
+                              setNewAccountValue("");
+                              setShowAddAccount(false);
+                              fetchData();
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setShowAddAccount(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* Corporate Stakes */}
+                {corporateStakes.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5 text-sanctuary-bronze" />
+                        <h4 className="text-xs font-semibold uppercase tracking-wider">Corporate Holdings</h4>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums">
+                        ${corporateStakes.reduce((sum, s) => {
+                          const indirect = s.subsidiaries.reduce((si, sub) => si + sub.indirect_pro_rata, 0);
+                          return sum + s.pro_rata + indirect;
+                        }, 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      {corporateStakes.map((stake) => {
+                        const totalIndirect = stake.subsidiaries.reduce((s, sub) => s + sub.indirect_pro_rata, 0);
+                        const totalStake = stake.pro_rata + totalIndirect;
+                        return (
+                          <div key={stake.corporation_id} className="rounded-md bg-muted/40 px-3 py-2 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <Link
+                                to={`/corporations/${stake.corporation_id}`}
+                                className="font-medium text-sm hover:underline flex items-center gap-1.5"
+                              >
+                                {stake.corporation_name}
+                                <Badge variant="outline" className="text-[9px] uppercase">{stake.corporation_type}</Badge>
+                              </Link>
+                              <span className="text-xs font-medium tabular-nums">${totalStake.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                              <span>{stake.ownership_percentage}% {stake.share_class || "Common"}</span>
+                              {stake.role_title && <span>· {stake.role_title}</span>}
+                              <span className="ml-auto">Direct: ${stake.pro_rata.toLocaleString()}</span>
+                            </div>
+                            {stake.subsidiaries.map((sub) => (
+                              <div key={sub.child_id} className="flex justify-between text-[10px] pl-3 border-l-2 border-border">
+                                <Link to={`/corporations/${sub.child_id}`} className="text-muted-foreground hover:underline">
+                                  via {sub.child_name} ({stake.ownership_percentage}% × {sub.parent_ownership_pct}%)
+                                </Link>
+                                <span className="font-medium">${sub.indirect_pro_rata.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Storehouse Containers */}
+                {[1, 2, 3, 4].map((num) => {
+                  const accounts = storehouses.filter((s) => s.storehouse_number === num);
+                  const isPlaceholder = accounts.length === 0;
+                  const storehouseName = STOREHOUSE_NAMES[num - 1];
+                  const otherTargets: MoveTarget[] = [
+                    { label: "The Vineyard", key: "vineyard" },
+                    ...[1, 2, 3, 4]
+                      .filter((n) => n !== num)
+                      .map((n) => ({ label: STOREHOUSE_NAMES[n - 1], key: `storehouse-${n}` })),
+                  ];
+                  return (
+                    <AssetContainer
+                      key={num}
+                      title={storehouseName}
+                      icon={
+                        <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${isPlaceholder ? "bg-muted text-muted-foreground" : "bg-sanctuary-bronze/20 text-sanctuary-bronze"}`}>
+                          {num}
+                        </span>
+                      }
+                      containerKey={`storehouse-${num}`}
+                      contactId={id!}
+                      isPlaceholder={isPlaceholder}
+                      accounts={accounts.map((sh) => ({
+                        id: sh.id,
+                        name: sh.asset_type || sh.label || "Account",
+                        type: "",
+                        currentValue: sh.current_value,
+                        targetValue: sh.target_value,
+                        notes: sh.notes,
+                        visibilityScope: sh.visibility_scope,
+                        charterAlignment: sh.charter_alignment,
+                        sourceTable: "storehouses" as const,
+                      }))}
+                      moveTargets={otherTargets}
+                      onMoveAccount={async (account, targetKey) => {
+                        if (targetKey === "vineyard") {
+                          const { error: insertErr } = await supabase.from("vineyard_accounts" as any).insert({
+                            contact_id: id,
+                            account_name: account.name,
+                            account_type: account.type || "Portfolio",
+                            current_value: account.currentValue,
+                            notes: account.notes,
+                            visibility_scope: account.visibilityScope,
+                          } as any);
+                          if (insertErr) { toast.error("Failed to move account."); return; }
+                          await supabase.from("storehouses").delete().eq("id", account.id);
+                          toast.success(`Moved "${account.name}" to The Vineyard.`);
+                        } else {
+                          const targetNum = parseInt(targetKey.split("-")[1]);
+                          const { error } = await supabase
+                            .from("storehouses")
+                            .update({ storehouse_number: targetNum } as any)
+                            .eq("id", account.id);
+                          if (error) { toast.error("Failed to move account."); return; }
+                          toast.success(`Moved "${account.name}" to ${STOREHOUSE_NAMES[targetNum - 1]}.`);
+                        }
+                        fetchData();
+                      }}
+                      onRefresh={fetchData}
+                      onAddAccount={async () => {
+                        const { error } = await supabase.from("storehouses").insert({
+                          contact_id: id,
+                          storehouse_number: num,
+                          label: "",
+                        } as any);
+                        if (error) {
+                          toast.error("Failed to add account.");
+                        } else {
+                          toast.success("Account added.");
+                          fetchData();
+                        }
+                      }}
+                      onConfigurePlaceholder={async () => {
+                        const { error } = await supabase.from("storehouses").insert({
+                          contact_id: id,
+                          storehouse_number: num,
+                          label: storehouseName,
+                        } as any);
+                        if (error) {
+                          toast.error("Failed to create storehouse.");
+                        } else {
+                          toast.success("Storehouse created.");
+                          fetchData();
+                        }
+                      }}
+                    />
+                  );
+                })}
               </TabsContent>
             </Tabs>
           </div>
