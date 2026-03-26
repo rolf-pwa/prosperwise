@@ -351,7 +351,7 @@ const Requests = () => {
             <DialogDescription>
               {selected && (
                 <span>
-                  From <strong>{(selected.contact as any)?.full_name || "Unknown"}</strong> ·{" "}
+                  From <Link to={`/contacts/${selected.contact_id}`} className="font-bold hover:underline">{(selected.contact as any)?.full_name || "Unknown"}</Link> ·{" "}
                   {format(new Date(selected.created_at), "MMM d, yyyy 'at' h:mm a")}
                 </span>
               )}
