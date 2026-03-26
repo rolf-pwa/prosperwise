@@ -570,6 +570,619 @@ const ContactDetail = () => {
                 );
               })}
             </div>
+
+            {/* Main Tabs */}
+            <Tabs defaultValue="comms" className="w-full">
+              <TabsList className="w-full">
+                <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
+                <TabsTrigger value="assistant" className="flex-1">
+                  <Bot className="mr-1.5 h-3.5 w-3.5" />
+                  AI Assistant
+                </TabsTrigger>
+                <TabsTrigger value="vineyard" className="flex-1">
+                  <Grape className="mr-1.5 h-3.5 w-3.5" />
+                  The Vineyard
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Communications Tab */}
+              <TabsContent value="comms" className="space-y-6 mt-4">
+                <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
+                <ContactRequests contactId={id!} />
+                <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
+                <ContactEmails contactEmail={contact.email} />
+              </TabsContent>
+
+              {/* AI Assistant Tab */}
+              <TabsContent value="assistant" className="space-y-4 mt-4">
+                <SovereigntyAssistant
+                  variant="embedded"
+                  contactId={id}
+                  contactContext={{
+                    id: contact.id,
+                    name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+                    email: contact.email,
+                    phone: contact.phone,
+                    governance_status: contact.governance_status,
+                    fiduciary_entity: contact.fiduciary_entity,
+                    vineyard_ebitda: contact.vineyard_ebitda,
+                    vineyard_operating_income: contact.vineyard_operating_income,
+                    vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
+                    storehouses: storehouses.map((s) => ({
+                      number: s.storehouse_number,
+                      label: s.label,
+                      asset_type: s.asset_type,
+                      risk_cap: s.risk_cap,
+                      charter_alignment: s.charter_alignment,
+                    })),
+                    quiet_period_start_date: contact.quiet_period_start_date,
+                    asana_url: contact.asana_url,
+                    google_drive_url: contact.google_drive_url,
+                  }}
+                />
+                <AuditTrail contactId={id!} />
+              </TabsContent>
+
+              {/* The Vineyard Tab */}
+              <TabsContent value="vineyard" className="space-y-4 mt-4">
+                {/* Statement Upload */}
+                <StatementUpload
+                  files={statementFiles}
+                  onFilesChange={setStatementFiles}
+                  isIngesting={isIngesting}
+                />
+                {statementFiles.length > 0 && !isIngesting && (
+                  <Button onClick={handleIngestStatements} className="w-full">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Ingest {statementFiles.length} Statement{statementFiles.length !== 1 ? "s" : ""}
+                  </Button>
+                )}
+                {isIngesting && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI is parsing statements…
+                  </div>
+                )}
+
+                {/* Holding Tank */}
+                <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
+
+                {/* The Vineyard Accounts */}
+                <AssetContainer
+                  title="The Vineyard"
+                  icon={<Grape className="h-3.5 w-3.5 text-sanctuary-green" />}
+                  containerKey="vineyard"
+                  contactId={id!}
+                  accounts={vineyardAccounts.map((acc) => ({
+                    id: acc.id,
+                    name: acc.account_name,
+                    type: acc.account_type,
+                    currentValue: acc.current_value,
+                    notes: acc.notes,
+                    visibilityScope: acc.visibility_scope,
+                    sourceTable: "vineyard_accounts" as const,
+                  }))}
+                  moveTargets={[
+                    { label: "The Keep", key: "storehouse-1" },
+                    { label: "The Armoury", key: "storehouse-2" },
+                    { label: "The Granary", key: "storehouse-3" },
+                    { label: "The Vault", key: "storehouse-4" },
+                  ]}
+                  onMoveAccount={async (account, targetKey) => {
+                    const storehouseNum = parseInt(targetKey.split("-")[1]);
+                    const { error: insertErr } = await supabase.from("storehouses").insert({
+                      contact_id: id,
+                      storehouse_number: storehouseNum,
+                      label: account.name,
+                      current_value: account.currentValue,
+                      notes: account.notes,
+                      visibility_scope: account.visibilityScope,
+                    } as any);
+                    if (insertErr) { toast.error("Failed to move account."); return; }
+                    await supabase.from("vineyard_accounts" as any).delete().eq("id", account.id);
+                    toast.success(`Moved "${account.name}" to ${STOREHOUSE_NAMES[storehouseNum - 1]}.`);
+                    fetchData();
+                  }}
+                  onRefresh={fetchData}
+                  showAddForm={showAddAccount}
+                  onAddAccount={() => setShowAddAccount(true)}
+                  addFormContent={
+                    <div className="mt-2 space-y-2 rounded-md border p-3">
+                      <Input
+                        placeholder="Account name (e.g. Fidelity Portfolio)"
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={newAccountType}
+                          onChange={(e) => setNewAccountType(e.target.value)}
+                          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="Portfolio">Portfolio</option>
+                          <option value="Business Venture">Business Venture</option>
+                          <option value="Real Estate">Real Estate</option>
+                          <option value="Insurance">Insurance</option>
+                          <option value="Retirement">Retirement</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <Input
+                          type="number"
+                          placeholder="Value ($)"
+                          value={newAccountValue}
+                          onChange={(e) => setNewAccountValue(e.target.value)}
+                          className="w-28"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          disabled={!newAccountName.trim()}
+                          onClick={async () => {
+                            const { error } = await supabase.from("vineyard_accounts" as any).insert({
+                              contact_id: id,
+                              account_name: newAccountName.trim(),
+                              account_type: newAccountType,
+                              current_value: newAccountValue ? Number(newAccountValue) : null,
+                            } as any);
+                            if (error) {
+                              toast.error("Failed to add account.");
+                            } else {
+                              toast.success("Account added.");
+                              setNewAccountName("");
+                              setNewAccountType("Portfolio");
+                              setNewAccountValue("");
+                              setShowAddAccount(false);
+                              fetchData();
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setShowAddAccount(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* Corporate Stakes */}
+                {corporateStakes.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5 text-sanctuary-bronze" />
+                        <h4 className="text-xs font-semibold uppercase tracking-wider">Corporate Holdings</h4>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums">
+                        ${corporateStakes.reduce((sum, s) => {
+                          const indirect = s.subsidiaries.reduce((si, sub) => si + sub.indirect_pro_rata, 0);
+                          return sum + s.pro_rata + indirect;
+                        }, 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      {corporateStakes.map((stake) => {
+                        const totalIndirect = stake.subsidiaries.reduce((s, sub) => s + sub.indirect_pro_rata, 0);
+                        const totalStake = stake.pro_rata + totalIndirect;
+                        return (
+                          <div key={stake.corporation_id} className="rounded-md bg-muted/40 px-3 py-2 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <Link
+                                to={`/corporations/${stake.corporation_id}`}
+                                className="font-medium text-sm hover:underline flex items-center gap-1.5"
+                              >
+                                {stake.corporation_name}
+                                <Badge variant="outline" className="text-[9px] uppercase">{stake.corporation_type}</Badge>
+                              </Link>
+                              <span className="text-xs font-medium tabular-nums">${totalStake.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                              <span>{stake.ownership_percentage}% {stake.share_class || "Common"}</span>
+                              {stake.role_title && <span>· {stake.role_title}</span>}
+                              <span className="ml-auto">Direct: ${stake.pro_rata.toLocaleString()}</span>
+                            </div>
+                            {stake.subsidiaries.map((sub) => (
+                              <div key={sub.child_id} className="flex justify-between text-[10px] pl-3 border-l-2 border-border">
+                                <Link to={`/corporations/${sub.child_id}`} className="text-muted-foreground hover:underline">
+                                  via {sub.child_name} ({stake.ownership_percentage}% × {sub.parent_ownership_pct}%)
+                                </Link>
+                                <span className="font-medium">${sub.indirect_pro_rata.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Storehouse Containers */}
+                {[1, 2, 3, 4].map((num) => {
+                  const accounts = storehouses.filter((s) => s.storehouse_number === num);
+                  const isPlaceholder = accounts.length === 0;
+                  const storehouseName = STOREHOUSE_NAMES[num - 1];
+                  const otherTargets: MoveTarget[] = [
+                    { label: "The Vineyard", key: "vineyard" },
+                    ...[1, 2, 3, 4]
+                      .filter((n) => n !== num)
+                      .map((n) => ({ label: STOREHOUSE_NAMES[n - 1], key: `storehouse-${n}` })),
+                  ];
+                  return (
+                    <AssetContainer
+                      key={num}
+                      title={storehouseName}
+                      icon={
+                        <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${isPlaceholder ? "bg-muted text-muted-foreground" : "bg-sanctuary-bronze/20 text-sanctuary-bronze"}`}>
+                          {num}
+                        </span>
+                      }
+                      containerKey={`storehouse-${num}`}
+                      contactId={id!}
+                      isPlaceholder={isPlaceholder}
+                      accounts={accounts.map((sh) => ({
+                        id: sh.id,
+                        name: sh.asset_type || sh.label || "Account",
+                        type: "",
+                        currentValue: sh.current_value,
+                        targetValue: sh.target_value,
+                        notes: sh.notes,
+                        visibilityScope: sh.visibility_scope,
+                        charterAlignment: sh.charter_alignment,
+                        sourceTable: "storehouses" as const,
+                      }))}
+                      moveTargets={otherTargets}
+                      onMoveAccount={async (account, targetKey) => {
+                        if (targetKey === "vineyard") {
+                          const { error: insertErr } = await supabase.from("vineyard_accounts" as any).insert({
+                            contact_id: id,
+                            account_name: account.name,
+                            account_type: account.type || "Portfolio",
+                            current_value: account.currentValue,
+                            notes: account.notes,
+                            visibility_scope: account.visibilityScope,
+                          } as any);
+                          if (insertErr) { toast.error("Failed to move account."); return; }
+                          await supabase.from("storehouses").delete().eq("id", account.id);
+                          toast.success(`Moved "${account.name}" to The Vineyard.`);
+                        } else {
+                          const targetNum = parseInt(targetKey.split("-")[1]);
+                          const { error } = await supabase
+                            .from("storehouses")
+                            .update({ storehouse_number: targetNum } as any)
+                            .eq("id", account.id);
+                          if (error) { toast.error("Failed to move account."); return; }
+                          toast.success(`Moved "${account.name}" to ${STOREHOUSE_NAMES[targetNum - 1]}.`);
+                        }
+                        fetchData();
+                      }}
+                      onRefresh={fetchData}
+                      onAddAccount={async () => {
+                        const { error } = await supabase.from("storehouses").insert({
+                          contact_id: id,
+                          storehouse_number: num,
+                          label: "",
+                        } as any);
+                        if (error) {
+                          toast.error("Failed to add account.");
+                        } else {
+                          toast.success("Account added.");
+                          fetchData();
+                        }
+                      }}
+                      onConfigurePlaceholder={async () => {
+                        const { error } = await supabase.from("storehouses").insert({
+                          contact_id: id,
+                          storehouse_number: num,
+                          label: storehouseName,
+                        } as any);
+                        if (error) {
+                          toast.error("Failed to create storehouse.");
+                        } else {
+                          toast.success("Storehouse created.");
+                          fetchData();
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="space-y-4">
+            {/* Family Link */}
+            {familyName && contact.family_id && (
+              <Link
+                to="/families"
+                className="flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50"
+              >
+                <Users className="h-4 w-4 text-sanctuary-bronze" />
+                <span>{familyName}</span>
+                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+              </Link>
+            )}
+            {/* Household Members */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Household Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {householdMembers.length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {householdMembers.map((hm) => (
+                      <li key={hm.id}>
+                        <Link
+                          to={`/contacts/${hm.id}`}
+                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No household members.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Professional Team */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Professional Team</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {[
+                  { role: "Lawyer", name: contact.lawyer_name, firm: contact.lawyer_firm },
+                  { role: "Accountant", name: contact.accountant_name, firm: contact.accountant_firm },
+                  { role: "Executor", name: contact.executor_name, firm: contact.executor_firm },
+                  { role: "Power of Attorney", name: contact.poa_name, firm: contact.poa_firm },
+                ].filter(({ name }) => name).length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {[
+                      { role: "Lawyer", nameCol: "lawyer_name", firmCol: "lawyer_firm", name: contact.lawyer_name, firm: contact.lawyer_firm },
+                      { role: "Accountant", nameCol: "accountant_name", firmCol: "accountant_firm", name: contact.accountant_name, firm: contact.accountant_firm },
+                      { role: "Executor", nameCol: "executor_name", firmCol: "executor_firm", name: contact.executor_name, firm: contact.executor_firm },
+                      { role: "Power of Attorney", nameCol: "poa_name", firmCol: "poa_firm", name: contact.poa_name, firm: contact.poa_firm },
+                    ].map(({ role, nameCol, firmCol, name, firm }) => {
+                      if (!name) return null;
+                      const matched = professionalContacts[name];
+                      return (
+                        <li key={role} className="flex items-center gap-1">
+                          <Link
+                            to={matched ? `/contacts/${matched.id}` : `/contacts/new?full_name=${encodeURIComponent(name)}`}
+                            className="flex flex-1 items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                          >
+                            <span className="font-medium flex items-center gap-1">
+                              {name}{firm ? ` — ${firm}` : ""}
+                              {!matched && <Plus className="h-3 w-3" />}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{role}</span>
+                          </Link>
+                          <button
+                            onClick={async () => {
+                              await supabase.from("contacts").update({ [nameCol]: null, [firmCol]: null }).eq("id", id!);
+                              toast.success(`${role} removed.`);
+                              fetchData();
+                            }}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No professionals linked.
+                  </p>
+                )}
+                <ProfessionalLinker contactId={id!} contact={contact} onLinked={fetchData} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  );
+};
+
+export default ContactDetail;
+          ...(familyName ? [{ label: familyName, href: "/families" }] : []),
+          ...(householdLabel && contact.household_id ? [{ label: householdLabel, href: `/households/${contact.household_id}` }] : []),
+          { label: "Contacts", href: "/contacts" },
+          { label: `${contact.first_name} ${contact.last_name || ""}`.trim() },
+        ]} />
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/contacts")}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">{contact.first_name} {contact.last_name}</h1>
+              <div className="mt-1 flex items-center gap-2">
+                <Badge variant="outline" className="text-xs uppercase">
+                  {contact.fiduciary_entity}
+                </Badge>
+                <Badge
+                  className={
+                    isStabilization
+                       ? "bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30"
+                       : "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
+                  }
+                >
+                  {isStabilization ? "Stabilization Phase" : "Sovereign Phase"}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <PortalMagicLinkButton contactId={id!} />
+            <Button
+              variant="outline"
+              size="icon"
+              title={contact.email_notifications_enabled !== false ? "Email notifications on" : "Email notifications off"}
+              onClick={async () => {
+                const newVal = contact.email_notifications_enabled === false;
+                await supabase.from("contacts").update({ email_notifications_enabled: newVal }).eq("id", id);
+                setContact((prev: any) => prev ? { ...prev, email_notifications_enabled: newVal } : prev);
+                toast.success(newVal ? "Notifications enabled" : "Notifications disabled");
+              }}
+            >
+              {contact.email_notifications_enabled !== false ? (
+                <Bell className="h-4 w-4" />
+              ) : (
+                <BellOff className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+            <ContactMerge
+              contactId={id!}
+              contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+              onMerged={fetchData}
+            />
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/contacts/${id}/edit`)}
+            >
+              Edit Contact
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="icon" className="text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete contact</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete {contact.first_name} {contact.last_name} and all associated relationships. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const { error } = await supabase.from("contacts").delete().eq("id", id!);
+                      if (error) {
+                        toast.error("Failed to delete contact.");
+                      } else {
+                        toast.success("Contact deleted.");
+                        navigate("/contacts");
+                      }
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Main Content */}
+          <div className="space-y-6 lg:col-span-2">
+            {/* Quiet Period Timer */}
+            {isStabilization && quietStart && (
+               <Card className="border-sanctuary-green/30">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Clock className="h-5 w-5 text-sanctuary-green" />
+                    <h3 className="font-semibold">Quiet Period</h3>
+                    <Badge className="ml-auto bg-sanctuary-green/10 text-sanctuary-green border-sanctuary-green/20">
+                      <AlertCircle className="mr-1 h-3 w-3" />
+                      Zero Sales Pressure
+                    </Badge>
+                  </div>
+                  <Progress value={progressPct} className="mb-3 h-2" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Started {format(quietStart, "MMM d, yyyy")}</span>
+                    <span className="font-medium text-foreground">
+                      {daysLeft !== null && daysLeft > 0
+                        ? `${daysLeft} days remaining`
+                        : "Quiet Period Complete"}
+                    </span>
+                    <span>Ends {quietEnd && format(quietEnd, "MMM d, yyyy")}</span>
+                  </div>
+                  {daysLeft === 0 && (
+                    <div className="mt-4 rounded-md bg-sanctuary-bronze/10 p-3 text-center text-sm text-sanctuary-bronze">
+                      <Shield className="mr-1 inline h-4 w-4" />
+                      Ready for Charter Ratification
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Email</dt>
+                    <dd className="font-medium">{contact.email || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Phone</dt>
+                    <dd className="font-medium">{contact.phone || "—"}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-muted-foreground">Address</dt>
+                    <dd className="font-medium">{contact.address || "—"}</dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+
+            {/* Resources */}
+            <div className="grid grid-cols-4 gap-2">
+              {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
+                if (internal && url) {
+                  return (
+                    <Link
+                      key={label}
+                      to={url}
+                      className="flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors hover:bg-muted/50"
+                    >
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{label}</span>
+                    </Link>
+                  );
+                }
+                return (
+                  <a
+                    key={label}
+                    href={url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
+                      url
+                        ? "hover:bg-muted/50"
+                        : "cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{label}</span>
+                    {url && (
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </a>
+                );
+              })}
+            </div>
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
