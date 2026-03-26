@@ -1,62 +1,40 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import {
-  ArrowLeft,
-  Clock,
-  Shield,
-  ExternalLink,
-  Folder,
-  CheckSquare,
-  ShieldCheck,
-  AlertCircle,
-  FolderOpen,
-  Plus,
-  Trash2,
-  X,
-  Users,
-  Bell,
-  BellOff,
-  Landmark,
-  FileUp,
-  Loader2,
+import { 
+  ArrowLeft, Bell, BellOff, Trash2, Clock, AlertCircle, Shield, 
+  ExternalLink, Bot, Grape, FileUp, Loader2, Building2, Users, Plus, X,
+  Folder, FolderOpen, CheckSquare, ShieldCheck, Landmark
 } from "lucide-react";
-import { differenceInDays, addDays, format } from "date-fns";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { ContactEmails } from "@/components/ContactEmails";
+import { format, differenceInDays, addDays } from "date-fns";
+import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
+import { ContactMerge } from "@/components/ContactMerge";
+import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
+import { ContactTaskList } from "@/components/ContactTaskList";
+import { ContactRequests } from "@/components/ContactRequests";
 import { ContactCalendar } from "@/components/ContactCalendar";
-import { ContactLinker } from "@/components/ContactLinker";
-import { ProfessionalLinker } from "@/components/ProfessionalLinker";
+import { ContactEmails } from "@/components/ContactEmails";
 import { SovereigntyAssistant } from "@/components/SovereigntyAssistant";
 import { AuditTrail } from "@/components/AuditTrail";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot } from "lucide-react";
-import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
-import { PortalMagicLinkButton } from "@/components/portal/PortalMagicLinkButton";
-import { AssetContainer, type AssetAccount, type MoveTarget } from "@/components/AssetContainer";
-import { Grape, Building2 } from "lucide-react";
-import { ContactTaskList } from "@/components/ContactTaskList";
-import { HoldingTank } from "@/components/HoldingTank";
 import { StatementUpload } from "@/components/StatementUpload";
-import { ContactMerge } from "@/components/ContactMerge";
-import { ContactRequests } from "@/components/ContactRequests";
+import { HoldingTank } from "@/components/HoldingTank";
+import { AssetContainer, type MoveTarget } from "@/components/AssetContainer";
+import { ProfessionalLinker } from "@/components/ProfessionalLinker";
+import { 
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
+  AlertDialogTitle, AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
+
+const STOREHOUSE_NAMES = ["The Keep", "The Armoury", "The Granary", "The Vault"];
 
 interface Storehouse {
   id: string;
@@ -78,20 +56,6 @@ interface HouseholdMember {
   family_role: string;
 }
 
-const STOREHOUSE_LABELS = [
-  "The Keep — Liquidity Reserve",
-  "The Armoury — Strategic Reserve",
-  "The Granary — Philanthropic Trust",
-  "The Vault — Legacy Trust",
-];
-
-const STOREHOUSE_NAMES = [
-  "The Keep",
-  "The Armoury",
-  "The Granary",
-  "The Vault",
-];
-
 interface VineyardAccount {
   id: string;
   account_name: string;
@@ -101,14 +65,12 @@ interface VineyardAccount {
   visibility_scope: string;
 }
 
-
 const ContactDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [contact, setContact] = useState<any>(null);
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
-  const [familyMembers, setFamilyMembers] = useState<HouseholdMember[]>([]);
   const [familyName, setFamilyName] = useState<string | null>(null);
   const [householdLabel, setHouseholdLabel] = useState<string | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
@@ -141,30 +103,17 @@ const ContactDetail = () => {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [contactRes, storehouseRes, householdRes, familyRes, accountsRes] = await Promise.all([
+    const [contactRes, storehouseRes, , , accountsRes] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("storehouses")
-        .select("*")
-        .eq("contact_id", id)
-        .order("storehouse_number"),
-      // Household members will be fetched after we know the household_id
+      supabase.from("storehouses").select("*").eq("contact_id", id).order("storehouse_number"),
       Promise.resolve({ data: [] }),
-      supabase
-        .from("family_relationships")
-        .select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)")
-        .eq("contact_id", id),
-      supabase
-        .from("vineyard_accounts" as any)
-        .select("*")
-        .eq("contact_id", id)
-        .order("created_at"),
+      supabase.from("family_relationships").select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)").eq("contact_id", id),
+      supabase.from("vineyard_accounts" as any).select("*").eq("contact_id", id).order("created_at"),
     ]);
     setContact(contactRes.data);
     setStorehouses(storehouseRes.data || []);
     setVineyardAccounts((accountsRes.data as any) || []);
 
-    // Fetch household members (contacts sharing the same household_id)
     if (contactRes.data?.household_id) {
       const { data: hhMembers } = await supabase
         .from("contacts")
@@ -176,9 +125,7 @@ const ContactDetail = () => {
     } else {
       setHouseholdMembers([]);
     }
-    setVineyardAccounts((accountsRes.data as any) || []);
 
-    // Fetch family & household names for breadcrumbs
     if (contactRes.data?.family_id) {
       const { data: fam } = await supabase.from("families").select("name").eq("id", contactRes.data.family_id).maybeSingle();
       setFamilyName(fam?.name || null);
@@ -188,13 +135,9 @@ const ContactDetail = () => {
       setHouseholdLabel(hh?.label || null);
     }
 
-    // Look up professional team contacts by name
     const names = [contactRes.data?.lawyer_name, contactRes.data?.accountant_name, contactRes.data?.executor_name, contactRes.data?.poa_name].filter(Boolean) as string[];
     if (names.length > 0) {
-      const { data: matchedContacts } = await supabase
-        .from("contacts")
-        .select("id, first_name, last_name, full_name")
-        .in("full_name", names);
+      const { data: matchedContacts } = await supabase.from("contacts").select("id, first_name, last_name, full_name").in("full_name", names);
       const map: Record<string, { id: string; full_name: string } | null> = {};
       names.forEach((name) => {
         const match = matchedContacts?.find((c) => c.full_name === name) || null;
@@ -203,13 +146,7 @@ const ContactDetail = () => {
       setProfessionalContacts(map);
     }
 
-    // Fetch corporate stakes for this contact
-    const { data: shareholdings } = await supabase
-      .from("shareholders")
-      .select("corporation_id, ownership_percentage, share_class, role_title")
-      .eq("contact_id", id)
-      .eq("is_active", true);
-
+    const { data: shareholdings } = await supabase.from("shareholders").select("corporation_id, ownership_percentage, share_class, role_title").eq("contact_id", id).eq("is_active", true);
     if (shareholdings && shareholdings.length > 0) {
       const corpIds = shareholdings.map((s) => s.corporation_id);
       const [corpsRes, assetsRes, subsRes] = await Promise.all([
@@ -217,8 +154,6 @@ const ContactDetail = () => {
         supabase.from("corporate_vineyard_accounts").select("corporation_id, current_value").in("corporation_id", corpIds),
         supabase.from("corporate_shareholders").select("parent_corporation_id, child_corporation_id, ownership_percentage").in("parent_corporation_id", corpIds),
       ]);
-
-      // Get subsidiary corp details & assets
       const childIds = (subsRes.data || []).map((s) => s.child_corporation_id);
       let childCorps: any[] = [];
       let childAssets: any[] = [];
@@ -230,49 +165,22 @@ const ContactDetail = () => {
         childCorps = cc.data || [];
         childAssets = ca.data || [];
       }
-
       const stakes = shareholdings.map((sh) => {
         const corp = (corpsRes.data || []).find((c) => c.id === sh.corporation_id);
-        const totalAssets = (assetsRes.data || [])
-          .filter((a) => a.corporation_id === sh.corporation_id)
-          .reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
+        const totalAssets = (assetsRes.data || []).filter((a) => a.corporation_id === sh.corporation_id).reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
         const proRata = totalAssets * (sh.ownership_percentage / 100);
-
-        const subs = (subsRes.data || [])
-          .filter((s) => s.parent_corporation_id === sh.corporation_id)
-          .map((s) => {
-            const child = childCorps.find((c) => c.id === s.child_corporation_id);
-            const childTotal = childAssets
-              .filter((a) => a.corporation_id === s.child_corporation_id)
-              .reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
-            const indirectPct = (sh.ownership_percentage / 100) * (s.ownership_percentage / 100);
-            return {
-              child_id: s.child_corporation_id,
-              child_name: child?.name || "Unknown",
-              child_type: child?.corporation_type || "other",
-              parent_ownership_pct: s.ownership_percentage,
-              child_total_assets: childTotal,
-              indirect_pro_rata: childTotal * indirectPct,
-            };
-          });
-
-        return {
-          corporation_id: sh.corporation_id,
-          corporation_name: corp?.name || "Unknown",
-          corporation_type: corp?.corporation_type || "other",
-          ownership_percentage: sh.ownership_percentage,
-          share_class: sh.share_class,
-          role_title: sh.role_title,
-          total_assets: totalAssets,
-          pro_rata: proRata,
-          subsidiaries: subs,
-        };
+        const subs = (subsRes.data || []).filter((s) => s.parent_corporation_id === sh.corporation_id).map((s) => {
+          const child = childCorps.find((c: any) => c.id === s.child_corporation_id);
+          const childTotal = childAssets.filter((a: any) => a.corporation_id === s.child_corporation_id).reduce((sum: number, a: any) => sum + (Number(a.current_value) || 0), 0);
+          const indirectPct = (sh.ownership_percentage / 100) * (s.ownership_percentage / 100);
+          return { child_id: s.child_corporation_id, child_name: child?.name || "Unknown", child_type: child?.corporation_type || "other", parent_ownership_pct: s.ownership_percentage, child_total_assets: childTotal, indirect_pro_rata: childTotal * indirectPct };
+        });
+        return { corporation_id: sh.corporation_id, corporation_name: corp?.name || "Unknown", corporation_type: corp?.corporation_type || "other", ownership_percentage: sh.ownership_percentage, share_class: sh.share_class, role_title: sh.role_title, total_assets: totalAssets, pro_rata: proRata, subsidiaries: subs };
       });
       setCorporateStakes(stakes);
     } else {
       setCorporateStakes([]);
     }
-
     setLoading(false);
   }, [id]);
 
@@ -286,28 +194,14 @@ const ContactDetail = () => {
     try {
       for (const file of statementFiles) {
         const filePath = `${id}/${Date.now()}_${file.name}`;
-        const { error: upErr } = await supabase.storage
-          .from("statement-uploads")
-          .upload(filePath, file);
+        const { error: upErr } = await supabase.storage.from("statement-uploads").upload(filePath, file);
         if (upErr) { toast.error(`Upload failed: ${upErr.message}`); continue; }
-
         const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-statement`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({
-              contactId: id,
-              householdId: contact.household_id,
-              filePath,
-              contactName: contact.full_name,
-            }),
-          }
-        );
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-statement`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ contactId: id, householdId: contact.household_id, filePath, contactName: contact.full_name }),
+        });
         const result = await res.json();
         if (result.error) { toast.error(result.error); }
         else { toast.success(`Extracted ${result.accountsExtracted} account(s) from ${file.name}`); }
@@ -322,32 +216,17 @@ const ContactDetail = () => {
   };
 
   if (loading) {
-    return (
-      <AppLayout>
-        <p className="text-muted-foreground">Loading...</p>
-      </AppLayout>
-    );
+    return (<AppLayout><p className="text-muted-foreground">Loading...</p></AppLayout>);
   }
-
   if (!contact) {
-    return (
-      <AppLayout>
-        <p className="text-muted-foreground">Contact not found.</p>
-      </AppLayout>
-    );
+    return (<AppLayout><p className="text-muted-foreground">Contact not found.</p></AppLayout>);
   }
 
   const isStabilization = contact.governance_status === "stabilization";
-  const quietStart = contact.quiet_period_start_date
-    ? new Date(contact.quiet_period_start_date)
-    : null;
+  const quietStart = contact.quiet_period_start_date ? new Date(contact.quiet_period_start_date) : null;
   const quietEnd = quietStart ? addDays(quietStart, 90) : null;
-  const daysElapsed = quietStart
-    ? Math.min(differenceInDays(new Date(), quietStart), 90)
-    : 0;
-  const daysLeft = quietEnd
-    ? Math.max(differenceInDays(quietEnd, new Date()), 0)
-    : null;
+  const daysElapsed = quietStart ? Math.min(differenceInDays(new Date(), quietStart), 90) : 0;
+  const daysLeft = quietEnd ? Math.max(differenceInDays(quietEnd, new Date()), 0) : null;
   const progressPct = quietStart ? Math.min((daysElapsed / 90) * 100, 100) : 0;
 
   const resourceLinks = [
@@ -358,17 +237,6 @@ const ContactDetail = () => {
     { label: "Just Wealth", url: (contact as any).just_wealth_url, icon: Landmark },
   ];
 
-  // Derive current governance phase (1–5)
-  const governancePhase = (() => {
-    if (contact.governance_status === "sovereign") return 5;
-    if (!isStabilization) return 4; // ratification
-    if (quietStart && daysLeft !== null && daysLeft <= 0) return 4; // quiet complete → ready for ratification
-    if (quietStart) return 3; // quiet period active
-    // Check if any storehouses / vineyard exist → charter drafting
-    if (storehouses.length > 0 || vineyardAccounts.length > 0) return 2;
-    return 1; // discovery
-  })();
-
   const PHASES = [
     { num: 1, label: "Discovery" },
     { num: 2, label: "Charter Drafting" },
@@ -376,6 +244,7 @@ const ContactDetail = () => {
     { num: 4, label: "Ratification" },
     { num: 5, label: "Sovereign" },
   ];
+
 
   return (
     <AppLayout>
@@ -556,26 +425,18 @@ const ContactDetail = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
-                      url
-                        ? "hover:bg-muted/50"
-                        : "cursor-not-allowed opacity-50"
+                      url ? "hover:bg-muted/50" : "cursor-not-allowed opacity-50"
                     }`}
                   >
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium">{label}</span>
-                    {url && (
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    )}
+                    {url && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
                   </a>
                 );
               })}
             </div>
-            {/* Tasks */}
-            <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
 
-            {/* Client Requests */}
-            <ContactRequests contactId={id!} />
-
+            {/* Main Tabs */}
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
@@ -583,11 +444,21 @@ const ContactDetail = () => {
                   <Bot className="mr-1.5 h-3.5 w-3.5" />
                   AI Assistant
                 </TabsTrigger>
+                <TabsTrigger value="vineyard" className="flex-1">
+                  <Grape className="mr-1.5 h-3.5 w-3.5" />
+                  The Vineyard
+                </TabsTrigger>
               </TabsList>
+
+              {/* Communications Tab */}
               <TabsContent value="comms" className="space-y-6 mt-4">
+                <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
+                <ContactRequests contactId={id!} />
                 <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
                 <ContactEmails contactEmail={contact.email} />
               </TabsContent>
+
+              {/* AI Assistant Tab */}
               <TabsContent value="assistant" className="space-y-4 mt-4">
                 <SovereigntyAssistant
                   variant="embedded"
@@ -616,80 +487,32 @@ const ContactDetail = () => {
                 />
                 <AuditTrail contactId={id!} />
               </TabsContent>
-            </Tabs>
-          </div>
 
-          {/* Right Sidebar */}
-          <div className="space-y-4">
-            {/* Family Link */}
-            {familyName && contact.family_id && (
-              <Link
-                to="/families"
-                className="flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50"
-              >
-                <Users className="h-4 w-4 text-sanctuary-bronze" />
-                <span>{familyName}</span>
-                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
-              </Link>
-            )}
-            {/* Household Members */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Household Members</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {householdMembers.length > 0 ? (
-                  <ul className="space-y-1 text-sm">
-                    {householdMembers.map((hm) => (
-                      <li key={hm.id}>
-                        <Link
-                          to={`/contacts/${hm.id}`}
-                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
-                        >
-                          <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
-                          <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No household members.
-                  </p>
+              {/* The Vineyard Tab */}
+              <TabsContent value="vineyard" className="space-y-4 mt-4">
+                {/* Statement Upload */}
+                <StatementUpload
+                  files={statementFiles}
+                  onFilesChange={setStatementFiles}
+                  isIngesting={isIngesting}
+                />
+                {statementFiles.length > 0 && !isIngesting && (
+                  <Button onClick={handleIngestStatements} className="w-full">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Ingest {statementFiles.length} Statement{statementFiles.length !== 1 ? "s" : ""}
+                  </Button>
                 )}
-              </CardContent>
-            </Card>
-            
-            {/* Statement Upload for Existing Contact */}
-            <StatementUpload
-              files={statementFiles}
-              onFilesChange={setStatementFiles}
-              isIngesting={isIngesting}
-            />
-            {statementFiles.length > 0 && !isIngesting && (
-              <Button onClick={handleIngestStatements} className="w-full">
-                <FileUp className="h-4 w-4 mr-2" />
-                Ingest {statementFiles.length} Statement{statementFiles.length !== 1 ? "s" : ""}
-              </Button>
-            )}
-            {isIngesting && (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                AI is parsing statements…
-              </div>
-            )}
+                {isIngesting && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI is parsing statements…
+                  </div>
+                )}
 
+                {/* Holding Tank */}
+                <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
 
-            {/* Holding Tank */}
-            <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
-
-            {/* Vineyard & Storehouses */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">The Vineyard & Storehouses</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* The Vineyard Container */}
+                {/* The Vineyard Accounts */}
                 <AssetContainer
                   title="The Vineyard"
                   icon={<Grape className="h-3.5 w-3.5 text-sanctuary-green" />}
@@ -712,7 +535,6 @@ const ContactDetail = () => {
                   ]}
                   onMoveAccount={async (account, targetKey) => {
                     const storehouseNum = parseInt(targetKey.split("-")[1]);
-                    // Move: create storehouse record, delete vineyard record
                     const { error: insertErr } = await supabase.from("storehouses").insert({
                       contact_id: id,
                       storehouse_number: storehouseNum,
@@ -790,7 +612,7 @@ const ContactDetail = () => {
                   }
                 />
 
-                {/* Corporate Stakes inside Vineyard */}
+                {/* Corporate Stakes */}
                 {corporateStakes.length > 0 && (
                   <div className="rounded-lg border border-border bg-card">
                     <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
@@ -800,14 +622,14 @@ const ContactDetail = () => {
                       </div>
                       <span className="text-sm font-semibold tabular-nums">
                         ${corporateStakes.reduce((sum, s) => {
-                          const indirect = s.subsidiaries.reduce((si, sub) => si + sub.indirect_pro_rata, 0);
+                          const indirect = s.subsidiaries.reduce((si: any, sub: any) => si + sub.indirect_pro_rata, 0);
                           return sum + s.pro_rata + indirect;
                         }, 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="p-2 space-y-1">
                       {corporateStakes.map((stake) => {
-                        const totalIndirect = stake.subsidiaries.reduce((s, sub) => s + sub.indirect_pro_rata, 0);
+                        const totalIndirect = stake.subsidiaries.reduce((s: any, sub: any) => s + sub.indirect_pro_rata, 0);
                         const totalStake = stake.pro_rata + totalIndirect;
                         return (
                           <div key={stake.corporation_id} className="rounded-md bg-muted/40 px-3 py-2 space-y-1.5">
@@ -826,7 +648,7 @@ const ContactDetail = () => {
                               {stake.role_title && <span>· {stake.role_title}</span>}
                               <span className="ml-auto">Direct: ${stake.pro_rata.toLocaleString()}</span>
                             </div>
-                            {stake.subsidiaries.map((sub) => (
+                            {stake.subsidiaries.map((sub: any) => (
                               <div key={sub.child_id} className="flex justify-between text-[10px] pl-3 border-l-2 border-border">
                                 <Link to={`/corporations/${sub.child_id}`} className="text-muted-foreground hover:underline">
                                   via {sub.child_name} ({stake.ownership_percentage}% × {sub.parent_ownership_pct}%)
@@ -846,14 +668,12 @@ const ContactDetail = () => {
                   const accounts = storehouses.filter((s) => s.storehouse_number === num);
                   const isPlaceholder = accounts.length === 0;
                   const storehouseName = STOREHOUSE_NAMES[num - 1];
-
-                  const otherTargets: MoveTarget[] = [
+                  const otherTargets = [
                     { label: "The Vineyard", key: "vineyard" },
                     ...[1, 2, 3, 4]
                       .filter((n) => n !== num)
                       .map((n) => ({ label: STOREHOUSE_NAMES[n - 1], key: `storehouse-${n}` })),
                   ];
-
                   return (
                     <AssetContainer
                       key={num}
@@ -880,7 +700,6 @@ const ContactDetail = () => {
                       moveTargets={otherTargets}
                       onMoveAccount={async (account, targetKey) => {
                         if (targetKey === "vineyard") {
-                          // Move to vineyard: create vineyard record, delete storehouse record
                           const { error: insertErr } = await supabase.from("vineyard_accounts" as any).insert({
                             contact_id: id,
                             account_name: account.name,
@@ -893,7 +712,6 @@ const ContactDetail = () => {
                           await supabase.from("storehouses").delete().eq("id", account.id);
                           toast.success(`Moved "${account.name}" to The Vineyard.`);
                         } else {
-                          // Move to another storehouse: update storehouse_number
                           const targetNum = parseInt(targetKey.split("-")[1]);
                           const { error } = await supabase
                             .from("storehouses")
@@ -934,10 +752,52 @@ const ContactDetail = () => {
                     />
                   );
                 })}
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="space-y-4">
+            {/* Family Link */}
+            {familyName && contact.family_id && (
+              <Link
+                to="/families"
+                className="flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50"
+              >
+                <Users className="h-4 w-4 text-sanctuary-bronze" />
+                <span>{familyName}</span>
+                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+              </Link>
+            )}
+            {/* Household Members */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Household Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {householdMembers.length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {householdMembers.map((hm) => (
+                      <li key={hm.id}>
+                        <Link
+                          to={`/contacts/${hm.id}`}
+                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                        >
+                          <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No household members.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
-
+            {/* Professional Team */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Professional Team</CardTitle>
