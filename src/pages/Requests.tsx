@@ -23,6 +23,7 @@ import {
   Send,
   MessageCircle,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -219,9 +220,13 @@ const Requests = () => {
             <p className="text-sm font-medium">
               {TYPE_LABELS[req.request_type] || req.request_type}
             </p>
-            <p className="text-xs text-accent font-medium mt-0.5">
+            <Link
+              to={`/contacts/${req.contact_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-accent font-medium mt-0.5 hover:underline block"
+            >
               {(req.contact as any)?.full_name || "Unknown"}
-            </p>
+            </Link>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
               {req.request_description}
             </p>
@@ -346,7 +351,7 @@ const Requests = () => {
             <DialogDescription>
               {selected && (
                 <span>
-                  From <strong>{(selected.contact as any)?.full_name || "Unknown"}</strong> ·{" "}
+                  From <Link to={`/contacts/${selected.contact_id}`} className="font-bold hover:underline">{(selected.contact as any)?.full_name || "Unknown"}</Link> ·{" "}
                   {format(new Date(selected.created_at), "MMM d, yyyy 'at' h:mm a")}
                 </span>
               )}

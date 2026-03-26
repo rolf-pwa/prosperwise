@@ -56,6 +56,7 @@ import { ContactTaskList } from "@/components/ContactTaskList";
 import { HoldingTank } from "@/components/HoldingTank";
 import { StatementUpload } from "@/components/StatementUpload";
 import { ContactMerge } from "@/components/ContactMerge";
+import { ContactRequests } from "@/components/ContactRequests";
 
 interface Storehouse {
   id: string;
@@ -674,6 +675,9 @@ const ContactDetail = () => {
                 AI is parsing statements…
               </div>
             )}
+
+            {/* Client Requests */}
+            <ContactRequests contactId={id!} />
 
             {/* Holding Tank */}
             <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
