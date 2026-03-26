@@ -679,8 +679,6 @@ const ContactDetail = () => {
               </div>
             )}
 
-            {/* Client Requests */}
-            <ContactRequests contactId={id!} />
 
             {/* Holding Tank */}
             <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
