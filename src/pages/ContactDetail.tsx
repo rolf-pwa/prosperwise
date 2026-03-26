@@ -923,39 +923,7 @@ const ContactDetail = () => {
                 )}
               </CardContent>
             </Card>
-            
-            {/* Statement Upload for Existing Contact */}
-            <StatementUpload
-              files={statementFiles}
-              onFilesChange={setStatementFiles}
-              isIngesting={isIngesting}
-            />
-            {statementFiles.length > 0 && !isIngesting && (
-              <Button onClick={handleIngestStatements} className="w-full">
-                <FileUp className="h-4 w-4 mr-2" />
-                Ingest {statementFiles.length} Statement{statementFiles.length !== 1 ? "s" : ""}
-              </Button>
-            )}
-            {isIngesting && (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                AI is parsing statements…
-              </div>
-            )}
 
-
-            {/* Holding Tank */}
-            <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
-
-            {/* Vineyard & Storehouses */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">The Vineyard & Storehouses</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* The Vineyard Container */}
-                <AssetContainer
-                  title="The Vineyard"
                   icon={<Grape className="h-3.5 w-3.5 text-sanctuary-green" />}
                   containerKey="vineyard"
                   contactId={id!}
