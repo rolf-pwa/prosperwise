@@ -23,6 +23,7 @@ import {
   Send,
   MessageCircle,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
