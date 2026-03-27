@@ -224,8 +224,6 @@ const Recaps = () => {
               />
             ))}
           </div>
-            ))}
-          </div>
         )}
       </div>
     </AppLayout>
