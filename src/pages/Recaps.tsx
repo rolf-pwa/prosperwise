@@ -116,6 +116,7 @@ const Recaps = () => {
         ai_draft: newBody,
       });
       if (error) throw error;
+      await notifyMentionedStaff(newBody, newDate);
       toast({ title: "Recap saved" });
       setCreating(false);
       setNewBody("");
