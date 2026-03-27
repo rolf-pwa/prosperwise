@@ -935,6 +935,9 @@ function SubtaskDetailRow({
   const [commentsFetched, setCommentsFetched] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [posting, setPosting] = useState(false);
+  const [togglingComplete, setTogglingComplete] = useState(false);
+  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [dueDateValue, setDueDateValue] = useState(subtask.due_on || "");
 
   const subStatus = getTaskStatus(subtask);
 
