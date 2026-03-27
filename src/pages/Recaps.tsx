@@ -10,6 +10,39 @@ import { Loader2, NotebookPen, Sparkles, Save, Plus } from "lucide-react";
 import { RecapCard } from "@/components/recaps/RecapCard";
 import { MentionTextarea } from "@/components/recaps/MentionTextarea";
 
+const notifyMentionedStaff = async (body: string, recapDate: string) => {
+  // Extract all @mentions from the body
+  const mentionPattern = /@([^\s@]+(?:\s[^\s@]+)?)/g;
+  const mentions: string[] = [];
+  let match;
+  while ((match = mentionPattern.exec(body)) !== null) {
+    mentions.push(match[1].trim());
+  }
+  if (mentions.length === 0) return;
+
+  // Find staff profiles matching mentioned names
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("user_id, full_name");
+  if (!profiles || profiles.length === 0) return;
+
+  const staffToNotify = profiles.filter((p) =>
+    p.full_name && mentions.some((m) => p.full_name!.toLowerCase() === m.toLowerCase())
+  );
+
+  if (staffToNotify.length === 0) return;
+
+  const notifications = staffToNotify.map((p) => ({
+    title: `You were mentioned in the ${recapDate} daily recap`,
+    body: body.replace(/[#*_`]/g, "").slice(0, 100) + "...",
+    link: "/recaps",
+    source_type: "recap_mention",
+    contact_id: null,
+  }));
+
+  await supabase.from("staff_notifications").insert(notifications);
+};
+
 interface Recap {
   id: string;
   recap_date: string;
@@ -83,6 +116,7 @@ const Recaps = () => {
         ai_draft: newBody,
       });
       if (error) throw error;
+      await notifyMentionedStaff(newBody, newDate);
       toast({ title: "Recap saved" });
       setCreating(false);
       setNewBody("");
@@ -101,6 +135,9 @@ const Recaps = () => {
         .update({ body })
         .eq("id", id);
       if (error) throw error;
+      // Find the recap date for notification context
+      const recap = recaps.find((r) => r.id === id);
+      if (recap) await notifyMentionedStaff(body, recap.recap_date);
       toast({ title: "Recap updated" });
       fetchRecaps();
     } catch (e: any) {
