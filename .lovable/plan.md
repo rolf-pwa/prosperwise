@@ -1,48 +1,54 @@
 
 
-# Sovereignty CRM — Phase 1: Core CRM + Authentication
+## Daily Recap Journal — `/recaps`
 
-## Visual Identity
-- **"Sanctuary" aesthetic**: Deep navy/slate color palette, clean sans-serif typography, generous whitespace
-- Minimal, high-trust design — no dashboards that look like retail banking
-- Subtle accent colors (muted gold or teal) for status indicators and CTAs
+### Overview
 
-## 1. Authentication & Access Control
-- Google OAuth sign-in via Supabase Auth
-- **Domain restriction**: Only @prosperwise.ca emails can access the system
-- Simple user table (1-3 advisors, no complex roles needed for now)
-- Redirect unauthorized domains to an "Access Denied" page
+A dedicated page where you (or your admin assistant) can log daily recap entries. Each entry combines an AI-generated draft summary of the day's activity with free-form text editing. Only admin/assistant users can create entries; other staff can view them.
 
-## 2. Contact Management (The Sovereignty Engine)
-Each contact record includes:
-- **Standard Fields**: Full name, email, phone, address, household members list, professional team (lawyer name/firm, accountant name/firm)
-- **Governance Status Toggle**: "Stabilization Phase (Pre-Charter)" vs. "Sovereign Phase (Ratified Charter)" — prominently displayed on each record
-- **Fiduciary Isolation Flag**: Each record tagged as either PWS (Strategy/Architect) or PWA (Advisors/Builder) to maintain legal separation
-- **The Vineyard (Entity Data)**: EBITDA, Operating Income, and Balance Sheet summary fields for peer-to-peer business owner conversations
-- **The 4 Storehouses (Liquidity Vessels)**: Four collapsible modules per contact, each with asset type, risk cap, and Charter alignment status
-- **Resource Sidebar**: Persistent links on each contact for SideDrawer (document vault), Asana (task board), and IA Financial (insurance portal) — these open external URLs
+### Database
 
-## 3. The "Quiet Period" Workflow
-- 90-day countdown timer displayed on all Pre-Charter contact records
-- Timer starts from a configurable "Quiet Period Start Date"
-- Visual progress bar showing days remaining
-- "Zero Sales Pressure" badge visible during the Quiet Period
-- Automatic transition prompt when the 90 days complete
+**New table: `daily_recaps`**
 
-## 4. Dashboard
-- **Global Summary Cards**: Count of "Active Quiet Periods" vs. "Ratified Charters"
-- **Recent Contacts**: Quick-access list of recently viewed or updated contacts
-- **Upcoming Milestones**: List of contacts approaching Quiet Period completion
-- **Google Integration Placeholder**: A "Command Center" section with a clear indicator that Google Calendar and Gmail integration is coming in Phase 2
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | default gen_random_uuid() |
+| recap_date | date NOT NULL | unique per author |
+| author_id | uuid NOT NULL | references auth.users |
+| body | text | the recap content (markdown) |
+| ai_draft | text | the raw AI-generated draft |
+| created_at | timestamptz | default now() |
+| updated_at | timestamptz | default now() |
 
-## 5. Backend (Lovable Cloud + Supabase)
-- Supabase database for all contact and entity data
-- Row-Level Security ensuring all advisors on the team can access all contacts (small team, shared access)
-- Placeholder server-side functions for "Settlement Bridge" and "Poverty Gap" calculations (formulas to be provided later)
-- Data architecture designed for Canadian data residency compliance
+RLS: authenticated users can SELECT all rows; INSERT/UPDATE restricted to the author.
 
-## Future Phases (Not in this build)
-- **Phase 2**: Full Google Workspace integration (Calendar read/write, Gmail thread display and sending)
-- **Phase 3**: Settlement Bridge & Poverty Gap server-side calculations with actual formulas
-- **Phase 4**: Advanced reporting and Charter document generation
+### AI-Assisted Draft
+
+**New edge function: `recap-draft`**
+
+Queries the day's activity from the database (tasks completed, requests handled, pipeline changes, holding tank activity, contacts modified) and sends it to the Lovable AI Gateway to produce a structured daily summary. The user can then edit before saving.
+
+### UI Components
+
+**Page: `/recaps`**
+
+- Date-ordered list of past recaps (card per day, showing date + preview)
+- "New Recap" button at top — defaults to today's date
+- On click, fires the AI draft edge function, populates a textarea with the generated summary
+- User edits freely, then saves
+- Past entries are viewable and editable by the original author
+- Search/filter by date range
+
+**Dashboard widget (optional follow-up)**: A small "Today's Recap" card on the dashboard linking to the full page.
+
+### Navigation
+
+Add `/recaps` route (protected) and a sidebar link labeled "Daily Recaps" with a `NotebookPen` icon.
+
+### Technical Steps
+
+1. Create `daily_recaps` table with migration + RLS policies + updated_at trigger
+2. Create `recap-draft` edge function that aggregates today's activity and calls Lovable AI
+3. Build the `/recaps` page with list view and editor
+4. Add route to App.tsx and sidebar link
 
