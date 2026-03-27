@@ -34,6 +34,7 @@ export function PortalTaskConversation({ taskGid, portalToken, clientName, readO
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [expandedSubtask, setExpandedSubtask] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
