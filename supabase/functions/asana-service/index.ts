@@ -621,15 +621,21 @@ class AsanaService {
 
   // -------------------------------------------------------------------------
   // verifyTaskBelongsToProject – Privacy guardrail
+  // Checks the task itself, then walks up parent chain (max 3 levels)
   // -------------------------------------------------------------------------
   async verifyTaskBelongsToProject(taskGid: string, projectGid: string): Promise<boolean> {
     return withFailSafe("verifyTaskBelongsToProject", async () => {
-      const url = `${ASANA_BASE_URL}/tasks/${taskGid}?opt_fields=memberships.project.gid`;
-      const res = await fetch(url, { headers: this.headers() });
-      if (!res.ok) return false;
-      const json = await res.json();
-      const memberships = json.data?.memberships || [];
-      return memberships.some((m: any) => m.project?.gid === projectGid);
+      let currentGid: string | null = taskGid;
+      for (let depth = 0; depth < 4 && currentGid; depth++) {
+        const url = `${ASANA_BASE_URL}/tasks/${currentGid}?opt_fields=memberships.project.gid,parent.gid`;
+        const res = await fetch(url, { headers: this.headers() });
+        if (!res.ok) return false;
+        const json = await res.json();
+        const memberships = json.data?.memberships || [];
+        if (memberships.some((m: any) => m.project?.gid === projectGid)) return true;
+        currentGid = json.data?.parent?.gid || null;
+      }
+      return false;
     });
   }
 
@@ -656,17 +662,24 @@ class AsanaService {
 
   // -------------------------------------------------------------------------
   // verifyTaskIsSubtaskOf – Privacy guardrail for task-based access
+  // Walks up the parent chain (max 3 levels) to verify ancestry.
   // -------------------------------------------------------------------------
   async verifyTaskIsSubtaskOf(taskGid: string, parentTaskGid: string): Promise<boolean> {
     return withFailSafe("verifyTaskIsSubtaskOf", async () => {
-      // Check if task is the parent itself
       if (taskGid === parentTaskGid) return true;
-      // Fetch parent of the task
-      const url = `${ASANA_BASE_URL}/tasks/${taskGid}?opt_fields=parent.gid`;
-      const res = await fetch(url, { headers: this.headers() });
-      if (!res.ok) return false;
-      const json = await res.json();
-      return json.data?.parent?.gid === parentTaskGid;
+      // Walk up the parent chain (supports subtasks and sub-subtasks)
+      let currentGid = taskGid;
+      for (let depth = 0; depth < 3; depth++) {
+        const url = `${ASANA_BASE_URL}/tasks/${currentGid}?opt_fields=parent.gid`;
+        const res = await fetch(url, { headers: this.headers() });
+        if (!res.ok) return false;
+        const json = await res.json();
+        const parentGid = json.data?.parent?.gid;
+        if (!parentGid) return false;
+        if (parentGid === parentTaskGid) return true;
+        currentGid = parentGid;
+      }
+      return false;
     });
   }
 }
