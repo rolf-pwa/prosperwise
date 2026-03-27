@@ -135,6 +135,9 @@ const Recaps = () => {
         .update({ body })
         .eq("id", id);
       if (error) throw error;
+      // Find the recap date for notification context
+      const recap = recaps.find((r) => r.id === id);
+      if (recap) await notifyMentionedStaff(body, recap.recap_date);
       toast({ title: "Recap updated" });
       fetchRecaps();
     } catch (e: any) {
