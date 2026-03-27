@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Bold, Italic, Heading2, List, ListOrdered, AtSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MentionOption {
   id: string;
@@ -107,8 +110,75 @@ export function MentionTextarea({ value, onChange, placeholder, rows = 12, class
     }
   };
 
+  const wrapSelection = (prefix: string, suffix: string = prefix) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = value.slice(start, end);
+    const newValue = value.slice(0, start) + prefix + selected + suffix + value.slice(end);
+    onChange(newValue);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + prefix.length, end + prefix.length);
+    }, 0);
+  };
+
+  const insertAtLineStart = (prefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    const newValue = value.slice(0, lineStart) + prefix + value.slice(lineStart);
+    onChange(newValue);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + prefix.length, start + prefix.length);
+    }, 0);
+  };
+
+  const toolbarButtons = [
+    { icon: Bold, label: "Bold", action: () => wrapSelection("**") },
+    { icon: Italic, label: "Italic", action: () => wrapSelection("_") },
+    { icon: Heading2, label: "Section heading", action: () => insertAtLineStart("## ") },
+    { icon: List, label: "Bullet list", action: () => insertAtLineStart("- ") },
+    { icon: ListOrdered, label: "Numbered list", action: () => insertAtLineStart("1. ") },
+    { icon: AtSign, label: "Mention", action: () => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const pos = ta.selectionStart;
+      const newValue = value.slice(0, pos) + "@" + value.slice(pos);
+      onChange(newValue);
+      setShowDropdown(true);
+      setQuery("");
+      setMentionStart(pos);
+      setTimeout(() => {
+        ta.focus();
+        ta.setSelectionRange(pos + 1, pos + 1);
+      }, 0);
+    }},
+  ];
+
   return (
     <div className="relative">
+      <div className="flex items-center gap-0.5 border border-b-0 rounded-t-md bg-muted/50 px-1 py-1">
+        {toolbarButtons.map((btn) => (
+          <Tooltip key={btn.label}>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={btn.action}
+              >
+                <btn.icon className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">{btn.label}</TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
       <Textarea
         ref={textareaRef}
         value={value}
@@ -116,7 +186,7 @@ export function MentionTextarea({ value, onChange, placeholder, rows = 12, class
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={rows}
-        className={className}
+        className={`${className} rounded-t-none`}
       />
       {showDropdown && options.length > 0 && (
         <div
