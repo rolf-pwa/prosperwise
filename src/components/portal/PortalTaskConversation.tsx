@@ -16,6 +16,7 @@ interface Props {
   taskGid: string;
   portalToken: string;
   clientName?: string;
+  readOnly?: boolean;
 }
 
 export function PortalTaskConversation({ taskGid, portalToken, clientName }: Props) {
