@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClipboardList, Send, Loader2, MessageCircle, Clock } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { LinkifyText } from "@/components/LinkifyText";
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -221,7 +222,7 @@ export function PortalRequests({ requests, contactId, contactName, portalToken, 
                         <p className="text-[10px] font-medium mb-0.5 opacity-70">
                           {msg.sender_type === "advisor" ? "Your Personal CFO" : "You"}
                         </p>
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        <p className="whitespace-pre-wrap"><LinkifyText text={msg.content} /></p>
                         <p className="text-[9px] opacity-50 mt-1">
                           {format(new Date(msg.created_at), "MMM d, h:mm a")}
                         </p>

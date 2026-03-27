@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { LinkifyText } from "@/components/LinkifyText";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -397,7 +398,7 @@ const Requests = () => {
                             <p className="text-[10px] font-medium opacity-50 mb-0.5">
                               {msg.role === "user" ? "Client" : "Georgia"}
                             </p>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap"><LinkifyText text={msg.content} /></p>
                           </div>
                         </div>
                       ))}
@@ -452,7 +453,7 @@ const Requests = () => {
                             <p className="text-[10px] font-medium mb-0.5 opacity-70">
                               {msg.sender_type === "advisor" ? (msg.sender_name || "Advisor") : (msg.sender_name || "Client")}
                             </p>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap"><LinkifyText text={msg.content} /></p>
                             <p className="text-[9px] opacity-50 mt-1">
                               {format(new Date(msg.created_at), "MMM d, h:mm a")}
                             </p>
