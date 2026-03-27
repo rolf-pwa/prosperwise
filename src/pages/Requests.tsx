@@ -397,7 +397,7 @@ const Requests = () => {
                             <p className="text-[10px] font-medium opacity-50 mb-0.5">
                               {msg.role === "user" ? "Client" : "Georgia"}
                             </p>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap"><LinkifyText text={msg.content} /></p>
                           </div>
                         </div>
                       ))}
