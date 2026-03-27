@@ -209,7 +209,12 @@ const Recaps = () => {
           </Card>
         ) : (
           <div className="space-y-3">
-            {recaps.map((recap) => (
+            {[...recaps].sort((a, b) => {
+              const aRead = readIds.has(a.id);
+              const bRead = readIds.has(b.id);
+              if (aRead !== bRead) return aRead ? 1 : -1;
+              return 0; // preserve date order within each group
+            }).map((recap) => (
               <RecapCard
                 key={recap.id}
                 recap={recap}
