@@ -352,6 +352,7 @@ function TaskRow({
   visFieldInfo,
   onTaskUpdated,
   clientViewedGids,
+  contactId,
 }: {
   task: AsanaTask;
   completed?: boolean;
@@ -360,11 +361,15 @@ function TaskRow({
   visFieldInfo?: VisibilityFieldInfo | null;
   onTaskUpdated?: (t: AsanaTask) => void;
   clientViewedGids?: Set<string>;
+  contactId?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [subtasks, setSubtasks] = useState<AsanaTask[]>([]);
   const [subtasksLoading, setSubtasksLoading] = useState(false);
   const [subtasksFetched, setSubtasksFetched] = useState(false);
+  const [togglingComplete, setTogglingComplete] = useState(false);
+  const [editingDueDate, setEditingDueDate] = useState(false);
+  const [dueDateValue, setDueDateValue] = useState(task.due_on || "");
 
   const status = getTaskStatus(task);
   const visibility = getVisibility(task);
@@ -396,14 +401,76 @@ function TaskRow({
     );
   };
 
+  const handleToggleComplete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTogglingComplete(true);
+    try {
+      const newCompleted = !task.completed;
+      const res = await supabase.functions.invoke("asana-service", {
+        body: {
+          action: "updateTask",
+          task_gid: task.gid,
+          updates: { completed: newCompleted },
+        },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      onTaskUpdated?.({ ...task, completed: newCompleted });
+      toast.success(newCompleted ? "Marked complete" : "Marked incomplete");
+      if (newCompleted) {
+        notifyTaskUpdate(contactId, task.name, "completed");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update task");
+    } finally {
+      setTogglingComplete(false);
+    }
+  };
+
+  const handleDueDateChange = async (newDate: string) => {
+    setDueDateValue(newDate);
+    setEditingDueDate(false);
+    try {
+      const res = await supabase.functions.invoke("asana-service", {
+        body: {
+          action: "updateTask",
+          task_gid: task.gid,
+          updates: { due_on: newDate || null },
+        },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      onTaskUpdated?.({ ...task, due_on: newDate || null });
+      toast.success("Due date updated");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update due date");
+      setDueDateValue(task.due_on || "");
+    }
+  };
+
   return (
     <div style={{ marginLeft: depth > 0 ? `${depth * 16}px` : undefined }}>
-      <button
-        onClick={onClick}
+      <div
         className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors w-full text-left ${
           completed ? "opacity-50" : "bg-muted/50 hover:bg-muted"
         }`}
       >
+        {/* Completion checkbox for subtasks */}
+        {depth > 0 && (
+          <button
+            onClick={handleToggleComplete}
+            disabled={togglingComplete}
+            className="shrink-0 p-0.5 rounded hover:bg-background/80 transition-colors"
+            title={task.completed ? "Mark incomplete" : "Mark complete"}
+          >
+            {togglingComplete ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            ) : (
+              <Checkbox checked={task.completed} className="h-3.5 w-3.5 pointer-events-none" />
+            )}
+          </button>
+        )}
+
         {/* Expand toggle */}
         <button
           onClick={handleToggleExpand}
@@ -417,13 +484,15 @@ function TaskRow({
             <ChevronRight className="h-3 w-3 text-muted-foreground" />
           )}
         </button>
-        <div className="min-w-0 flex-1">
+
+        {/* Task name - clickable to open detail */}
+        <button onClick={onClick} className="min-w-0 flex-1 text-left">
           <p
             className={`text-sm font-medium truncate ${completed ? "line-through text-muted-foreground" : "text-foreground"}`}
           >
             {task.name}
           </p>
-          {task.due_on && !completed && (
+          {task.due_on && !completed && !editingDueDate && depth === 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">
               Due{" "}
               {parseLocalDate(task.due_on).toLocaleDateString("en-US", {
@@ -432,8 +501,35 @@ function TaskRow({
               })}
             </p>
           )}
-        </div>
+        </button>
+
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Inline due date for subtasks */}
+          {depth > 0 && (
+            editingDueDate ? (
+              <Input
+                type="date"
+                value={dueDateValue}
+                onChange={(e) => handleDueDateChange(e.target.value)}
+                onBlur={() => setEditingDueDate(false)}
+                autoFocus
+                className="h-6 w-28 text-[10px] px-1"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingDueDate(true); }}
+                className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors rounded px-1 py-0.5 hover:bg-background/80"
+                title="Set due date"
+              >
+                <Calendar className="h-2.5 w-2.5" />
+                {task.due_on
+                  ? parseLocalDate(task.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                  : "No date"}
+              </button>
+            )
+          )}
+
           {clientViewedGids?.has(task.gid) && (
             <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-accent/40 text-accent bg-accent/10">
               <Eye className="h-2.5 w-2.5 mr-0.5" />Viewed
@@ -463,7 +559,7 @@ function TaskRow({
             {status.label}
           </Badge>
         </div>
-      </button>
+      </div>
 
       {/* Nested subtasks */}
       {expanded && subtasksFetched && subtasks.length > 0 && (
@@ -478,6 +574,7 @@ function TaskRow({
               visFieldInfo={visFieldInfo}
               onTaskUpdated={handleSubtaskUpdated}
               clientViewedGids={clientViewedGids}
+              contactId={contactId}
             />
           ))}
         </div>
@@ -708,6 +805,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
           visFieldInfo={visFieldInfo}
           onTaskUpdated={handleTaskUpdated}
           clientViewedGids={clientViewedGids}
+          contactId={contactId}
         />
         {isSelected && (
           <div className="mt-1 rounded-md border border-border bg-background p-4">
