@@ -2,14 +2,13 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, NotebookPen, Sparkles, Save, Plus, ChevronDown, ChevronUp } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import ReactMarkdown from "react-markdown";
+import { Loader2, NotebookPen, Sparkles, Save, Plus } from "lucide-react";
+import { RecapCard } from "@/components/recaps/RecapCard";
+import { MentionTextarea } from "@/components/recaps/MentionTextarea";
 
 interface Recap {
   id: string;
@@ -24,9 +23,8 @@ interface Recap {
 const Recaps = () => {
   const { user } = useAuth();
   const [recaps, setRecaps] = useState<Recap[]>([]);
+  const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editBody, setEditBody] = useState("");
   const [creating, setCreating] = useState(false);
   const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
   const [newBody, setNewBody] = useState("");
@@ -38,7 +36,22 @@ const Recaps = () => {
     const { data } = await (supabase.from("daily_recaps" as any) as any)
       .select("*")
       .order("recap_date", { ascending: false });
-    setRecaps((data as Recap[]) || []);
+    const recapData = (data as Recap[]) || [];
+    setRecaps(recapData);
+
+    // Fetch author names from profiles
+    const authorIds = [...new Set(recapData.map((r) => r.author_id))];
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", authorIds);
+      const nameMap: Record<string, string> = {};
+      (profiles || []).forEach((p) => {
+        nameMap[p.user_id] = p.full_name || "Unknown";
+      });
+      setAuthorNames(nameMap);
+    }
     setLoading(false);
   };
 
@@ -80,15 +93,14 @@ const Recaps = () => {
     }
   };
 
-  const saveEdit = async (id: string) => {
+  const saveEdit = async (id: string, body: string) => {
     setSaving(true);
     try {
       const { error } = await (supabase.from("daily_recaps" as any) as any)
-        .update({ body: editBody })
+        .update({ body })
         .eq("id", id);
       if (error) throw error;
       toast({ title: "Recap updated" });
-      setEditingId(null);
       fetchRecaps();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -139,10 +151,10 @@ const Recaps = () => {
                   Generate AI Draft
                 </Button>
               </div>
-              <Textarea
+              <MentionTextarea
                 value={newBody}
-                onChange={(e) => setNewBody(e.target.value)}
-                placeholder="Write your daily recap here, or generate an AI draft first..."
+                onChange={setNewBody}
+                placeholder="Write your daily recap here, or generate an AI draft first... Use @name to mention contacts or staff."
                 rows={12}
                 className="font-mono text-sm"
               />
@@ -172,80 +184,18 @@ const Recaps = () => {
           </Card>
         ) : (
           <div className="space-y-3">
-            {recaps.map((recap) => {
-              const isExpanded = expandedId === recap.id;
-              const isEditing = editingId === recap.id;
-              const isAuthor = user?.id === recap.author_id;
-
-              return (
-                <Card key={recap.id} className="transition-colors hover:border-primary/10">
-                  <CardHeader
-                    className="pb-2 cursor-pointer"
-                    onClick={() => {
-                      if (!isEditing) setExpandedId(isExpanded ? null : recap.id);
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        {format(parseISO(recap.recap_date), "EEEE, MMMM d, yyyy")}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        {isExpanded && isAuthor && !isEditing && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingId(recap.id);
-                              setEditBody(recap.body);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                    </div>
-                    {!isExpanded && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {recap.body.replace(/[#*_`]/g, "").slice(0, 150)}...
-                      </p>
-                    )}
-                  </CardHeader>
-                  {isExpanded && (
-                    <CardContent>
-                      {isEditing ? (
-                        <div className="space-y-3">
-                          <Textarea
-                            value={editBody}
-                            onChange={(e) => setEditBody(e.target.value)}
-                            rows={12}
-                            className="font-mono text-sm"
-                          />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => saveEdit(recap.id)} disabled={saving}>
-                              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                              Save
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="prose prose-sm max-w-none dark:prose-invert">
-                          <ReactMarkdown>{recap.body}</ReactMarkdown>
-                        </div>
-                      )}
-                    </CardContent>
-                  )}
-                </Card>
-              );
-            })}
+            {recaps.map((recap) => (
+              <RecapCard
+                key={recap.id}
+                recap={recap}
+                authorName={authorNames[recap.author_id] || "Unknown"}
+                isAuthor={user?.id === recap.author_id}
+                isExpanded={expandedId === recap.id}
+                onToggle={() => setExpandedId(expandedId === recap.id ? null : recap.id)}
+                onSaveEdit={saveEdit}
+                saving={saving}
+              />
+            ))}
           </div>
         )}
       </div>
