@@ -270,9 +270,31 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
               Completed ({completedTasks.length})
             </p>
           </div>
-          <div className="space-y-1 pl-1">
-            {completedTasks.slice(0, 10).map((task) => renderTaskWithExpansion(task))}
-          </div>
+          <ul className="space-y-1 pl-1">
+            {completedTasks.slice(0, 10).map((task) => (
+              <li key={task.gid}>
+                <button
+                  onClick={() => handleTaskClick(task)}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors text-left w-full group"
+                >
+                  <CheckSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                  <span className="line-through truncate group-hover:no-underline">{task.name}</span>
+                  <ChevronRight className={cn("h-3 w-3 ml-auto shrink-0 text-muted-foreground/40 transition-transform", selectedTask?.gid === task.gid && "rotate-90")} />
+                </button>
+                {selectedTask?.gid === task.gid && (
+                  <div className="mt-1 mb-2 rounded-lg border border-border bg-background p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-foreground font-serif">{task.name}</h4>
+                      <button onClick={() => setSelectedTask(null)} className="p-1 rounded hover:bg-muted">
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                    <PortalTaskConversation taskGid={task.gid} portalToken={portalToken} clientName={clientName} readOnly />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
