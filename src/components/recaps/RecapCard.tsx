@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, ChevronDown, ChevronUp, User } from "lucide-react";
+import { Loader2, Save, ChevronDown, ChevronUp, User, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { MentionTextarea } from "./MentionTextarea";
@@ -16,14 +16,17 @@ interface RecapCardProps {
   authorName: string;
   isAuthor: boolean;
   isExpanded: boolean;
+  wasRead: boolean;
   onToggle: () => void;
   onSaveEdit: (id: string, body: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   saving: boolean;
 }
 
-export function RecapCard({ recap, authorName, isAuthor, isExpanded, onToggle, onSaveEdit, saving }: RecapCardProps) {
+export function RecapCard({ recap, authorName, isAuthor, isExpanded, wasRead, onToggle, onSaveEdit, onDelete, saving }: RecapCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editBody, setEditBody] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const startEdit = () => {
     setEditBody(recap.body);
@@ -34,6 +37,35 @@ export function RecapCard({ recap, authorName, isAuthor, isExpanded, onToggle, o
     await onSaveEdit(recap.id, editBody);
     setIsEditing(false);
   };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this recap?")) return;
+    setDeleting(true);
+    await onDelete(recap.id);
+    setDeleting(false);
+  };
+
+  // Collapsed text-link style for read (previously expanded) recaps
+  if (wasRead && !isExpanded) {
+    return (
+      <button
+        onClick={onToggle}
+        className="w-full text-left px-4 py-2 rounded-md hover:bg-accent/50 transition-colors flex items-center justify-between group"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-sm font-medium text-primary underline underline-offset-2">
+            {format(parseISO(recap.recap_date), "EEEE, MMMM d, yyyy")}
+          </span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+            <User className="h-3 w-3" />
+            {authorName}
+          </span>
+        </div>
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      </button>
+    );
+  }
 
   return (
     <Card className="transition-colors hover:border-primary/10">
@@ -55,16 +87,27 @@ export function RecapCard({ recap, authorName, isAuthor, isExpanded, onToggle, o
           </div>
           <div className="flex items-center gap-2">
             {isExpanded && isAuthor && !isEditing && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEdit();
-                }}
-              >
-                Edit
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEdit();
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </Button>
+              </>
             )}
             {isExpanded ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />

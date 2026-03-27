@@ -1,0 +1,1 @@
+CREATE POLICY "Authors can delete own recaps" ON public.daily_recaps FOR DELETE TO authenticated USING (auth.uid() = author_id);
