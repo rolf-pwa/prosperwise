@@ -35,6 +35,7 @@ import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
 import BulkOnboarding from "./pages/BulkOnboarding";
+import Recaps from "./pages/Recaps";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
             <Route path="/content-hub" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
             <Route path="/content-hub/:id" element={<ProtectedRoute><ContentEditor /></ProtectedRoute>} />
+            <Route path="/recaps" element={<ProtectedRoute><Recaps /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

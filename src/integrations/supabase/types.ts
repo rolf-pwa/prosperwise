@@ -484,6 +484,36 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_recaps: {
+        Row: {
+          ai_draft: string | null
+          author_id: string
+          body: string | null
+          created_at: string
+          id: string
+          recap_date: string
+          updated_at: string
+        }
+        Insert: {
+          ai_draft?: string | null
+          author_id: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          recap_date: string
+          updated_at?: string
+        }
+        Update: {
+          ai_draft?: string | null
+          author_id?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          recap_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discovery_leads: {
         Row: {
           anxiety_anchor: string | null
