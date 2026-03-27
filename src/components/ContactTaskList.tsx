@@ -922,10 +922,12 @@ function SubtaskDetailRow({
   subtask,
   visFieldInfo,
   onUpdated,
+  contactId,
 }: {
   subtask: AsanaTask;
   visFieldInfo: VisibilityFieldInfo | null;
   onUpdated: (t: AsanaTask) => void;
+  contactId?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState<AsanaComment[]>([]);
