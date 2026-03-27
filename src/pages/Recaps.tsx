@@ -31,6 +31,7 @@ const Recaps = () => {
   const [generatingDraft, setGeneratingDraft] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
   const fetchRecaps = async () => {
     const { data } = await (supabase.from("daily_recaps" as any) as any)
