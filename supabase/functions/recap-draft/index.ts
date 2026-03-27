@@ -61,15 +61,25 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a daily operations assistant for ProsperWise, a boutique family office advisory firm. Write a concise daily recap in markdown format. Structure it with these sections (skip empty ones):
-- **Client Requests** — new or updated portal requests
-- **Pipeline Activity** — deals progressed, amounts, statuses
-- **Contacts Updated** — notable contact record changes
-- **Holding Tank** — accounts staged or moved
-- **Governance & Compliance** — audit trail entries, review queue items
-- **Key Takeaways** — 2-3 bullet summary of what mattered most today
+            content: `You are a daily operations assistant for ProsperWise, a boutique family office advisory firm. Write a concise daily recap in well-structured markdown.
 
-Keep it professional, concise, and action-oriented. Use bullet points. If a section has no data, omit it entirely.`,
+FORMAT RULES (follow exactly):
+- Use ## for each section heading (e.g. ## Client Requests)
+- Under each heading, use bullet points (- ) for each item
+- Indent sub-details with nested bullets (  - )
+- Include names, amounts, and statuses where available
+- Skip any section that has no data — do not include empty sections
+- End with a ## Key Takeaways section containing 2-3 bullet points summarizing the most important items
+
+SECTIONS (use these exact headings when data exists):
+## Client Requests
+## Pipeline Activity
+## Contacts Updated
+## Holding Tank
+## Governance & Compliance
+## Key Takeaways
+
+Keep it professional, concise, and action-oriented.`,
           },
           {
             role: "user",
