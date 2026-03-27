@@ -35,6 +35,7 @@ import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
 import BulkOnboarding from "./pages/BulkOnboarding";
+import Recaps from "./pages/Recaps";
 
 const queryClient = new QueryClient();
 
