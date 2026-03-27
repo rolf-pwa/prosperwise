@@ -118,24 +118,52 @@ export function PortalTaskConversation({ taskGid, portalToken, clientName, readO
               Subtasks ({subtasks.filter(s => s.completed).length}/{subtasks.length})
             </span>
           </div>
-          <ul className="space-y-1.5">
-            {subtasks.map((st) => (
-              <li key={st.gid} className="flex items-center gap-2 text-sm">
-                {st.completed ? (
-                  <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
-                ) : (
-                  <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                )}
-                <span className={st.completed ? "line-through text-muted-foreground" : "text-foreground"}>
-                  {st.name}
-                </span>
-                {st.due_on && !st.completed && (
-                  <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
-                    {parseLocalDate(st.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                )}
-              </li>
-            ))}
+          <ul className="space-y-1">
+            {subtasks.map((st) => {
+              const isExpanded = expandedSubtask === st.gid;
+              return (
+                <li key={st.gid}>
+                  <button
+                    onClick={() => setExpandedSubtask(isExpanded ? null : st.gid)}
+                    className="w-full flex items-center gap-2 text-sm py-1 px-1 rounded hover:bg-muted/50 transition-colors text-left group"
+                  >
+                    {st.completed ? (
+                      <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                    )}
+                    <span className={cn("truncate", st.completed && "line-through text-muted-foreground")}>
+                      {st.name}
+                    </span>
+                    {st.due_on && !st.completed && (
+                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                        {parseLocalDate(st.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    )}
+                    <ChevronRight className={cn(
+                      "h-3 w-3 text-muted-foreground/40 shrink-0 transition-transform ml-auto",
+                      isExpanded ? "rotate-90" : "opacity-0 group-hover:opacity-100"
+                    )} />
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-6 mt-1 mb-2 rounded-lg border border-border bg-background p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="text-xs font-semibold text-foreground">{st.name}</h5>
+                        <button onClick={() => setExpandedSubtask(null)} className="p-0.5 rounded hover:bg-muted">
+                          <X className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                      <PortalTaskConversation
+                        taskGid={st.gid}
+                        portalToken={portalToken}
+                        clientName={clientName}
+                        readOnly={readOnly || st.completed}
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
