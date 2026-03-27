@@ -452,7 +452,7 @@ const Requests = () => {
                             <p className="text-[10px] font-medium mb-0.5 opacity-70">
                               {msg.sender_type === "advisor" ? (msg.sender_name || "Advisor") : (msg.sender_name || "Client")}
                             </p>
-                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                            <p className="whitespace-pre-wrap"><LinkifyText text={msg.content} /></p>
                             <p className="text-[9px] opacity-50 mt-1">
                               {format(new Date(msg.created_at), "MMM d, h:mm a")}
                             </p>
