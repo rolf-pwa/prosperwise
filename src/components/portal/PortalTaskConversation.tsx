@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Loader2, MessageCircle, CheckCircle2, Circle, ListChecks } from "lucide-react";
+import { Send, Loader2, MessageCircle, CheckCircle2, Circle, ListChecks, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { parseLocalDate } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 
 interface Story {
   gid: string;
