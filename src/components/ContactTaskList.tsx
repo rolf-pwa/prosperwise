@@ -983,31 +983,119 @@ function SubtaskDetailRow({
     }
   };
 
+  const handleToggleComplete = async () => {
+    setTogglingComplete(true);
+    try {
+      const newCompleted = !subtask.completed;
+      const res = await supabase.functions.invoke("asana-service", {
+        body: { action: "updateTask", task_gid: subtask.gid, updates: { completed: newCompleted } },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      onUpdated({ ...subtask, completed: newCompleted });
+      toast.success(newCompleted ? "Marked complete" : "Marked incomplete");
+      if (newCompleted) notifyTaskUpdate(contactId, subtask.name, "completed");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update subtask");
+    } finally {
+      setTogglingComplete(false);
+    }
+  };
+
+  const handleDueDateChange = async (newDate: string) => {
+    setDueDateValue(newDate);
+    setEditingDueDate(false);
+    try {
+      const res = await supabase.functions.invoke("asana-service", {
+        body: { action: "updateTask", task_gid: subtask.gid, updates: { due_on: newDate || null } },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      onUpdated({ ...subtask, due_on: newDate || null });
+      toast.success("Due date updated");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update due date");
+      setDueDateValue(subtask.due_on || "");
+    }
+  };
+
   return (
     <div className="rounded-md border border-border overflow-hidden">
       {/* Header row */}
-      <button
-        onClick={handleToggle}
+      <div
         className={`flex items-center gap-2 px-2.5 py-2 text-sm w-full text-left transition-colors ${
           subtask.completed ? "opacity-50 bg-muted/30" : "bg-muted/50 hover:bg-muted"
         }`}
       >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        )}
-        <div className="min-w-0 flex-1">
+        {/* Completion toggle */}
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleComplete(); }}
+          disabled={togglingComplete}
+          className="shrink-0 p-0.5 rounded hover:bg-background/80 transition-colors"
+          title={subtask.completed ? "Mark incomplete" : "Mark complete"}
+        >
+          {togglingComplete ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          ) : (
+            <Checkbox checked={subtask.completed} className="h-3.5 w-3.5 pointer-events-none" />
+          )}
+        </button>
+
+        {/* Expand toggle */}
+        <button onClick={handleToggle} className="shrink-0 p-0.5 rounded hover:bg-background/80 transition-colors">
+          {expanded ? (
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          )}
+        </button>
+
+        {/* Name */}
+        <button onClick={handleToggle} className="min-w-0 flex-1 text-left">
           <p className={`text-sm truncate ${subtask.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
             {subtask.name}
           </p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
+        </button>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Inline due date */}
+          {editingDueDate ? (
+            <Input
+              type="date"
+              value={dueDateValue}
+              onChange={(e) => handleDueDateChange(e.target.value)}
+              onBlur={() => setEditingDueDate(false)}
+              autoFocus
+              className="h-6 w-28 text-[10px] px-1"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); setEditingDueDate(true); }}
+              className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors rounded px-1 py-0.5 hover:bg-background/80"
+              title="Set due date"
+            >
+              <Calendar className="h-2.5 w-2.5" />
+              {subtask.due_on
+                ? parseLocalDate(subtask.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                : "No date"}
+            </button>
+          )}
+
+          {/* Assignee */}
+          <AssigneePicker
+            currentAssignee={subtask.assignee}
+            taskGid={subtask.gid}
+            onAssigneeChanged={(newAssignee) => {
+              onUpdated({ ...subtask, assignee: newAssignee });
+            }}
+          />
+
           <Badge variant={subStatus.variant} className="text-[9px] px-1.5 py-0">
             {subStatus.label}
           </Badge>
         </div>
-      </button>
+      </div>
 
       {/* Expanded detail */}
       {expanded && (
