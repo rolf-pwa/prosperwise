@@ -212,7 +212,7 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
-            <PortalTaskConversation taskGid={task.gid} portalToken={portalToken} clientName={clientName} />
+            <PortalTaskConversation taskGid={task.gid} portalToken={portalToken} clientName={clientName} readOnly={task.completed} />
           </div>
         )}
       </div>

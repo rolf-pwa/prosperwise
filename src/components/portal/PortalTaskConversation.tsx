@@ -16,9 +16,10 @@ interface Props {
   taskGid: string;
   portalToken: string;
   clientName?: string;
+  readOnly?: boolean;
 }
 
-export function PortalTaskConversation({ taskGid, portalToken, clientName }: Props) {
+export function PortalTaskConversation({ taskGid, portalToken, clientName, readOnly }: Props) {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -141,34 +142,40 @@ export function PortalTaskConversation({ taskGid, portalToken, clientName }: Pro
       </div>
 
       {/* Message Input */}
-      <div className="border-t border-border px-4 py-3 bg-background">
-        <div className="flex gap-2">
-          <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Send a message…"
-            className="min-h-[44px] max-h-[120px] resize-none text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!message.trim() || sending}
-            size="icon"
-            className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground h-[44px] w-[44px]"
-          >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+      {readOnly ? (
+        <div className="border-t border-border px-4 py-3 bg-muted/50">
+          <p className="text-xs text-muted-foreground text-center">This task is completed. Comments are closed.</p>
         </div>
-      </div>
+      ) : (
+        <div className="border-t border-border px-4 py-3 bg-background">
+          <div className="flex gap-2">
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Send a message…"
+              className="min-h-[44px] max-h-[120px] resize-none text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!message.trim() || sending}
+              size="icon"
+              className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground h-[44px] w-[44px]"
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
