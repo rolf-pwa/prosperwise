@@ -110,6 +110,30 @@ const Recaps = () => {
     }
   };
 
+  const deleteRecap = async (id: string) => {
+    try {
+      const { error } = await (supabase.from("daily_recaps" as any) as any)
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Recap deleted" });
+      setExpandedId(null);
+      fetchRecaps();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleToggle = (id: string) => {
+    if (expandedId === id) {
+      // Collapsing — mark as read
+      setReadIds((prev) => new Set(prev).add(id));
+      setExpandedId(null);
+    } else {
+      setExpandedId(id);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -192,10 +216,14 @@ const Recaps = () => {
                 authorName={authorNames[recap.author_id] || "Unknown"}
                 isAuthor={user?.id === recap.author_id}
                 isExpanded={expandedId === recap.id}
-                onToggle={() => setExpandedId(expandedId === recap.id ? null : recap.id)}
+                wasRead={readIds.has(recap.id)}
+                onToggle={() => handleToggle(recap.id)}
                 onSaveEdit={saveEdit}
+                onDelete={deleteRecap}
                 saving={saving}
               />
+            ))}
+          </div>
             ))}
           </div>
         )}
