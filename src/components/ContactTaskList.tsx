@@ -1106,13 +1106,6 @@ function SubtaskDetailRow({
             <VisibilityToggle task={subtask} visFieldInfo={visFieldInfo} onUpdated={onUpdated} />
           </div>
 
-          {/* Due date */}
-          {subtask.due_on && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              <span>Due {parseLocalDate(subtask.due_on).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-            </div>
-          )}
 
           {/* Notes */}
           {subtask.notes && (
