@@ -72,6 +72,7 @@ const navItems = [
   { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
   { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
+  { to: "/recaps", label: "Daily Recaps", icon: NotebookPen },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/content-hub", label: "Content Hub", icon: PenLine },
   { to: "/workbench", label: "Workbench", icon: Cpu },
