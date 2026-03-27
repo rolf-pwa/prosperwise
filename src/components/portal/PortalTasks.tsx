@@ -270,14 +270,9 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
               Completed ({completedTasks.length})
             </p>
           </div>
-          <ul className="space-y-1 pl-1">
-            {completedTasks.slice(0, 10).map((task) => (
-              <li key={task.gid} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CheckSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                <span className="line-through truncate">{task.name}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-1 pl-1">
+            {completedTasks.slice(0, 10).map((task) => renderTaskWithExpansion(task))}
+          </div>
         </div>
       )}
     </div>
