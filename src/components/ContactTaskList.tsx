@@ -805,6 +805,7 @@ export function ContactTaskList({ asanaUrl, contactId, householdMembers = [] }: 
           visFieldInfo={visFieldInfo}
           onTaskUpdated={handleTaskUpdated}
           clientViewedGids={clientViewedGids}
+          contactId={contactId}
         />
         {isSelected && (
           <div className="mt-1 rounded-md border border-border bg-background p-4">
