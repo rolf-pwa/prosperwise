@@ -1589,6 +1589,7 @@ function TaskDetailPanel({
                 key={sub.gid}
                 subtask={sub}
                 visFieldInfo={visFieldInfo}
+                contactId={contactId}
                 onUpdated={(updated) => {
                   setDetailSubtasks((prev) =>
                     prev.map((s) => (s.gid === updated.gid ? { ...s, ...updated } : s)),
