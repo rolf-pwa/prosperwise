@@ -19,7 +19,7 @@ interface Props {
   readOnly?: boolean;
 }
 
-export function PortalTaskConversation({ taskGid, portalToken, clientName }: Props) {
+export function PortalTaskConversation({ taskGid, portalToken, clientName, readOnly }: Props) {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
