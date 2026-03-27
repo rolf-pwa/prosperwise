@@ -392,7 +392,7 @@ class AsanaService {
   // -------------------------------------------------------------------------
   async getTasksForProject(projectGid: string) {
     return withFailSafe("getTasksForProject", async () => {
-      const url = `${ASANA_BASE_URL}/projects/${projectGid}/tasks?opt_fields=name,completed,due_on,assignee.name,assignee.gid,assignee_status,custom_fields,memberships.section.name,followers,notes&limit=100`;
+      const url = `${ASANA_BASE_URL}/projects/${projectGid}/tasks?opt_fields=name,completed,due_on,assignee.name,assignee.gid,assignee_status,custom_fields,memberships.section.name,followers,notes,parent.gid&limit=100`;
       console.log("[AsanaService] GET", url);
 
       const res = await fetch(url, { headers: this.headers() });
@@ -401,7 +401,8 @@ class AsanaService {
         throw new Error(`Asana API error ${res.status}: ${body}`);
       }
       const json = await res.json();
-      return json.data || [];
+      const tasks = json.data || [];
+      return tasks.filter((task: any) => !task.parent?.gid);
     });
   }
 
@@ -526,7 +527,7 @@ class AsanaService {
   // -------------------------------------------------------------------------
   async getMyTasks(projectGids?: string[]) {
     return withFailSafe("getMyTasks", async () => {
-      const fields = "name,completed,due_on,modified_at,memberships.section.name,memberships.project.gid,notes,num_subtasks,assignee.name";
+      const fields = "name,completed,due_on,modified_at,memberships.section.name,memberships.project.gid,notes,num_subtasks,assignee.name,parent.gid";
       
       const fetches: Promise<Response>[] = [];
 
@@ -561,7 +562,7 @@ class AsanaService {
       const merged: any[] = [];
       for (const json of jsons) {
         for (const task of (json.data || [])) {
-          if (!seen.has(task.gid) && task.assignee) {
+          if (!seen.has(task.gid) && task.assignee && !task.parent?.gid) {
             seen.add(task.gid);
             merged.push(task);
           }
