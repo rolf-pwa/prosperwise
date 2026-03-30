@@ -45,3 +45,6 @@ verify_jwt = false
 [functions.recap-draft]
 verify_jwt = false
 
+[functions.security-audit]
+verify_jwt = false
+
