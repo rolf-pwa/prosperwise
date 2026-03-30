@@ -1,9 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 interface FeeTier {
   tier: "sovereign" | "legacy" | "dynasty";
@@ -26,7 +35,8 @@ function calculateTier(totalAssets: number, baseFeeRate = 0.01): FeeTier {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  const corsHeaders = getCorsHeaders(req);
+if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
