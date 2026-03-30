@@ -118,6 +118,12 @@ Deno.serve(async (req) => {
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
+    // Domain verification: only @prosperwise.ca staff can run cashflow analysis
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 

@@ -439,6 +439,14 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Domain verification: only @prosperwise.ca staff can access the Sovereignty Assistant
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      console.warn(`[VertexAI] Domain check failed for ${user.email}`);
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { messages, model, contactContext, documentData } = await req.json();
     if (!messages || !Array.isArray(messages)) {
