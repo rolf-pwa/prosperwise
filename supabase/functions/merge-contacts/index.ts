@@ -16,6 +16,7 @@ function getCorsHeaders(req: Request) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,11 +30,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify the user
     const { data: { user }, error: authErr } = await supabase.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
     if (authErr || !user) throw new Error("Unauthorized");
+    // Domain check
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { primaryId, duplicateId } = await req.json();
     if (!primaryId || !duplicateId) throw new Error("primaryId and duplicateId required");
