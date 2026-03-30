@@ -458,11 +458,16 @@ export function MarketingUpdateWidget() {
                         Scheduled {format(new Date(u.scheduled_at), "MMM d 'at' h:mm a")}
                       </Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {u.scheduled_at
-                          ? `Sent ${format(new Date(u.scheduled_at), "MMM d, yyyy")}`
-                          : format(new Date(u.created_at), "MMM d, yyyy")}
-                      </span>
+                      <>
+                        <Badge className="text-[10px] gap-1 bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-100">
+                          ✓ Sent
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {u.scheduled_at
+                            ? format(new Date(u.scheduled_at), "MMM d, yyyy 'at' h:mm a")
+                            : format(new Date(u.created_at), "MMM d, yyyy")}
+                        </span>
+                      </>
                     )}
                     <Badge variant="outline" className="text-[10px]">{getUpdateAudienceLabel(u)}</Badge>
                   </div>
