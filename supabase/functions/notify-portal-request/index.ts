@@ -156,13 +156,13 @@ if (req.method === "OPTIONS") {
         const cleanEmail = c.email.trim().toLowerCase();
         const firstName = c.first_name || "there";
 
-        // Insert staff notification
-        await supabase.from("staff_notifications").insert({
-          title: `Update sent: ${title}`,
-          body: `Notification sent to ${cleanEmail}`,
+        // Insert portal client notification (visible in client portal)
+        await supabase.from("portal_client_notifications").insert({
           contact_id: c.id,
+          title: `New update: ${title}`,
+          body: `A new update "${title}" has been posted for you.`,
           source_type: "marketing_update",
-          link: url,
+          link_tab: "updates",
         });
 
         await sendViaWix({
