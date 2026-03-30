@@ -92,6 +92,14 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Domain verification: only @prosperwise.ca staff can access SideDrawer
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      console.warn(`[SideDrawer] Domain check failed for ${user.email}`);
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const body = await req.json();
     const { action, sidedrawerUrl, ...params } = body;
