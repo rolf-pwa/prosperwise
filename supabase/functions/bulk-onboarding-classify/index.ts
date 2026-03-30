@@ -1,12 +1,72 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
+
+// ---------- Vertex AI Auth ----------
+
+const REGION = "northamerica-northeast1";
+const MODEL = "gemini-2.5-flash-lite-preview-06-17";
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${unsigned}.${signature}`;
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,20 +76,33 @@ Deno.serve(async (req) => {
     if (!authHeader) throw new Error("Missing auth header");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
-
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
+    // Domain check
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { chunkPaths } = await req.json();
     if (!chunkPaths?.length) throw new Error("No chunks provided");
 
-    // Process chunks in batches to identify client names
+    // Vertex AI auth
+    const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    const accessToken = await getAccessToken(sa);
+
+    const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
+
+    console.log(`[bulk-classify] Calling Vertex AI in ${REGION} for ${chunkPaths.length} chunk(s)`);
+
     const results: Array<{ chunkIndex: number; clientName: string; institutions: string[] }> = [];
 
     for (let i = 0; i < chunkPaths.length; i++) {
@@ -45,64 +118,57 @@ Deno.serve(async (req) => {
       const arrayBuffer = await fileData.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       let binary = "";
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
+      for (let j = 0; j < bytes.length; j++) {
+        binary += String.fromCharCode(bytes[j]);
       }
       const base64 = btoa(binary);
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${lovableApiKey}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            {
-              role: "system",
-              content: `Extract the primary account holder's full name (a real person, NOT the dealer firm or advisory company) from this financial statement's first page. Return ONLY a JSON object: {"client_name": "Firstname Lastname", "institutions": ["institution names"]}. No markdown.`,
-            },
-            {
+      try {
+        const aiResponse = await fetch(vertexUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            contents: [{
               role: "user",
-              content: [
-                { type: "text", text: "Who is the account holder on this statement?" },
-                { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
+              parts: [
+                { text: `Extract the primary account holder's full name (a real person, NOT a dealer firm) from this financial statement. Return ONLY JSON: {"client_name": "Firstname Lastname", "institutions": ["institution names"]}. No markdown.` },
+                { inlineData: { mimeType: "application/pdf", data: base64 } },
               ],
-            },
-          ],
-          temperature: 0,
-          max_tokens: 200,
-        }),
-      });
+            }],
+            generationConfig: { temperature: 0, maxOutputTokens: 200 },
+          }),
+        });
 
-      if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
-          // Rate limited — wait and retry once
-          await new Promise((r) => setTimeout(r, 3000));
-          results.push({ chunkIndex: i, clientName: "Rate Limited", institutions: [] });
+        if (!aiResponse.ok) {
+          const errText = await aiResponse.text();
+          console.error(`[bulk-classify] Vertex AI error for chunk ${i}: ${aiResponse.status}`, errText);
+          results.push({ chunkIndex: i, clientName: "Unknown", institutions: [] });
           continue;
         }
+
+        const aiResult = await aiResponse.json();
+        const rawContent = aiResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const jsonStr = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          results.push({
+            chunkIndex: i,
+            clientName: parsed.client_name || "Unknown",
+            institutions: parsed.institutions || [],
+          });
+        } catch {
+          results.push({ chunkIndex: i, clientName: "Unknown", institutions: [] });
+        }
+      } catch (fetchErr) {
+        console.error(`[bulk-classify] Fetch error for chunk ${i}:`, fetchErr);
         results.push({ chunkIndex: i, clientName: "Unknown", institutions: [] });
-        continue;
       }
 
-      const aiResult = await aiResponse.json();
-      const rawContent = aiResult.choices?.[0]?.message?.content || "";
-      const jsonStr = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-
-      try {
-        const parsed = JSON.parse(jsonStr);
-        results.push({
-          chunkIndex: i,
-          clientName: parsed.client_name || "Unknown",
-          institutions: parsed.institutions || [],
-        });
-      } catch {
-        results.push({ chunkIndex: i, clientName: "Unknown", institutions: [] });
-      }
-
-      // Small delay between calls to avoid rate limiting
+      // Small delay between calls
       if (i < chunkPaths.length - 1) {
         await new Promise((r) => setTimeout(r, 500));
       }
@@ -114,6 +180,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("bulk-classify error:", err);
+    const corsHeaders = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

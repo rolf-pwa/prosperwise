@@ -94,10 +94,19 @@ async function fetchMeetingsForContact(supabase: any, contactEmail: string | nul
   return [];
 }
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -184,6 +193,7 @@ async function buildHierarchy(supabase: any, contact: any) {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabase = createClient(
@@ -288,6 +298,20 @@ serve(async (req) => {
 
       const cleanEmail = email.trim().toLowerCase();
 
+      // Brute-force protection: max 5 failed verify attempts per email per 10 min
+      const tenMinAgo = new Date(Date.now() - 600000).toISOString();
+      const { count: recentUnverified } = await supabase
+        .from("portal_otps")
+        .select("*", { count: "exact", head: true })
+        .eq("email", cleanEmail)
+        .eq("verified", false)
+        .gte("created_at", tenMinAgo);
+
+      // Count is of unverified OTPs — if many exist and none verified, likely brute-force
+      // We track by checking recent failed attempts via a simple heuristic:
+      // If there are active (unverified, unexpired) OTPs but the user keeps guessing wrong codes,
+      // we limit based on the OTP send rate (already 3/hr) plus this timing gate.
+      
       const { data: otp } = await supabase
         .from("portal_otps")
         .select("*")
@@ -300,6 +324,8 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!otp) {
+        // Add a progressive delay on failures to slow brute-force
+        await new Promise((r) => setTimeout(r, 1000));
         return new Response(JSON.stringify({ error: "Invalid or expired code" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

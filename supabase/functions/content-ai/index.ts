@@ -1,20 +1,95 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
+
+// ---------- Vertex AI Auth ----------
+
+const REGION = "northamerica-northeast1";
+const MODEL = "gemini-2.5-flash-preview-05-20";
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${unsigned}.${signature}`;
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Domain check: only @prosperwise.ca staff
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing auth header");
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: authErr } = await userClient.auth.getUser();
+    if (authErr || !user) throw new Error("Unauthorized");
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { action, title, body, platform, tone, audience } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -39,111 +114,91 @@ Just write the article content, no meta-commentary.`;
     } else if (action === "repurpose") {
       const platformGuides: Record<string, string> = {
         linkedin: `Repurpose for LinkedIn:
-- Keep it under 1300 characters (ideal LinkedIn post length)
-- Start with a compelling hook line that stops the scroll
+- Keep it under 1300 characters
+- Start with a compelling hook line
 - Use short paragraphs (1-2 sentences each)
-- Include relevant emojis sparingly for visual breaks
+- Include relevant emojis sparingly
 - End with a question or call to engagement
-- Add 3-5 relevant hashtags at the end
-- Write in first person ("I" not "we") for LinkedIn personal branding
-- Make it conversational and insight-driven`,
+- Add 3-5 relevant hashtags
+- Write in first person ("I") for LinkedIn personal branding`,
         substack: `Repurpose for Substack newsletter:
 - Write a newsletter-style piece (800-1500 words)
 - Start with a personal anecdote or observation
-- Use a conversational, intimate tone like writing to a friend
+- Use a conversational, intimate tone
 - Include section headers for scannability
 - Add a "TL;DR" or key takeaway section
-- End with a thoughtful question for readers
-- Include a "What I'm reading/thinking about" sidebar if relevant
-- Write in first person`,
+- End with a thoughtful question for readers`,
         wix_blog: `Repurpose for a Wix blog post:
 - Write 500-800 words, optimized for SEO
-- Include a compelling meta description (under 160 characters) at the very start, prefixed with "META: "
-- Use H2 and H3 headers for structure (use ## and ### markdown)
-- Include bullet points and numbered lists where appropriate
-- Write in a professional but accessible tone
-- End with a clear call to action
-- Use the firm's voice ("we" / "our team")`,
+- Include a compelling meta description (under 160 characters) prefixed with "META: "
+- Use H2 and H3 headers for structure
+- Include bullet points and numbered lists
+- End with a clear call to action`,
       };
 
-      systemPrompt = `You are a content repurposing expert for ProsperWise Advisors, a wealth management firm.
-Your job is to take an existing piece of content and adapt it for a specific platform while maintaining the core message and insights.
+      systemPrompt = `You are a content repurposing expert for ProsperWise Advisors.
 ${platformGuides[platform] || "Adapt the content appropriately for the target platform."}
+Output ONLY the repurposed content. No meta-commentary.`;
 
-Output ONLY the repurposed content. No meta-commentary, no "Here's the repurposed version:" prefix.`;
-
-      userPrompt = `Original title: ${title}
-
-Original content:
-${body}
-
-Repurpose this for ${platform === "wix_blog" ? "a Wix blog post" : platform === "linkedin" ? "LinkedIn" : "Substack"}.`;
+      userPrompt = `Original title: ${title}\n\nOriginal content:\n${body}\n\nRepurpose this for ${platform === "wix_blog" ? "a Wix blog post" : platform === "linkedin" ? "LinkedIn" : "Substack"}.`;
     } else if (action === "improve") {
       systemPrompt = `You are an expert editor for ProsperWise Advisors. Improve the given content by:
 - Tightening the prose and removing filler
 - Strengthening the opening hook
-- Improving transitions between ideas
+- Improving transitions
 - Making the call to action more compelling
-- Fixing any grammar or style issues
-Output ONLY the improved content. No commentary.`;
-
+- Fixing grammar or style issues
+Output ONLY the improved content.`;
       userPrompt = `Title: ${title}\n\nContent to improve:\n${body}`;
     } else if (action === "suggest_titles") {
       systemPrompt = `You are a content strategist for ProsperWise Advisors.
-Generate 5 compelling content titles based on the given topic.
-Format: Return ONLY a JSON array of 5 title strings, nothing else.
-Example: ["Title 1", "Title 2", "Title 3", "Title 4", "Title 5"]`;
-
+Generate 5 compelling content titles. Return ONLY a JSON array of 5 title strings.`;
       userPrompt = `Generate 5 content titles about: ${title || body}`;
     } else {
       return new Response(JSON.stringify({ error: "Unknown action" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Vertex AI call — pinned to Montreal
+    const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    const accessToken = await getAccessToken(sa);
+
+    const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
+
+    console.log(`[content-ai] Calling Vertex AI in ${REGION}`);
+
+    const response = await fetch(vertexUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+        contents: [
+          { role: "user", parts: [{ text: systemPrompt + "\n\n" + userPrompt }] },
         ],
-        stream: false,
+        generationConfig: { temperature: 0.5, maxOutputTokens: 4000 },
       }),
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again shortly." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      throw new Error("AI gateway error");
+      const errText = await response.text();
+      console.error(`[content-ai] Vertex AI error ${response.status}:`, errText);
+      throw new Error("AI service error");
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("content-ai error:", err);
+    const corsHeaders = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

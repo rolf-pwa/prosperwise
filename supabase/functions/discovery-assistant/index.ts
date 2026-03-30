@@ -1,11 +1,70 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
+
+// ---------- Vertex AI Auth ----------
+
+const REGION = "northamerica-northeast1";
+const MODEL = "gemini-2.5-flash-preview-05-20";
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${unsigned}.${signature}`;
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
 
 // ---------- Georgia System Prompt ----------
 
@@ -22,65 +81,42 @@ If a visitor DIRECTLY asks about Rolf's background, qualifications, credentials,
 **Do NOT mention Rolf proactively until the user's Chaos Profile has been fully validated (see Discovery Flow).**
 
 ## CRITICAL: Knowledge Base Override
-**If the Knowledge Base section below contains strategy instructions, those instructions TAKE PRIORITY over the defaults in this prompt.** Follow the Knowledge Base directives exactly — they represent the most current strategy.
+**If the Knowledge Base section below contains strategy instructions, those instructions TAKE PRIORITY over the defaults in this prompt.**
 
 ## The Discovery Flow (STRICT MULTI-STEP GATING)
 
-You MUST follow these steps IN ORDER. Do NOT skip steps. Do NOT show lead capture fields until explicitly authorized.
+You MUST follow these steps IN ORDER. Do NOT skip steps.
 
 ### Step 1: The Greeting
-The greeting has already been delivered to the user automatically. Do NOT repeat the greeting. If the conversation history already contains the welcome message as the first assistant message, skip directly to Step 2 and respond to the user's input with a deepening question.
+The greeting has already been delivered automatically. Do NOT repeat it. Skip to Step 2.
 
 ### Step 2: The Forensic Transition Audit (Anti-Rush Policy)
-This is the MOST IMPORTANT step. You MUST conduct a thorough discovery before offering ANY next step.
-- You MUST ask **at least 4-5 deepening questions** across multiple exchanges before moving to Step 3.
+This is the MOST IMPORTANT step. You MUST ask **at least 4-5 deepening questions** before moving to Step 3.
 - Do NOT mention the Transition Session, Rolf, or any next step during this phase.
-- Focus on:
-  - **Transition Classification**: Is this Private (Business Sale), Legal (Divorce/Separation), or Legacy (Inheritance)?
-  - **Timing**: Is the liquidity settled or still 'pre-flight'?
-  - **Complexity**: Are there other stakeholders (spouses, children with special needs, business partners)?
-  - **Non-Financial Liabilities**: Family pressure, identity loss, tax anxiety, advisor noise
-  - **The 'Baggage'**: Is there pressure from current advisors or external 'noise'? Actively discourage looking at market tickers or investment news.
-  - **Anxiety Anchor**: Identify their primary friction point — what keeps them up at night?
-  - **Vision Diagnostic**: Ask: "In your vision of 'Sovereignty,' what does total peace of mind look like for you three years from now?"
-  - **Emotional Validation**: Recognize "Sudden Wealth Syndrome" — say things like "It is normal to feel paralyzed right now. My job is to provide a Quiet Place for you to pause, not push you to act."
-
-Track internally how many deepening questions you've asked. Do NOT move to Step 3 until you have thoroughly explored their situation.
+- Focus on: Transition Classification, Timing, Complexity, Non-Financial Liabilities, The 'Baggage', Anxiety Anchor, Vision Diagnostic, Emotional Validation.
 
 ### Step 3: The Transition Session (The Binary Ask)
 ONLY after thorough discovery:
-- Explain the **Transition Session**: "Based on what you've shared, I'd like to suggest a next step. ProsperWise offers a Transition Session — a focused 60-minute paid working session ($295) with Rolf Issler, our lead advisor and founder. Rolf works for you — this is not a sales pitch. He'll assess your situation and provide clear, actionable guidance."
-- **The Gate**: Ask clearly: "Shall we proceed with scheduling a Transition Session?"
-- **Wait for a clear "Yes"** before triggering the register_discovery_lead function.
+- Explain the **Transition Session**: a focused 60-minute paid working session ($295) with Rolf Issler.
+- Ask clearly: "Shall we proceed with scheduling a Transition Session?"
+- Wait for a clear "Yes" before triggering register_discovery_lead.
 
-### The "Wait & See" Protocol (Hesitation Loop)
-If the user hesitates at ANY point, pivot back to pure guidance — "compete to pause" rather than pushing through:
-- Asks about fees → Explain: "ProsperWise operates as a Fee-Only service. This means we don't earn commissions on products. The $295 session fee ensures Rolf is working objectively for your interests, not for a sales quota."
-- Says "no" or hesitates → Acknowledge warmly and circle back to discovery: "I completely understand. Let's continue our conversation — there's no rush."
-- If they firmly decline → Gracefully close: "That's perfectly alright. ProsperWise is here whenever you're ready. I wish you peace in your transition."
+### The "Wait & See" Protocol
+If hesitation: pivot back to discovery. If firm decline: gracefully close.
 
 ### Step 4: Lead Capture
-ONLY after receiving a "Yes" to the Transition Session, call the **register_discovery_lead** function with:
-- A summary of the conversation (vineyard findings, anxiety anchor, vision)
-- The transition type identified
-- Then tell the user: "Wonderful. I just need a few details to get you connected with Rolf."
+ONLY after "Yes", call **register_discovery_lead** then ask for details.
 
 ## Vocabulary Rules
-- NEVER use investment terminology: "Portfolio," "Alpha," "ROI," "Returns," "Asset Allocation"
-- USE governance language: "Sovereignty," "Governance," "Stabilization," "Storehouse," "Charter," "Quiet Period"
-- Instead of "How much did you sell for?" ask "Is your liquidity event Private (Business), Legal (Divorce), or Legacy (Inheritance)?"
+- NEVER use: "Portfolio," "Alpha," "ROI," "Returns," "Asset Allocation"
+- USE: "Sovereignty," "Governance," "Stabilization," "Storehouse," "Charter," "Quiet Period"
 
 ## Rules
-- NEVER skip the deepening questions. This is the Anti-Rush Policy.
-- NEVER mention "Rolf" or the "Transition Session" until the Forensic Audit is complete.
-- NEVER show or ask for personal details (name, email, phone) until the user says "Yes" to the Transition Session.
-- NEVER claim to provide financial advice.
-- NEVER discuss specific investment products or strategies.
-- Be warm but professional. Use short paragraphs. Avoid walls of text.
-- If the user shares something emotional, acknowledge it before moving on.
-- Keep responses under 150 words unless the user asks for elaboration.`;
+- NEVER skip deepening questions.
+- NEVER mention Rolf or Transition Session until audit is complete.
+- Keep responses under 150 words unless asked for elaboration.`;
 
-// ---------- Tool Definitions ----------
+// ---------- Tool Definitions (Vertex format) ----------
 
 const TOOLS = [
   {
@@ -88,30 +124,15 @@ const TOOLS = [
       {
         name: "register_discovery_lead",
         description:
-          "Register a new discovery lead after the prospect has agreed to the Transition Session. Only call this AFTER receiving a clear 'Yes' to the session offer.",
+          "Register a new discovery lead after the prospect has agreed to the Transition Session.",
         parameters: {
           type: "OBJECT",
           properties: {
-            transition_type: {
-              type: "STRING",
-              description: "Type of transition: business_sale, divorce, legacy_event, or other",
-            },
-            anxiety_anchor: {
-              type: "STRING",
-              description: "The prospect's primary friction point or anxiety",
-            },
-            vision_summary: {
-              type: "STRING",
-              description: "Their 3-year sovereignty vision summary",
-            },
-            vineyard_summary: {
-              type: "STRING",
-              description: "Summary of vineyard audit findings from the conversation",
-            },
-            discovery_notes: {
-              type: "STRING",
-              description: "Full conversation summary capturing key points discussed",
-            },
+            transition_type: { type: "STRING", description: "Type of transition: business_sale, divorce, legacy_event, or other" },
+            anxiety_anchor: { type: "STRING", description: "The prospect's primary friction point or anxiety" },
+            vision_summary: { type: "STRING", description: "Their 3-year sovereignty vision summary" },
+            vineyard_summary: { type: "STRING", description: "Summary of vineyard audit findings" },
+            discovery_notes: { type: "STRING", description: "Full conversation summary" },
           },
           required: ["transition_type", "discovery_notes"],
         },
@@ -123,6 +144,7 @@ const TOOLS = [
 // ---------- Main ----------
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -130,7 +152,7 @@ serve(async (req) => {
   try {
     const { messages, action, leadData } = await req.json();
 
-    // Handle lead registration action (called from frontend after form submission)
+    // Handle lead registration action
     if (action === "register_lead") {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -145,7 +167,6 @@ serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
       if (!pipeda_consent) {
         return new Response(
           JSON.stringify({ error: "PIPEDA consent is required" }),
@@ -153,7 +174,6 @@ serve(async (req) => {
         );
       }
 
-      // Validate inputs
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return new Response(
@@ -198,7 +218,7 @@ serve(async (req) => {
       );
     }
 
-    // Fetch active knowledge base entries to augment system prompt
+    // Fetch knowledge base
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -212,84 +232,70 @@ serve(async (req) => {
 
     let knowledgeBlock = "";
     if (kbEntries && kbEntries.length > 0) {
-      knowledgeBlock = "\n\n## Knowledge Base\nUse the following information to answer questions accurately:\n\n" +
+      knowledgeBlock = "\n\n## Knowledge Base\n" +
         kbEntries.map((e: any) => `### ${e.title} [${e.category}]\n${e.content}`).join("\n\n");
     }
 
-    // Build messages for OpenAI-compatible API
-    const apiMessages: any[] = [
-      { role: "system", content: GEORGIA_SYSTEM_PROMPT + knowledgeBlock },
+    const systemContent = GEORGIA_SYSTEM_PROMPT + knowledgeBlock;
+
+    // Convert messages to Vertex AI format
+    const vertexContents: any[] = [
+      { role: "user", parts: [{ text: systemContent }] },
+      { role: "model", parts: [{ text: "Understood. I am Georgia, the Transition Assistant." }] },
     ];
     for (const m of messages) {
       if (m.role === "system") continue;
-      apiMessages.push({ role: m.role, content: m.content });
+      vertexContents.push({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      });
     }
 
-    // Convert Vertex-style tools to OpenAI-style tools
-    const openaiTools = TOOLS[0].functionDeclarations.map((fn: any) => ({
-      type: "function",
-      function: {
-        name: fn.name,
-        description: fn.description,
-        parameters: {
-          type: "object",
-          properties: Object.fromEntries(
-            Object.entries(fn.parameters.properties).map(([k, v]: [string, any]) => [
-              k,
-              { type: v.type.toLowerCase(), description: v.description },
-            ])
-          ),
-          required: fn.parameters.required || [],
-        },
-      },
-    }));
+    // Vertex AI call — pinned to Montreal
+    const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    const accessToken = await getAccessToken(sa);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
 
-    const gatewayRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log(`[discovery-assistant] Calling Vertex AI in ${REGION}`);
+
+    const aiResponse = await fetch(vertexUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: apiMessages,
-        tools: openaiTools,
-        temperature: 0.6,
-        max_tokens: 2048,
+        contents: vertexContents,
+        tools: TOOLS,
+        generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
       }),
     });
 
-    if (!gatewayRes.ok) {
-      const errText = await gatewayRes.text();
-      console.error("AI gateway error:", gatewayRes.status, errText);
-      const isRateLimit = gatewayRes.status === 429;
-      const isPayment = gatewayRes.status === 402;
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error(`[discovery-assistant] Vertex AI error ${aiResponse.status}:`, errText);
       return new Response(
-        JSON.stringify({
-          error: isRateLimit
-            ? "Georgia is handling several conversations right now. Please wait a moment and try again."
-            : isPayment
-            ? "AI service temporarily unavailable. Please try again later."
-            : `AI service error: ${gatewayRes.status}`,
-        }),
+        JSON.stringify({ error: "Georgia is temporarily unavailable. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = await gatewayRes.json();
-    const choice = result?.choices?.[0];
-    const message = choice?.message;
+    const result = await aiResponse.json();
+    const candidate = result.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
 
-    const text = message?.content || "";
-    const functionCalls = (message?.tool_calls || [])
-      .filter((tc: any) => tc.type === "function")
-      .map((tc: any) => ({
-        name: tc.function.name,
-        args: JSON.parse(tc.function.arguments),
-      }));
+    let text = "";
+    const functionCalls: Array<{ name: string; args: any }> = [];
+
+    for (const part of parts) {
+      if (part.text) text += part.text;
+      if (part.functionCall) {
+        functionCalls.push({ name: part.functionCall.name, args: part.functionCall.args || {} });
+      }
+    }
 
     return new Response(
       JSON.stringify({ text, functionCalls }),
@@ -297,6 +303,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("discovery-assistant error:", e);
+    const corsHeaders = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

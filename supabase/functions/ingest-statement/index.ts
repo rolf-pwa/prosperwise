@@ -1,12 +1,72 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
+
+// ---------- Vertex AI Auth ----------
+
+const REGION = "northamerica-northeast1";
+const MODEL = "gemini-2.5-flash-preview-05-20";
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${unsigned}.${signature}`;
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,13 +77,18 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) throw new Error("Unauthorized");
+    // Domain check
+    if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
+      return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -39,21 +104,18 @@ Deno.serve(async (req) => {
     // Convert to base64 for AI processing
     const arrayBuffer = await fileData.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    const mimeType = "application/pdf";
 
-    // Call Lovable AI Gateway to extract financial data
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${lovableApiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are a financial statement parser for a Canadian family office. Extract investment/brokerage account data from the uploaded document.
+    // Vertex AI call — pinned to Montreal
+    const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    const accessToken = await getAccessToken(sa);
+
+    const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
+
+    console.log(`[ingest-statement] Calling Vertex AI in ${REGION}`);
+
+    const systemContent = `You are a financial statement parser for a Canadian family office. Extract investment/brokerage account data from the uploaded document.
 Return a JSON object with this exact structure:
 {
   "accounts": [
@@ -62,41 +124,40 @@ Return a JSON object with this exact structure:
       "account_number": "string or null",
       "account_type": "Portfolio|RRSP|TFSA|RESP|LIRA|LIF|Corporate|Trust|Other",
       "account_owner": "Full name of the account holder or null",
-      "custodian": "Name of the financial institution (e.g. iA Financial, JustWealth, RBC)",
+      "custodian": "Name of the financial institution",
       "book_value": number or null,
       "current_value": number or null,
-      "notes": "Any classification notes (e.g. Eligible Harvest, Protected Growth)"
+      "notes": "Any classification notes"
     }
   ],
   "summary": "Brief one-line summary of total holdings",
   "missing_fields": ["list of fields that could not be confidently extracted"]
 }
-
 Guidelines:
 - "book_value" is the beginning-of-year value, cost basis, or original investment amount
 - "current_value" is the most recent market value shown
-- If the document shows multiple dates, use the earliest as book_value and latest as current_value
 - Extract the account owner name from the statement header/title
 - Identify the custodian/institution from the statement branding
 - Use null for any values you cannot confidently extract
-- Return ONLY the JSON, no markdown`,
-          },
+- Return ONLY the JSON, no markdown`;
+
+    const aiResponse = await fetch(vertexUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        contents: [
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Parse this financial statement for ${contactName || "the client"}. Extract all investment accounts with their values, account numbers, types, owners, and custodian information.`,
-              },
-              {
-                type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${base64}` },
-              },
+            parts: [
+              { text: systemContent + `\n\nParse this financial statement for ${contactName || "the client"}. Extract all investment accounts.` },
+              { inlineData: { mimeType: "application/pdf", data: base64 } },
             ],
           },
         ],
-        temperature: 0.1,
-        max_tokens: 4000,
+        generationConfig: { temperature: 0.1, maxOutputTokens: 4000 },
       }),
     });
 
@@ -106,25 +167,11 @@ Guidelines:
     }
 
     const aiResult = await aiResponse.json();
-    const rawContent = aiResult.choices?.[0]?.message?.content || "";
+    const rawContent = aiResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     // Clean any markdown fences
     const jsonStr = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    let parsed: {
-      accounts: Array<{
-        account_name: string;
-        account_number: string | null;
-        account_type: string;
-        account_owner: string | null;
-        custodian: string | null;
-        book_value: number | null;
-        current_value: number | null;
-        notes: string | null;
-      }>;
-      summary: string | null;
-      missing_fields: string[];
-    };
-
+    let parsed: any;
     try {
       parsed = JSON.parse(jsonStr);
     } catch {
@@ -133,7 +180,6 @@ Guidelines:
 
     // Insert extracted accounts into the Holding Tank
     const insertedAccounts = [];
-
     for (const account of parsed.accounts || []) {
       const { data: htItem, error: htErr } = await adminClient
         .from("holding_tank")
@@ -153,18 +199,17 @@ Guidelines:
         })
         .select("id")
         .single();
-
       if (!htErr && htItem) insertedAccounts.push(htItem);
     }
 
-    // Create a review queue item summarizing the ingestion
+    // Create a review queue item
     await adminClient.from("review_queue").insert({
       action_type: "statement_ingestion",
       action_description: `Parsed ${insertedAccounts.length} account(s) from statement into Holding Tank${parsed.summary ? `: ${parsed.summary}` : ""}`,
       contact_id: contactId,
       created_by: user.id,
       proposed_data: {
-        holding_tank_ids: insertedAccounts.map(a => a.id),
+        holding_tank_ids: insertedAccounts.map((a: any) => a.id),
         summary: parsed.summary,
         missing_fields: parsed.missing_fields || [],
       },
@@ -184,6 +229,7 @@ Guidelines:
     );
   } catch (err) {
     console.error("ingest-statement error:", err);
+    const corsHeaders = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
