@@ -6,6 +6,79 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ---------- Vertex AI Auth ----------
+
+const REGION = "northamerica-northeast1"; // Montreal — PIPEDA compliance
+const MODEL = "gemini-2.5-flash-preview-05-20";
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryKey,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const jwt = `${unsigned}.${signature}`;
+
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -47,21 +120,18 @@ serve(async (req) => {
       review_queue: reviewItems || [],
     });
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // Authenticate with GCP service account for Vertex AI
+    const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    const accessToken = await getAccessToken(sa);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `You are a daily operations assistant for ProsperWise, a boutique family office advisory firm. Write a concise daily recap in well-structured markdown.
+    // Call Vertex AI directly — pinned to Montreal (northamerica-northeast1)
+    const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
+
+    console.log(`[recap-draft] Calling Vertex AI in ${REGION} with model ${MODEL}`);
+
+    const systemPrompt = `You are a daily operations assistant for ProsperWise, a boutique family office advisory firm. Write a concise daily recap in well-structured markdown.
 
 FORMAT RULES (follow exactly):
 - Use ## for each section heading (e.g. ## Client Requests)
@@ -79,30 +149,36 @@ SECTIONS (use these exact headings when data exists):
 ## Governance & Compliance
 ## Key Takeaways
 
-Keep it professional, concise, and action-oriented.`,
-          },
+Keep it professional, concise, and action-oriented.`;
+
+    const aiResponse = await fetch(vertexUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        contents: [
           {
             role: "user",
-            content: `Generate a daily recap for ${targetDate} based on this activity data:\n\n${activitySummary}`,
+            parts: [{ text: systemPrompt + "\n\nGenerate a daily recap for " + targetDate + " based on this activity data:\n\n" + activitySummary }],
           },
         ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 4000,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
       const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
-      throw new Error("AI gateway error");
+      console.error(`[recap-draft] Vertex AI error ${aiResponse.status}:`, errText);
+      throw new Error("AI gateway error: " + errText);
     }
 
-    const result = await aiResponse.json();
-    const draft = result.choices?.[0]?.message?.content || "No activity found for this date.";
+    const aiResult = await aiResponse.json();
+    const draft = aiResult.candidates?.[0]?.content?.parts?.[0]?.text || "No activity found for this date.";
 
     return new Response(JSON.stringify({ draft, date: targetDate }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
