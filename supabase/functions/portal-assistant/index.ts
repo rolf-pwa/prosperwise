@@ -1,11 +1,70 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
+
+// ---------- Vertex AI Auth ----------
+
+const REGION = "northamerica-northeast1"; // Montreal — PIPEDA compliance
+const MODEL = "gemini-2.5-flash-preview-05-20";
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${unsigned}.${signature}`;
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
 
 const GEORGIA_CLIENT_PROMPT = `You are **Georgia**, the Client Support Assistant for ProsperWise Advisors — a Fee-Only family office based in Canada.
 
@@ -63,33 +122,34 @@ When you detect an admin request:
 
 const TOOLS = [
   {
-    type: "function",
-    function: {
-      name: "open_admin_request_form",
-      description:
-        "Open the admin request form for the client to submit an administrative request. Call this whenever the client needs to make changes to their account, request documents, update banking info, or any other administrative action.",
-      parameters: {
-        type: "object",
-        properties: {
-          request_type: {
-            type: "string",
-            enum: ["banking_withdrawal", "personal_info", "document_request", "general_inquiry"],
-            description:
-              "The category of the request: banking_withdrawal (banking changes, withdrawals, PAC/SWP), personal_info (address, name, beneficiary changes), document_request (tax slips, statements), general_inquiry (anything else)",
+    functionDeclarations: [
+      {
+        name: "open_admin_request_form",
+        description:
+          "Open the admin request form for the client to submit an administrative request. Call this whenever the client needs to make changes to their account, request documents, update banking info, or any other administrative action.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            request_type: {
+              type: "STRING",
+              description:
+                "The category of the request: banking_withdrawal, personal_info, document_request, or general_inquiry",
+            },
+            prefill_description: {
+              type: "STRING",
+              description:
+                "A brief description to pre-fill in the form based on what the client described",
+            },
           },
-          prefill_description: {
-            type: "string",
-            description:
-              "A brief description to pre-fill in the form based on what the client described in the conversation",
-          },
+          required: ["request_type"],
         },
-        required: ["request_type"],
       },
-    },
+    ],
   },
 ];
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -112,7 +172,6 @@ serve(async (req) => {
         );
       }
 
-      // Validate input lengths
       if (requestData.request_description.length > 2000) {
         return new Response(
           JSON.stringify({ error: "Description too long (max 2000 characters)" }),
@@ -210,64 +269,64 @@ serve(async (req) => {
         kbEntries.map((e: any) => `### ${e.title} [${e.category}]\n${e.content}`).join("\n\n");
     }
 
-    const apiMessages = [
-      { role: "system", content: GEORGIA_CLIENT_PROMPT + knowledgeBlock },
-      ...messages.filter((m: any) => m.role !== "system").map((m: any) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    ];
+    const systemContent = GEORGIA_CLIENT_PROMPT + knowledgeBlock;
+    const userMessages = messages.filter((m: any) => m.role !== "system").map((m: any) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // Authenticate with GCP service account for Vertex AI
+    const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+    if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    const accessToken = await getAccessToken(sa);
 
-    const gatewayRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
+
+    console.log(`[portal-assistant] Calling Vertex AI in ${REGION}`);
+
+    const aiResponse = await fetch(vertexUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: apiMessages,
+        contents: [
+          { role: "user", parts: [{ text: systemContent }] },
+          { role: "model", parts: [{ text: "Understood. I am Georgia, the Client Support Assistant. How can I help?" }] },
+          ...userMessages,
+        ],
         tools: TOOLS,
-        temperature: 0.5,
-        max_tokens: 1024,
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 1024,
+        },
       }),
     });
 
-    if (!gatewayRes.ok) {
-      const errText = await gatewayRes.text();
-      console.error("AI gateway error:", gatewayRes.status, errText);
-      const isRateLimit = gatewayRes.status === 429;
-      const isPayment = gatewayRes.status === 402;
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error(`[portal-assistant] Vertex AI error ${aiResponse.status}:`, errText);
       return new Response(
-        JSON.stringify({
-          error: isRateLimit
-            ? "Georgia is busy right now. Please wait a moment and try again."
-            : isPayment
-            ? "Support assistant temporarily unavailable. Please try again later."
-            : `AI service error: ${gatewayRes.status}`,
-        }),
-        { status: gatewayRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Georgia is temporarily unavailable. Please try again in a moment." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = await gatewayRes.json();
-    const choice = result?.choices?.[0];
-    const message = choice?.message;
-    const text = message?.content || "";
+    const result = await aiResponse.json();
+    const candidate = result.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
 
-    // Extract function calls
-    const functionCalls = (message?.tool_calls || [])
-      .filter((tc: any) => tc.type === "function")
-      .map((tc: any) => {
-        let args = {};
-        try {
-          args = JSON.parse(tc.function.arguments);
-        } catch {}
-        return { name: tc.function.name, args };
-      });
+    let text = "";
+    const functionCalls: Array<{ name: string; args: any }> = [];
+
+    for (const part of parts) {
+      if (part.text) text += part.text;
+      if (part.functionCall) {
+        functionCalls.push({ name: part.functionCall.name, args: part.functionCall.args || {} });
+      }
+    }
 
     return new Response(
       JSON.stringify({ text, functionCalls }),
@@ -275,6 +334,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("portal-assistant error:", e);
+    const corsHeaders = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
