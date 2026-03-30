@@ -1343,6 +1343,33 @@ export type Database = {
           },
         ]
       }
+      security_audit_logs: {
+        Row: {
+          created_at: string
+          id: string
+          logic_trace: string
+          run_id: string
+          status: string
+          test_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logic_trace: string
+          run_id: string
+          status: string
+          test_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logic_trace?: string
+          run_id?: string
+          status?: string
+          test_name?: string
+        }
+        Relationships: []
+      }
       shareholders: {
         Row: {
           contact_id: string
