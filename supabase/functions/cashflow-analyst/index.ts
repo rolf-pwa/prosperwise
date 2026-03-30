@@ -183,6 +183,7 @@ CRITICAL: You MUST categorize ALL inflows into the correct income category. If a
 Do NOT include markdown fences. Return ONLY the JSON object.`;
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
