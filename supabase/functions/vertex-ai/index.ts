@@ -422,6 +422,7 @@ const REGION = "northamerica-northeast1";
 const MODEL = "gemini-2.5-pro";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
