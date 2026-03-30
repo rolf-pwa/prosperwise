@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
@@ -16,16 +15,16 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-if (req.method === "OPTIONS") {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
     // Find all unsent updates that are due
@@ -51,45 +50,90 @@ if (req.method === "OPTIONS") {
     }
 
     let processed = 0;
+    const errors: string[] = [];
 
     for (const update of dueUpdates) {
-      console.log(`[Scheduler] Sending scheduled update: ${update.title}`);
+      console.log(`[Scheduler] Processing scheduled update: "${update.title}" (id: ${update.id}, scheduled_at: ${update.scheduled_at})`);
 
-      // Call notify-portal-request to send the notifications
-      const { error: invokeErr } = await supabase.functions.invoke(
-        "notify-portal-request",
-        {
-          body: {
+      try {
+        // Call notify-portal-request directly via fetch for better error visibility
+        const notifyUrl = `${supabaseUrl}/functions/v1/notify-portal-request`;
+        const notifyRes = await fetch(notifyUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+            "apikey": serviceKey,
+          },
+          body: JSON.stringify({
             notify_type: "marketing_update",
             title: update.title,
             url: update.url,
             target_governance_status: update.target_governance_status,
             target_contact_ids: update.target_contact_ids || [],
             target_household_ids: update.target_household_ids || [],
-          },
+          }),
+        });
+
+        const notifyBody = await notifyRes.text();
+        console.log(`[Scheduler] notify-portal-request response for "${update.title}": ${notifyRes.status} ${notifyBody}`);
+
+        if (!notifyRes.ok) {
+          const errMsg = `notify-portal-request failed for update ${update.id}: ${notifyRes.status} ${notifyBody}`;
+          console.error(`[Scheduler] ${errMsg}`);
+          errors.push(errMsg);
+
+          // Insert a staff notification about the failure
+          await supabase.from("staff_notifications").insert({
+            title: `⚠️ Scheduled update failed: ${update.title}`,
+            body: `The system failed to send notifications for this scheduled update. Error: ${notifyBody.substring(0, 200)}`,
+            source_type: "system_error",
+          });
+
+          continue;
         }
-      );
 
-      if (invokeErr) {
-        console.error(`[Scheduler] Error sending update ${update.id}:`, invokeErr);
-        continue;
+        // Mark as sent only on success
+        const { error: updateErr } = await supabase
+          .from("marketing_updates")
+          .update({ sent: true } as any)
+          .eq("id", update.id);
+
+        if (updateErr) {
+          console.error(`[Scheduler] Failed to mark update ${update.id} as sent:`, updateErr);
+          errors.push(`Failed to mark ${update.id} as sent: ${updateErr.message}`);
+          continue;
+        }
+
+        console.log(`[Scheduler] ✅ Successfully sent and marked update: "${update.title}"`);
+        processed++;
+      } catch (invokeErr: any) {
+        const errMsg = `Exception processing update ${update.id}: ${invokeErr.message}`;
+        console.error(`[Scheduler] ${errMsg}`);
+        errors.push(errMsg);
+
+        await supabase.from("staff_notifications").insert({
+          title: `⚠️ Scheduled update error: ${update.title}`,
+          body: `Exception: ${invokeErr.message}`,
+          source_type: "system_error",
+        });
       }
-
-      // Mark as sent
-      await supabase
-        .from("marketing_updates")
-        .update({ sent: true } as any)
-        .eq("id", update.id);
-
-      processed++;
     }
 
-    return new Response(JSON.stringify({ processed }), {
+    const result = {
+      processed,
+      total: dueUpdates.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+
+    console.log(`[Scheduler] Run complete: ${processed}/${dueUpdates.length} processed${errors.length > 0 ? `, ${errors.length} error(s)` : ""}`);
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    console.error("[Scheduler] Unexpected error:", err);
-    return new Response(JSON.stringify({ error: "Internal error" }), {
+  } catch (err: any) {
+    console.error("[Scheduler] Fatal error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
