@@ -163,7 +163,9 @@ async function createAsanaSubtask(
   asanaToken: string,
 ): Promise<boolean> {
   const today = new Date().toISOString().split("T")[0];
-  const htmlNotes = `<body><p>A signed PDF "${fileName}" was detected in ${contactName}'s Google Drive folder on ${today}.</p><p><strong>Document:</strong> <a href="${fileUrl}">${fileName}</a></p><p>Next steps:</p><ul><li>Review the document</li><li>File to SideDrawer (when ready)</li><li>Confirm with client</li></ul></body>`;
+  const safeName = fileName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const safeContact = contactName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const htmlNotes = `<body><p>A signed PDF &quot;${safeName}&quot; was detected in ${safeContact}'s Google Drive folder on ${today}.</p><p><strong>Document:</strong> <a href="${fileUrl}">${safeName}</a></p><p>Next steps:</p><ul><li>Review the document</li><li>File to SideDrawer (when ready)</li><li>Confirm with client</li></ul></body>`;
 
   try {
     // Step 1: Create subtask
