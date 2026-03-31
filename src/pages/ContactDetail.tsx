@@ -268,15 +268,17 @@ const ContactDetail = () => {
                 <Badge variant="outline" className="text-xs uppercase">
                   {contact.fiduciary_entity}
                 </Badge>
-                <Badge
-                  className={
-                    isStabilization
-                       ? "bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30"
-                       : "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
-                  }
-                >
-                  {isStabilization ? "Stabilization Phase" : "Sovereign Phase"}
-                </Badge>
+                {contact.governance_status !== "none" && (
+                  <Badge
+                    className={
+                      isStabilization
+                         ? "bg-sanctuary-green/20 text-sanctuary-green border-sanctuary-green/30"
+                         : "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
+                    }
+                  >
+                    {isStabilization ? "Stabilization Phase" : "Sovereign Phase"}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
