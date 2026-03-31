@@ -279,7 +279,31 @@ serve(async (req) => {
     // Authenticate with GCP service account for Vertex AI
     const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
     if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
-    const sa: ServiceAccountKey = JSON.parse(gcpKeyRaw);
+    
+    let sa: ServiceAccountKey;
+    try {
+      sa = JSON.parse(gcpKeyRaw);
+    } catch (parseErr) {
+      // Try common fixes: trim whitespace, remove BOM, unescape
+      let cleaned = gcpKeyRaw.trim().replace(/^\uFEFF/, "");
+      // If it looks double-encoded (starts with quote), unwrap
+      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+        try { cleaned = JSON.parse(cleaned); } catch {}
+      }
+      // Replace literal \n in private_key field that may have been escaped
+      try {
+        sa = JSON.parse(cleaned);
+      } catch {
+        console.error("[portal-assistant] GCP key parse failed. First 50 chars:", gcpKeyRaw.substring(0, 50));
+        console.error("[portal-assistant] Last 50 chars:", gcpKeyRaw.substring(gcpKeyRaw.length - 50));
+        console.error("[portal-assistant] Length:", gcpKeyRaw.length);
+        throw new Error("GCP_SERVICE_ACCOUNT_KEY contains invalid JSON. Please re-enter the full JSON key file contents.");
+      }
+    }
+    
+    if (!sa.private_key || !sa.client_email || !sa.project_id) {
+      throw new Error("GCP key is missing required fields (private_key, client_email, project_id). Please paste the FULL JSON key file.");
+    }
     const accessToken = await getAccessToken(sa);
 
     const vertexUrl = `https://${REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${REGION}/publishers/google/models/${MODEL}:generateContent`;
