@@ -97,6 +97,7 @@ export function NotificationBell() {
       case "request_message": return "💬";
       case "new_request": return "📋";
       case "task_comment": return "🗨️";
+      case "drive_watch": return "📄";
       default: return "🔔";
     }
   };

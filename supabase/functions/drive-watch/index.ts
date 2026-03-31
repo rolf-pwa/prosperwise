@@ -4,7 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 /**
  * drive-watch – Hourly cron function
  * Polls each contact's linked Google Drive folder (recursively) for new PDFs.
- * When found: creates an Asana task + staff notification.
+ * When found: creates an Asana subtask under the contact's parent task + staff notification.
+ * Deduplicates when multiple contacts share the same Drive folder.
  */
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -14,10 +15,9 @@ const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 const ASANA_BASE_URL = "https://app.asana.com/api/1.0";
 
 // ---------------------------------------------------------------------------
-// Google token management (reused from google-gmail pattern)
+// Google token management
 // ---------------------------------------------------------------------------
 async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
-  // Get the first available Google token (staff user)
   const { data, error } = await supabaseAdmin
     .from("google_tokens")
     .select("*")
@@ -29,7 +29,6 @@ async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
     return null;
   }
 
-  // Refresh if expired
   if (new Date(data.token_expiry) <= new Date()) {
     const res = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -61,12 +60,24 @@ async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
 
 // ---------------------------------------------------------------------------
 // Extract Google Drive folder ID from URL
-// Supports: https://drive.google.com/drive/folders/FOLDER_ID
-//           https://drive.google.com/drive/u/0/folders/FOLDER_ID
 // ---------------------------------------------------------------------------
 function extractFolderId(driveUrl: string): string | null {
   const match = driveUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   return match ? match[1] : null;
+}
+
+// ---------------------------------------------------------------------------
+// Extract Asana task GID from contact's asana_url (parent task link)
+// ---------------------------------------------------------------------------
+function extractTaskGid(asanaUrl: string | null): string | null {
+  if (!asanaUrl) return null;
+  const newTaskMatch = asanaUrl.match(/\/task\/(\d+)/);
+  if (newTaskMatch) return newTaskMatch[1];
+  const listTaskMatch = asanaUrl.match(/\/project\/\d+\/list\/(\d+)/);
+  if (listTaskMatch) return listTaskMatch[1];
+  const twoSegment = asanaUrl.match(/app\.asana\.com\/0\/\d+\/(\d+)/);
+  if (twoSegment) return twoSegment[1];
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,23 +98,20 @@ async function listPdfsRecursively(
   accessToken: string,
   folderId: string,
   afterTime: string,
-): Promise<Array<{ id: string; name: string; createdTime: string }>> {
-  const pdfs: Array<{ id: string; name: string; createdTime: string }> = [];
+): Promise<Array<{ id: string; name: string; createdTime: string; webViewLink?: string }>> {
+  const pdfs: Array<{ id: string; name: string; createdTime: string; webViewLink?: string }> = [];
 
-  // Find PDFs directly in this folder created after our last check
   const pdfQuery = `'${folderId}' in parents and mimeType='application/pdf' and createdTime > '${afterTime}' and trashed=false`;
-  const pdfUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(pdfQuery)}&fields=files(id,name,createdTime)&orderBy=createdTime`;
+  const pdfUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(pdfQuery)}&fields=files(id,name,createdTime,webViewLink)&orderBy=createdTime`;
 
   const pdfRes = await fetch(pdfUrl, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const pdfData = await pdfRes.json();
-  console.log(`[DriveWatch] Folder ${folderId} PDF response:`, JSON.stringify(pdfData).substring(0, 500));
   if (pdfData.files) {
     pdfs.push(...pdfData.files);
   }
 
-  // Find subfolders and recurse
   const folderQuery = `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const folderUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(folderQuery)}&fields=files(id,name)`;
 
@@ -122,47 +130,93 @@ async function listPdfsRecursively(
 }
 
 // ---------------------------------------------------------------------------
-// Create Asana task for a signed document
+// Lookup PW_Visibility field from a task's custom fields
 // ---------------------------------------------------------------------------
-async function createAsanaTask(
-  projectGid: string,
+async function lookupVisibilityField(
+  taskGid: string,
+  asanaToken: string,
+): Promise<{ fieldGid: string; internalOnlyGid: string } | null> {
+  const res = await fetch(`${ASANA_BASE_URL}/tasks/${taskGid}?opt_fields=custom_fields`, {
+    headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  const cfs = json.data?.custom_fields || [];
+  const visField = cfs.find(
+    (cf: any) => cf.name === "PW_Visibility" || cf.name?.toLowerCase().includes("visibility"),
+  );
+  if (!visField || !visField.enum_options) return null;
+  const internalOpt = visField.enum_options.find((o: any) => o.name === "Internal Only");
+  if (!internalOpt) return null;
+  return { fieldGid: visField.gid, internalOnlyGid: internalOpt.gid };
+}
+
+// ---------------------------------------------------------------------------
+// Create Asana subtask under a parent task
+// ---------------------------------------------------------------------------
+async function createAsanaSubtask(
+  parentTaskGid: string,
+  projectGid: string | null,
   contactName: string,
   fileName: string,
+  fileUrl: string,
+  asanaToken: string,
 ): Promise<boolean> {
-  const asanaToken = Deno.env.get("ASANA_ACCESS_TOKEN");
-  if (!asanaToken) {
-    console.error("[DriveWatch] ASANA_ACCESS_TOKEN not configured");
-    return false;
-  }
-
   const today = new Date().toISOString().split("T")[0];
+  const notes = `A signed PDF "${fileName}" was detected in ${contactName}'s Google Drive folder on ${today}.\n\nDocument: ${fileUrl}\n\nNext steps:\n- Review the document\n- File to SideDrawer (when ready)\n- Confirm with client`;
 
   try {
-    const res = await fetch(`${ASANA_BASE_URL}/tasks`, {
+    // Step 1: Create subtask
+    const res = await fetch(`${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${asanaToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        data: {
-          name: `📄 Signed document received: ${fileName}`,
-          notes: `A signed PDF "${fileName}" was detected in ${contactName}'s Google Drive folder on ${today}.\n\nNext steps:\n- Review the document\n- File to SideDrawer (when ready)\n- Confirm with client`,
-          projects: [projectGid],
-          due_on: today,
-        },
-      }),
+      headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ data: { name: `📄 Signed document received: ${fileName}`, notes, due_on: today } }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      console.error(`[DriveWatch] Asana task creation failed [${res.status}]:`, err);
+      console.error(`[DriveWatch] Subtask creation failed [${res.status}]:`, err);
       return false;
     }
-    await res.json();
+    const subtask = (await res.json()).data;
+    if (!subtask?.gid) return false;
+
+    console.log(`[DriveWatch] Created subtask ${subtask.gid} under parent ${parentTaskGid}`);
+
+    // Step 2: Add to project so custom fields are available
+    if (projectGid) {
+      const addRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}/addProject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { project: projectGid } }),
+      });
+      if (addRes.ok) {
+        console.log(`[DriveWatch] Subtask added to project ${projectGid}`);
+      } else {
+        console.warn(`[DriveWatch] Failed to add subtask to project:`, await addRes.text());
+      }
+    }
+
+    // Step 3: Set PW_Visibility to Internal Only
+    const visInfo = await lookupVisibilityField(parentTaskGid, asanaToken);
+    if (visInfo) {
+      const cfRes = await fetch(`${ASANA_BASE_URL}/tasks/${subtask.gid}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { custom_fields: { [visInfo.fieldGid]: visInfo.internalOnlyGid } } }),
+      });
+      if (cfRes.ok) {
+        console.log(`[DriveWatch] Set visibility to Internal Only on subtask ${subtask.gid}`);
+      } else {
+        console.warn(`[DriveWatch] Failed to set visibility:`, await cfRes.text());
+      }
+    } else {
+      console.warn(`[DriveWatch] Could not find PW_Visibility field on parent ${parentTaskGid}`);
+    }
+
     return true;
   } catch (e) {
-    console.error("[DriveWatch] Asana task creation error:", e);
+    console.error("[DriveWatch] Subtask creation error:", e);
     return false;
   }
 }
@@ -171,20 +225,24 @@ async function createAsanaTask(
 // Main handler
 // ---------------------------------------------------------------------------
 serve(async (req) => {
-  // This is a cron-invoked function, no CORS needed
   try {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get a valid Google access token
     const accessToken = await getValidGoogleToken(supabaseAdmin);
     if (!accessToken) {
       return new Response(JSON.stringify({ error: "No valid Google token available" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
+        status: 500, headers: { "Content-Type": "application/json" },
       });
     }
 
-    // Get all contacts that have a google_drive_url set
+    const asanaToken = Deno.env.get("ASANA_ACCESS_TOKEN");
+    if (!asanaToken) {
+      return new Response(JSON.stringify({ error: "ASANA_ACCESS_TOKEN not configured" }), {
+        status: 500, headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Get all contacts with a google_drive_url
     const { data: contacts, error: contactsError } = await supabaseAdmin
       .from("contacts")
       .select("id, full_name, google_drive_url, asana_url")
@@ -194,93 +252,111 @@ serve(async (req) => {
     if (contactsError) {
       console.error("[DriveWatch] Error fetching contacts:", contactsError);
       return new Response(JSON.stringify({ error: "Failed to fetch contacts" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
+        status: 500, headers: { "Content-Type": "application/json" },
       });
     }
 
     if (!contacts || contacts.length === 0) {
       return new Response(JSON.stringify({ message: "No contacts with Drive folders" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
+        status: 200, headers: { "Content-Type": "application/json" },
       });
     }
 
-    let totalNewFiles = 0;
-    const results: Array<{ contact: string; newFiles: number }> = [];
-
+    // -----------------------------------------------------------------------
+    // Deduplicate: group contacts by folder ID so shared folders are scanned once
+    // -----------------------------------------------------------------------
+    const folderMap = new Map<string, typeof contacts>();
     for (const contact of contacts) {
       const folderId = extractFolderId(contact.google_drive_url);
       if (!folderId) {
         console.warn(`[DriveWatch] Could not extract folder ID for ${contact.full_name}: ${contact.google_drive_url}`);
         continue;
       }
+      if (!folderMap.has(folderId)) {
+        folderMap.set(folderId, []);
+      }
+      folderMap.get(folderId)!.push(contact);
+    }
 
-      // Get or create watch state for this contact
-      const { data: watchState } = await supabaseAdmin
-        .from("drive_watch_state")
-        .select("*")
-        .eq("contact_id", contact.id)
-        .maybeSingle();
+    let totalNewFiles = 0;
+    const results: Array<{ contact: string; newFiles: number }> = [];
 
-      const lastChecked = watchState?.last_checked_at || new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    for (const [folderId, folderContacts] of folderMap.entries()) {
+      // Use the earliest last_checked_at among contacts sharing this folder
+      let earliestChecked = new Date().toISOString();
+      const watchStates: Record<string, any> = {};
+
+      for (const contact of folderContacts) {
+        const { data: ws } = await supabaseAdmin
+          .from("drive_watch_state")
+          .select("*")
+          .eq("contact_id", contact.id)
+          .maybeSingle();
+        watchStates[contact.id] = ws;
+        const lastChecked = ws?.last_checked_at || new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        if (lastChecked < earliestChecked) earliestChecked = lastChecked;
+      }
 
       try {
-        // Recursively find new PDFs
-        const newPdfs = await listPdfsRecursively(accessToken, folderId, lastChecked);
+        const newPdfs = await listPdfsRecursively(accessToken, folderId, earliestChecked);
 
         if (newPdfs.length > 0) {
-          console.log(`[DriveWatch] Found ${newPdfs.length} new PDF(s) for ${contact.full_name}`);
+          console.log(`[DriveWatch] Found ${newPdfs.length} new PDF(s) in folder ${folderId} (shared by ${folderContacts.map(c => c.full_name).join(", ")})`);
 
-          const projectGid = extractProjectGid(contact.asana_url);
+          // Pick one primary contact for the subtask (first one with a valid task GID)
+          let primaryContact = folderContacts.find(c => extractTaskGid(c.asana_url));
+          if (!primaryContact) primaryContact = folderContacts[0];
+
+          const parentTaskGid = extractTaskGid(primaryContact.asana_url);
+          const projectGid = extractProjectGid(primaryContact.asana_url);
 
           for (const pdf of newPdfs) {
-            // Create Asana task if contact has an Asana project
-            if (projectGid) {
-              await createAsanaTask(projectGid, contact.full_name, pdf.name);
+            const fileUrl = pdf.webViewLink || `https://drive.google.com/file/d/${pdf.id}/view`;
+
+            // Create ONE Asana subtask (not per-contact)
+            if (parentTaskGid) {
+              await createAsanaSubtask(parentTaskGid, projectGid, primaryContact.full_name, pdf.name, fileUrl, asanaToken);
+            } else {
+              console.warn(`[DriveWatch] No Asana parent task for ${primaryContact.full_name}, skipping subtask`);
             }
 
-            // Create staff notification
+            // Create ONE staff notification (for primary contact)
             await supabaseAdmin.from("staff_notifications").insert({
               title: `📄 Signed document: ${pdf.name}`,
-              body: `New PDF detected in ${contact.full_name}'s Google Drive folder.`,
+              body: `New PDF detected in ${primaryContact.full_name}'s Google Drive folder.`,
               source_type: "drive_watch",
-              contact_id: contact.id,
-              link: `/contacts/${contact.id}`,
+              contact_id: primaryContact.id,
+              link: `/contacts/${primaryContact.id}`,
             });
           }
 
           totalNewFiles += newPdfs.length;
-          results.push({ contact: contact.full_name, newFiles: newPdfs.length });
+          results.push({ contact: primaryContact.full_name, newFiles: newPdfs.length });
         }
 
-        // Update watch state
-        await supabaseAdmin
-          .from("drive_watch_state")
-          .upsert(
-            {
-              contact_id: contact.id,
-              last_checked_at: new Date().toISOString(),
-              last_file_found_at: newPdfs.length > 0 ? new Date().toISOString() : (watchState?.last_file_found_at || null),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "contact_id" }
-          );
+        // Update watch state for ALL contacts sharing this folder
+        for (const contact of folderContacts) {
+          await supabaseAdmin
+            .from("drive_watch_state")
+            .upsert(
+              {
+                contact_id: contact.id,
+                last_checked_at: new Date().toISOString(),
+                last_file_found_at: newPdfs.length > 0 ? new Date().toISOString() : (watchStates[contact.id]?.last_file_found_at || null),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "contact_id" },
+            );
+        }
       } catch (driveErr) {
-        console.error(`[DriveWatch] Error scanning Drive for ${contact.full_name}:`, driveErr);
-        // Continue with next contact
+        console.error(`[DriveWatch] Error scanning folder ${folderId}:`, driveErr);
       }
     }
 
-    console.log(`[DriveWatch] Scan complete. ${totalNewFiles} new file(s) found across ${contacts.length} contacts.`);
+    console.log(`[DriveWatch] Scan complete. ${totalNewFiles} new file(s) found across ${folderMap.size} folders.`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        contactsScanned: contacts.length,
-        totalNewFiles,
-        results,
-      }),
+      JSON.stringify({ success: true, foldersScanned: folderMap.size, contactsScanned: contacts.length, totalNewFiles, results }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (e) {

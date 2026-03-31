@@ -1,0 +1,1 @@
+UPDATE drive_watch_state SET last_checked_at = now() - interval '24 hours' WHERE contact_id IN ('e46f46ec-6dfb-4fe2-9700-b50d4ee03c43', 'fe7f7ba3-06e6-4040-812d-4a027bbe853d');
