@@ -20,18 +20,34 @@ Deno.serve(async (req) => {
       tenantIdLength: SD_TENANT_ID?.length,
     };
 
-    // Derive tenant gateway URL
-    const url = new URL(SD_BASE_URL);
-    url.hostname = url.hostname.replace(/^api/, "tenants-gateway-api");
-    const gatewayUrl = url.origin;
+    // Try multiple gateway URL patterns
+    const gatewayUrls = [
+      "https://tenants-gateway-api-sbx.sidedrawersbx.com",
+      "https://tenants-gateway-prosperwisesbx.sidedrawersbx.com",
+      "https://prosperwisesbx.sidedrawersbx.com",
+      `${SD_BASE_URL.replace(/\/$/, "")}`,
+    ];
 
-    const tokenUrl = `${gatewayUrl}/api/v1/developers/tenant/tenant-id/${SD_TENANT_ID}/applications/client-id/${SD_CLIENT_ID}/developer-login`;
-    console.log("Token URL:", tokenUrl);
+    const results: any[] = [];
+    for (const gw of gatewayUrls) {
+      const tokenUrl = `${gw}/api/v1/developers/tenant/tenant-id/${SD_TENANT_ID}/applications/client-id/${SD_CLIENT_ID}/developer-login`;
+      try {
+        const res = await fetch(tokenUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "User-Agent": "ProsperWise/1.0" },
+          body: JSON.stringify({ clientSecret: SD_CLIENT_SECRET }),
+        });
+        const body = await res.text();
+        results.push({ gateway: gw, status: res.status, body: body.substring(0, 300) });
+        if (res.status === 200 || res.status === 201) break;
+      } catch (e) {
+        results.push({ gateway: gw, error: e.message });
+      }
+    }
 
-    const tokenRes = await fetch(tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": "ProsperWise/1.0" },
-      body: JSON.stringify({ clientSecret: SD_CLIENT_SECRET }),
+    return new Response(JSON.stringify({ ...info, results }, null, 2), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
     const tokenStatus = tokenRes.status;
