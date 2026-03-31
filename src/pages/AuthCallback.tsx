@@ -15,8 +15,28 @@ const AuthCallback = () => {
   const hasAuthHash = window.location.hash?.includes("access_token");
 
   useEffect(() => {
+    // No auth hash — check for existing session
     if (!hasAuthHash) {
-      setReady(true);
+      (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email && !isAllowedDomain(session.user.email)) {
+          // Non-staff user with existing session → route to portal
+          try {
+            const resp = await supabase.functions.invoke("portal-otp", {
+              body: { action: "google-auth", email: session.user.email },
+            });
+            if (!resp.error && resp.data && !resp.data.error) {
+              sessionStorage.setItem("portal_google_auth", JSON.stringify(resp.data));
+              setDestination("/portal");
+            } else {
+              setDestination("/access-denied");
+            }
+          } catch {
+            setDestination("/access-denied");
+          }
+        }
+        setReady(true);
+      })();
       return;
     }
 
