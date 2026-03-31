@@ -576,6 +576,41 @@ export type Database = {
           },
         ]
       }
+      drive_watch_state: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          last_checked_at: string
+          last_file_found_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          last_checked_at?: string
+          last_file_found_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          last_checked_at?: string
+          last_file_found_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_watch_state_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       families: {
         Row: {
           annual_savings: number
