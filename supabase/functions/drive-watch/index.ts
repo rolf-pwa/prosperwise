@@ -163,14 +163,14 @@ async function createAsanaSubtask(
   asanaToken: string,
 ): Promise<boolean> {
   const today = new Date().toISOString().split("T")[0];
-  const notes = `A signed PDF "${fileName}" was detected in ${contactName}'s Google Drive folder on ${today}.\n\nDocument: ${fileUrl}\n\nNext steps:\n- Review the document\n- File to SideDrawer (when ready)\n- Confirm with client`;
+  const htmlNotes = `<body><p>A signed PDF "${fileName}" was detected in ${contactName}'s Google Drive folder on ${today}.</p><p><strong>Document:</strong> <a href="${fileUrl}">${fileName}</a></p><p>Next steps:</p><ul><li>Review the document</li><li>File to SideDrawer (when ready)</li><li>Confirm with client</li></ul></body>`;
 
   try {
     // Step 1: Create subtask
     const res = await fetch(`${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ data: { name: `📄 Signed document received: ${fileName}`, notes, due_on: today } }),
+      body: JSON.stringify({ data: { name: `📄 Signed document received: ${fileName}`, html_notes: htmlNotes, due_on: today } }),
     });
 
     if (!res.ok) {
