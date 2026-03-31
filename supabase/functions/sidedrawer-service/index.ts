@@ -16,11 +16,23 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-// SideDrawer Tenant Gateway (CA region for PIPEDA)
-const SD_BASE_URL = Deno.env.get("SIDEDRAWER_BASE_URL") || "https://api.ca.sidedrawer.com";
+// SideDrawer config
+const SD_BASE_URL = Deno.env.get("SIDEDRAWER_BASE_URL") || "https://api-sbx.sidedrawersbx.com";
 const SD_CLIENT_ID = Deno.env.get("SIDEDRAWER_CLIENT_ID");
 const SD_CLIENT_SECRET = Deno.env.get("SIDEDRAWER_CLIENT_SECRET");
 const SD_TENANT_ID = Deno.env.get("SIDEDRAWER_TENANT_ID");
+
+// Derive tenant gateway URL from base URL (e.g. api-sbx.sidedrawersbx.com → tenants-gateway-api-sbx.sidedrawersbx.com)
+function getTenantGatewayUrl(): string {
+  try {
+    const url = new URL(SD_BASE_URL);
+    // Replace "api" prefix with "tenants-gateway-api" in hostname
+    url.hostname = url.hostname.replace(/^api/, "tenants-gateway-api");
+    return url.origin;
+  } catch {
+    return "https://tenants-gateway-api-sbx.sidedrawersbx.com";
+  }
+}
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
@@ -29,18 +41,19 @@ async function getAccessToken(): Promise<string> {
     return cachedToken.token;
   }
 
-  if (!SD_CLIENT_ID || !SD_CLIENT_SECRET) {
-    throw new Error("SideDrawer credentials not configured. Add SIDEDRAWER_CLIENT_ID and SIDEDRAWER_CLIENT_SECRET.");
+  if (!SD_CLIENT_ID || !SD_CLIENT_SECRET || !SD_TENANT_ID) {
+    throw new Error("SideDrawer credentials not configured. Add SIDEDRAWER_CLIENT_ID, SIDEDRAWER_CLIENT_SECRET, and SIDEDRAWER_TENANT_ID.");
   }
 
-  const tokenRes = await fetch(`${SD_BASE_URL}/api/v2/auth/tenant-gateway/token`, {
+  const gatewayUrl = getTenantGatewayUrl();
+  const tokenUrl = `${gatewayUrl}/api/v1/developers/tenant/tenant-id/${SD_TENANT_ID}/applications/client-id/${SD_CLIENT_ID}/developer-login`;
+
+  console.log(`[SideDrawer] Requesting token from: ${tokenUrl}`);
+
+  const tokenRes = await fetch(tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: SD_CLIENT_ID,
-      client_secret: SD_CLIENT_SECRET,
-      grant_type: "client_credentials",
-    }),
+    body: JSON.stringify({ clientSecret: SD_CLIENT_SECRET }),
   });
 
   if (!tokenRes.ok) {
@@ -49,9 +62,14 @@ async function getAccessToken(): Promise<string> {
   }
 
   const tokenData = await tokenRes.json();
+  const accessToken = tokenData.access_token || tokenData.token || tokenData.accessToken;
+  if (!accessToken) {
+    throw new Error(`SideDrawer auth: no token in response: ${JSON.stringify(tokenData).substring(0, 200)}`);
+  }
+
   cachedToken = {
-    token: tokenData.access_token,
-    expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+    token: accessToken,
+    expiresAt: Date.now() + (tokenData.expires_in || tokenData.expiresIn || 3600) * 1000,
   };
   return cachedToken.token;
 }
@@ -61,7 +79,6 @@ async function sdFetch(path: string, options: RequestInit = {}): Promise<Respons
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
-    ...(SD_TENANT_ID ? { "x-tenant-id": SD_TENANT_ID } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
   return fetch(`${SD_BASE_URL}${path}`, { ...options, headers });
@@ -69,8 +86,8 @@ async function sdFetch(path: string, options: RequestInit = {}): Promise<Respons
 
 // Extract SideDrawer record ID from a sidedrawer_url
 function extractRecordId(sidedrawerUrl: string): string | null {
-  // Pattern: https://prosperwise.sidedrawer.com/sidedrawer/<id>
-  const match = sidedrawerUrl.match(/sidedrawer\/([a-zA-Z0-9-]+)/);
+  // Pattern: https://prosperwise.sidedrawer.com/core/home/<id>/...
+  const match = sidedrawerUrl.match(/(?:sidedrawer|home)\/([a-f0-9]{24})/);
   return match ? match[1] : null;
 }
 
@@ -103,9 +120,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    // Domain verification: only @prosperwise.ca staff can access SideDrawer
     if (!user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
-      console.warn(`[SideDrawer] Domain check failed for ${user.email}`);
       return new Response(JSON.stringify({ error: "Access denied: unauthorized domain" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,8 +130,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, sidedrawerUrl, ...params } = body;
 
-    // Check credentials are configured
-    if (!SD_CLIENT_ID || !SD_CLIENT_SECRET) {
+    if (!SD_CLIENT_ID || !SD_CLIENT_SECRET || !SD_TENANT_ID) {
       return new Response(
         JSON.stringify({
           error: "SideDrawer credentials not configured",
@@ -129,49 +143,69 @@ Deno.serve(async (req) => {
     let result: any;
 
     switch (action) {
-      // ── Browse: list drawers / folders / records ──
+      // ── Get drawer info ──
       case "getRecord": {
-        const recordId = extractRecordId(sidedrawerUrl) || params.recordId;
-        if (!recordId) throw new Error("No SideDrawer record ID found");
-        const res = await sdFetch(`/api/v2/sidedrawer/${recordId}`);
+        const sdId = extractRecordId(sidedrawerUrl) || params.recordId;
+        if (!sdId) throw new Error("No SideDrawer ID found");
+        const res = await sdFetch(`/api/v1/records/sidedrawer/sidedrawer-id/${sdId}`);
         if (!res.ok) throw new Error(`getRecord failed [${res.status}]: ${await res.text()}`);
         result = await res.json();
         break;
       }
 
-      case "listDrawers": {
-        const recordId = extractRecordId(sidedrawerUrl) || params.recordId;
-        if (!recordId) throw new Error("No SideDrawer record ID found");
-        const res = await sdFetch(`/api/v2/sidedrawer/${recordId}/records`);
-        if (!res.ok) throw new Error(`listDrawers failed [${res.status}]: ${await res.text()}`);
+      // ── List folders (records) in a drawer ──
+      case "listDrawers":
+      case "listFolders": {
+        const sdId = extractRecordId(sidedrawerUrl) || params.recordId;
+        if (!sdId) throw new Error("No SideDrawer ID found");
+        const res = await sdFetch(`/api/v1/records/sidedrawer/sidedrawer-id/${sdId}/records`);
+        if (!res.ok) throw new Error(`listFolders failed [${res.status}]: ${await res.text()}`);
         result = await res.json();
         break;
       }
 
+      // ── List files in a folder ──
       case "listFiles": {
-        const recordId = extractRecordId(sidedrawerUrl) || params.recordId;
-        const drawerId = params.drawerId;
-        if (!recordId || !drawerId) throw new Error("recordId and drawerId required");
-        const res = await sdFetch(`/api/v2/sidedrawer/${recordId}/records/${drawerId}/files`);
+        const sdId = extractRecordId(sidedrawerUrl) || params.recordId;
+        const folderId = params.folderId || params.drawerId;
+        if (!sdId || !folderId) throw new Error("sidedrawerId and folderId required");
+        const res = await sdFetch(`/api/v2/record-files/sidedrawer/sidedrawer-id/${sdId}/records/record-id/${folderId}/record-files`);
         if (!res.ok) throw new Error(`listFiles failed [${res.status}]: ${await res.text()}`);
         result = await res.json();
         break;
       }
 
-      // ── Upload ──
-      case "getUploadUrl": {
-        const recordId = extractRecordId(sidedrawerUrl) || params.recordId;
-        const drawerId = params.drawerId;
+      // ── Upload file to a folder ──
+      case "uploadFile": {
+        const sdId = extractRecordId(sidedrawerUrl) || params.recordId;
+        const folderId = params.folderId || params.drawerId;
         const fileName = params.fileName;
-        if (!recordId || !drawerId || !fileName) throw new Error("recordId, drawerId, fileName required");
-        const res = await sdFetch(
-          `/api/v2/sidedrawer/${recordId}/records/${drawerId}/files/upload-url`,
-          {
-            method: "POST",
-            body: JSON.stringify({ file_name: fileName }),
+        const fileContent = params.fileContent; // base64 encoded
+        if (!sdId || !folderId || !fileName) throw new Error("sidedrawerId, folderId, and fileName required");
+
+        const token = await getAccessToken();
+        const formData = new FormData();
+
+        if (fileContent) {
+          // Decode base64 file content
+          const binaryStr = atob(fileContent);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
           }
-        );
-        if (!res.ok) throw new Error(`getUploadUrl failed [${res.status}]: ${await res.text()}`);
+          const blob = new Blob([bytes], { type: "application/pdf" });
+          formData.append("file", blob, fileName);
+        }
+
+        const uploadUrl = `${SD_BASE_URL}/api/v2/record-files/sidedrawer/sidedrawer-id/${sdId}/records/record-id/${folderId}/record-files`;
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        if (!res.ok) throw new Error(`uploadFile failed [${res.status}]: ${await res.text()}`);
         result = await res.json();
         break;
       }
@@ -180,7 +214,7 @@ Deno.serve(async (req) => {
       case "createSideDrawer": {
         const { name, ownerEmail } = params;
         if (!name) throw new Error("name required for provisioning");
-        const res = await sdFetch(`/api/v2/sidedrawer`, {
+        const res = await sdFetch(`/api/v1/records/sidedrawer`, {
           method: "POST",
           body: JSON.stringify({
             name,
@@ -194,10 +228,10 @@ Deno.serve(async (req) => {
 
       // ── Collaborators ──
       case "addCollaborator": {
-        const recordId = extractRecordId(sidedrawerUrl) || params.recordId;
+        const sdId = extractRecordId(sidedrawerUrl) || params.recordId;
         const { email, role } = params;
-        if (!recordId || !email) throw new Error("recordId and email required");
-        const res = await sdFetch(`/api/v2/sidedrawer/${recordId}/collaborators`, {
+        if (!sdId || !email) throw new Error("sidedrawerId and email required");
+        const res = await sdFetch(`/api/v1/records/sidedrawer/sidedrawer-id/${sdId}/collaborators`, {
           method: "POST",
           body: JSON.stringify({ email, role: role || "viewer" }),
         });
@@ -207,9 +241,9 @@ Deno.serve(async (req) => {
       }
 
       case "listCollaborators": {
-        const recordId = extractRecordId(sidedrawerUrl) || params.recordId;
-        if (!recordId) throw new Error("recordId required");
-        const res = await sdFetch(`/api/v2/sidedrawer/${recordId}/collaborators`);
+        const sdId = extractRecordId(sidedrawerUrl) || params.recordId;
+        if (!sdId) throw new Error("sidedrawerId required");
+        const res = await sdFetch(`/api/v1/records/sidedrawer/sidedrawer-id/${sdId}/collaborators`);
         if (!res.ok) throw new Error(`listCollaborators failed [${res.status}]: ${await res.text()}`);
         result = await res.json();
         break;
