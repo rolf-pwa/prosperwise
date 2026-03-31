@@ -228,16 +228,18 @@ const Contacts = () => {
                     <Badge variant="outline" className="text-xs uppercase">
                       {c.fiduciary_entity}
                     </Badge>
-                    <Badge
-                      variant={c.governance_status === "sovereign" ? "default" : "secondary"}
-                      className={
-                        c.governance_status === "sovereign"
-                          ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
-                          : ""
-                      }
-                    >
-                      {c.governance_status === "sovereign" ? "Sovereign" : "Stabilization"}
-                    </Badge>
+                    {c.governance_status !== "none" && (
+                      <Badge
+                        variant={c.governance_status === "sovereign" ? "default" : "secondary"}
+                        className={
+                          c.governance_status === "sovereign"
+                            ? "bg-sanctuary-bronze/20 text-sanctuary-bronze border-sanctuary-bronze/30"
+                            : ""
+                        }
+                      >
+                        {c.governance_status === "sovereign" ? "Sovereign" : "Stabilization"}
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
