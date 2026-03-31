@@ -49,10 +49,6 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
-    const tokenStatus = tokenRes.status;
-    const tokenBody = await tokenRes.text();
-
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
