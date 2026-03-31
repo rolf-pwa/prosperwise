@@ -98,6 +98,7 @@ async function listPdfsRecursively(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const pdfData = await pdfRes.json();
+  console.log(`[DriveWatch] Folder ${folderId} PDF response:`, JSON.stringify(pdfData).substring(0, 500));
   if (pdfData.files) {
     pdfs.push(...pdfData.files);
   }
