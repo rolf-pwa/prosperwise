@@ -222,7 +222,7 @@ const ContactForm = () => {
       phone: form.phone || null,
       address: form.address || null,
       family_role: form.family_role,
-      governance_status: form.governance_status,
+      governance_status: form.governance_status === "none" ? "stabilization" : form.governance_status,
       fiduciary_entity: form.fiduciary_entity,
       lawyer_name: form.lawyer_name || null,
       lawyer_firm: form.lawyer_firm || null,
