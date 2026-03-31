@@ -392,7 +392,34 @@ const ContactForm = () => {
           </CardContent>
         </Card>
 
-        {/* Governance is managed at the household level */}
+        {/* Governance & Sovereignty */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Governance & Sovereignty</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Sovereignty Status</Label>
+              <Select value={form.governance_status} onValueChange={(v) => update("governance_status", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stabilization">Stabilization</SelectItem>
+                  <SelectItem value="sovereign">Sovereign</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Fiduciary Entity</Label>
+              <Select value={form.fiduciary_entity} onValueChange={(v) => update("fiduciary_entity", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pws">PWS</SelectItem>
+                  <SelectItem value="pwa">PWA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Professional Team */}
         <Card>
