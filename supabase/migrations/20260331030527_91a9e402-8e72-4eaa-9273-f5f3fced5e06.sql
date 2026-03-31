@@ -1,0 +1,1 @@
+UPDATE drive_watch_state SET last_checked_at = now() - interval '24 hours';
