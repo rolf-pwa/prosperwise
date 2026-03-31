@@ -53,46 +53,6 @@ Deno.serve(async (req) => {
     const tokenStatus = tokenRes.status;
     const tokenBody = await tokenRes.text();
 
-    if (tokenStatus !== 200) {
-      return new Response(JSON.stringify({ ...info, gatewayUrl, tokenUrl, tokenStatus, tokenError: tokenBody.substring(0, 500) }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const tokenData = JSON.parse(tokenBody);
-    const accessToken = tokenData.access_token || tokenData.token || tokenData.accessToken;
-
-    // Test: get Doreen's drawer
-    const sdId = "69c43763af140c3eaae49322";
-    const recordRes = await fetch(`${SD_BASE_URL}/api/v1/records/sidedrawer/sidedrawer-id/${sdId}`, {
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    });
-
-    const recordStatus = recordRes.status;
-    const recordBody = await recordRes.text();
-
-    // Test: list folders
-    const foldersRes = await fetch(`${SD_BASE_URL}/api/v1/records/sidedrawer/sidedrawer-id/${sdId}/records`, {
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    });
-    const foldersStatus = foldersRes.status;
-    const foldersBody = await foldersRes.text();
-
-    return new Response(JSON.stringify({
-      ...info,
-      gatewayUrl,
-      tokenStatus,
-      hasToken: !!accessToken,
-      tokenKeys: Object.keys(tokenData),
-      recordStatus,
-      record: recordBody.substring(0, 500),
-      foldersStatus,
-      folders: foldersBody.substring(0, 2000),
-    }, null, 2), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
