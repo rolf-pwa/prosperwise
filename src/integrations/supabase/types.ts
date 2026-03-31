@@ -1755,7 +1755,7 @@ export type Database = {
         | "head_of_household"
       fee_tier: "sovereign" | "legacy" | "dynasty"
       fiduciary_entity: "pws" | "pwa"
-      governance_status: "stabilization" | "sovereign"
+      governance_status: "stabilization" | "sovereign" | "none"
       pipeline_category: "pws_consulting" | "new_aum" | "insurance"
       pipeline_status: "pending" | "in_process" | "completed"
       review_status: "pending" | "approved" | "rejected" | "escalated"
@@ -1900,7 +1900,7 @@ export const Constants = {
       ],
       fee_tier: ["sovereign", "legacy", "dynasty"],
       fiduciary_entity: ["pws", "pwa"],
-      governance_status: ["stabilization", "sovereign"],
+      governance_status: ["stabilization", "sovereign", "none"],
       pipeline_category: ["pws_consulting", "new_aum", "insurance"],
       pipeline_status: ["pending", "in_process", "completed"],
       review_status: ["pending", "approved", "rejected", "escalated"],
