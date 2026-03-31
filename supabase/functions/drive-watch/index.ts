@@ -101,7 +101,7 @@ async function listPdfsRecursively(
 ): Promise<Array<{ id: string; name: string; createdTime: string; webViewLink?: string }>> {
   const pdfs: Array<{ id: string; name: string; createdTime: string; webViewLink?: string }> = [];
 
-  const pdfQuery = `'${folderId}' in parents and mimeType='application/pdf' and createdTime > '${afterTime}' and trashed=false`;
+  const pdfQuery = `'${folderId}' in parents and mimeType='application/pdf' and name contains 'signed' and createdTime > '${afterTime}' and trashed=false`;
   const pdfUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(pdfQuery)}&fields=files(id,name,createdTime,webViewLink)&orderBy=createdTime`;
 
   const pdfRes = await fetch(pdfUrl, {
