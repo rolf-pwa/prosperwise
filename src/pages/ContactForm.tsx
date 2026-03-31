@@ -46,7 +46,7 @@ const ContactForm = () => {
     phone: "",
     address: "",
     family_role: "head_of_family" as "head_of_family" | "spouse" | "beneficiary" | "minor" | "head_of_household",
-    governance_status: "stabilization" as "stabilization" | "sovereign",
+    governance_status: "stabilization" as "stabilization" | "sovereign" | "none",
     fiduciary_entity: "pws" as "pws" | "pwa",
     lawyer_name: "",
     lawyer_firm: "",
@@ -222,7 +222,7 @@ const ContactForm = () => {
       phone: form.phone || null,
       address: form.address || null,
       family_role: form.family_role,
-      governance_status: form.governance_status,
+      governance_status: form.governance_status === "none" ? "stabilization" : form.governance_status,
       fiduciary_entity: form.fiduciary_entity,
       lawyer_name: form.lawyer_name || null,
       lawyer_firm: form.lawyer_firm || null,
@@ -401,8 +401,9 @@ const ContactForm = () => {
             <div>
               <Label>Sovereignty Status</Label>
               <Select value={form.governance_status} onValueChange={(v) => update("governance_status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select status…" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none" className="text-muted-foreground">— None —</SelectItem>
                   <SelectItem value="stabilization">Stabilization</SelectItem>
                   <SelectItem value="sovereign">Sovereign</SelectItem>
                 </SelectContent>
