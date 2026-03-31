@@ -168,7 +168,6 @@ async function createAsanaSubtask(
   try {
     // Step 1: Create subtask
     const taskData = { data: { name: `Signed document received: ${fileName}`, notes, due_on: today } };
-    console.log("[DriveWatch] Subtask request body:", JSON.stringify(taskData));
     const res = await fetch(`${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
