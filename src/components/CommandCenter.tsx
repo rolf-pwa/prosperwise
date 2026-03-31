@@ -606,8 +606,9 @@ function AsanaMyTasksWidget() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        // Use getUser() to force token refresh (getSession returns cached/stale tokens)
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) return;
 
         const contactRes = await supabase
           .from("contacts")
