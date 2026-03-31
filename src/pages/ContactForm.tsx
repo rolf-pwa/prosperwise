@@ -401,8 +401,9 @@ const ContactForm = () => {
             <div>
               <Label>Sovereignty Status</Label>
               <Select value={form.governance_status} onValueChange={(v) => update("governance_status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select status…" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none" className="text-muted-foreground">— None —</SelectItem>
                   <SelectItem value="stabilization">Stabilization</SelectItem>
                   <SelectItem value="sovereign">Sovereign</SelectItem>
                 </SelectContent>
