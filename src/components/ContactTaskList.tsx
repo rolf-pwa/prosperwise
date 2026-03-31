@@ -1616,11 +1616,13 @@ function TaskDetailPanel({
             className="text-sm"
           />
         ) : (
-          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm whitespace-pre-wrap min-h-[60px]">
-            {task.notes || (
-              <span className="text-muted-foreground italic">No notes</span>
-            )}
-          </div>
+            <div className="rounded-md bg-muted/50 px-3 py-2 text-sm whitespace-pre-wrap min-h-[60px]">
+              {task.notes ? (
+                <Linkify>{task.notes}</Linkify>
+              ) : (
+                <span className="text-muted-foreground italic">No notes</span>
+              )}
+            </div>
         )}
       </div>
 
