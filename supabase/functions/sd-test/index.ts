@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     const tokenRes = await fetch(tokenUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "User-Agent": "ProsperWise/1.0" },
       body: JSON.stringify({ clientSecret: SD_CLIENT_SECRET }),
     });
 
