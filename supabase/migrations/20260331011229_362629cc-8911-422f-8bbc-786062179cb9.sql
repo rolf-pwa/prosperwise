@@ -1,0 +1,1 @@
+ALTER TYPE public.governance_status ADD VALUE IF NOT EXISTS 'none';
