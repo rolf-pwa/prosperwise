@@ -46,7 +46,7 @@ const ContactForm = () => {
     phone: "",
     address: "",
     family_role: "head_of_family" as "head_of_family" | "spouse" | "beneficiary" | "minor" | "head_of_household",
-    governance_status: "stabilization" as "stabilization" | "sovereign",
+    governance_status: "stabilization" as "stabilization" | "sovereign" | "none",
     fiduciary_entity: "pws" as "pws" | "pwa",
     lawyer_name: "",
     lawyer_firm: "",
