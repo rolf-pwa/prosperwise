@@ -425,49 +425,6 @@ export default function DiscoveryEmbed() {
             </button>
           </div>
 
-          {/* Quick-action buttons */}
-          <div className="mx-auto mt-3 grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              { label: "FOUNDER", text: "Audit my Structural Friction." },
-              { label: "SUCCESSOR", text: "Start a 90-Day Quiet Period." },
-              { label: "PRIVACY", text: "How is my data secured?" },
-              { label: "METHODOLOGY", text: "What is a Sovereignty Charter?" },
-            ].map(({ label, text }) => (
-              <button
-                key={label}
-                onClick={() => {
-                  setInput(text);
-                  setTimeout(() => {
-                    const userMsg: Message = { role: "user", content: text };
-                    const newMessages = [...messages, userMsg];
-                    setMessages(newMessages);
-                    setInput("");
-                    sendToGeorgia(newMessages);
-                  }, 50);
-                }}
-                disabled={isLoading}
-                className="group flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left transition-all disabled:opacity-40"
-                style={{
-                  backgroundColor: C.green,
-                  border: `1px solid ${C.border}`,
-                }}
-              >
-                <span
-                  className="text-[10px] font-bold uppercase tracking-widest"
-                  style={{ color: C.bronze }}
-                >
-                  {label}
-                </span>
-                <span
-                  className="text-xs leading-snug"
-                  style={{ color: C.vellum }}
-                >
-                  {text}
-                </span>
-              </button>
-            ))}
-          </div>
-
           <p className="mx-auto mt-3 max-w-3xl text-center text-[10px] tracking-wide" style={{ color: C.bronze }}>
             Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
           </p>
