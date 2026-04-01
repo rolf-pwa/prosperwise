@@ -335,6 +335,9 @@ serve(async (req) => {
       // Mark as verified
       await supabase.from("portal_otps").update({ verified: true }).eq("id", otp.id);
 
+      // Log portal login
+      await supabase.from("portal_logins").insert({ contact_id: otp.contact_id, login_method: "otp" });
+
       const contactId = otp.contact_id;
 
       // Create a portal token so the client can use it for subsequent API calls
@@ -453,6 +456,9 @@ serve(async (req) => {
           status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      // Log portal login
+      await supabase.from("portal_logins").insert({ contact_id: contact.id, login_method: "google" });
 
       // Create a portal token for the session
       const { data: newToken } = await supabase

@@ -28,6 +28,7 @@ import {
   Anchor,
   PackagePlus,
   NotebookPen,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -75,6 +76,7 @@ const navItems = [
   { to: "/recaps", label: "Daily Recaps", icon: NotebookPen },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/content-hub", label: "Content Hub", icon: PenLine },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/workbench", label: "Workbench", icon: Cpu },
   { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
