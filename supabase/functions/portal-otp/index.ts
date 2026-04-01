@@ -457,6 +457,9 @@ serve(async (req) => {
         });
       }
 
+      // Log portal login
+      await supabase.from("portal_logins").insert({ contact_id: contact.id, login_method: "google" });
+
       // Create a portal token for the session
       const { data: newToken } = await supabase
         .from("portal_tokens")
