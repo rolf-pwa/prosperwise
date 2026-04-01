@@ -28,6 +28,7 @@ import {
   Anchor,
   PackagePlus,
   NotebookPen,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
