@@ -84,6 +84,23 @@ const Analytics = () => {
 
   const sentUpdates = useMemo(() => updates.filter((u) => u.sent), [updates]);
 
+  // Count recipients per update based on targeting rules
+  const getRecipientCount = (u: MarketingUpdate): number => {
+    const tContactIds = u.target_contact_ids || [];
+    const tHouseholdIds = u.target_household_ids || [];
+    if (tContactIds.length > 0) return tContactIds.length;
+    if (tHouseholdIds.length > 0) {
+      return contacts.filter((c) => c.household_id && tHouseholdIds.includes(c.household_id)).length;
+    }
+    if (u.target_governance_status === "all") return contacts.length;
+    return contacts.filter((c) => c.governance_status === u.target_governance_status).length;
+  };
+
+  const totalSends = useMemo(
+    () => sentUpdates.reduce((sum, u) => sum + getRecipientCount(u), 0),
+    [sentUpdates, contacts]
+  );
+
   // Build time-series buckets
   const buckets = useMemo(() => {
     const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
