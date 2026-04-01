@@ -358,7 +358,10 @@ const Analytics = () => {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Updates Sent</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{loading ? "—" : sentUpdates.length}</p>
+                  <p className="text-3xl font-bold">{loading ? "—" : totalSends}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    across {sentUpdates.length} update{sentUpdates.length !== 1 ? "s" : ""}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
