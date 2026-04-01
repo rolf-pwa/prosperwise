@@ -204,7 +204,7 @@ export default function Discovery() {
 
       {/* Chat Area */}
       <ScrollArea className="flex-1">
-        <div className="mx-auto max-w-2xl space-y-5 px-6 py-8">
+        <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div
