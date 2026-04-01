@@ -36,6 +36,7 @@ import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
 import BulkOnboarding from "./pages/BulkOnboarding";
 import Recaps from "./pages/Recaps";
+import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
