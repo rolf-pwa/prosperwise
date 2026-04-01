@@ -25,6 +25,8 @@ interface MarketingUpdate {
   sent: boolean;
   created_at: string;
   target_governance_status: string;
+  target_contact_ids: string[] | null;
+  target_household_ids: string[] | null;
 }
 
 interface ReadRecord {
