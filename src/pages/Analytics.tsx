@@ -66,7 +66,7 @@ const Analytics = () => {
       supabase.from("portal_logins" as any).select("*").gte("created_at", rangeStart).order("created_at", { ascending: false }),
       supabase.from("marketing_updates").select("*").order("created_at", { ascending: false }),
       supabase.from("marketing_update_reads").select("*").gte("read_at", rangeStart).order("read_at", { ascending: false }),
-      supabase.from("contacts").select("id, full_name, email"),
+      supabase.from("contacts").select("id, full_name, email, governance_status, household_id"),
     ]).then(([loginsRes, updatesRes, readsRes, contactsRes]) => {
       setLogins((loginsRes.data as any) || []);
       setUpdates(updatesRes.data || []);
