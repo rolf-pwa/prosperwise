@@ -75,6 +75,7 @@ const navItems = [
   { to: "/recaps", label: "Daily Recaps", icon: NotebookPen },
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/content-hub", label: "Content Hub", icon: PenLine },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/workbench", label: "Workbench", icon: Cpu },
   { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
