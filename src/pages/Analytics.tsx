@@ -440,21 +440,27 @@ const Analytics = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Update</TableHead>
-                      <TableHead>Sent</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Recipients</TableHead>
                       <TableHead>Opens</TableHead>
+                      <TableHead>Rate</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sentUpdates.slice(0, 20).map((u) => {
                       const openCount = reads.filter((r) => r.update_id === u.id).length;
+                      const recipientCount = getRecipientCount(u);
+                      const rate = recipientCount > 0 ? Math.round((openCount / recipientCount) * 100) : 0;
                       return (
                         <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDrillUpdate(u)}>
                           <TableCell className="font-medium">{u.title}</TableCell>
                           <TableCell>{format(new Date(u.created_at), "MMM d, yyyy")}</TableCell>
+                          <TableCell>{recipientCount}</TableCell>
                           <TableCell>
                             <Badge variant={openCount > 0 ? "default" : "secondary"}>{openCount}</Badge>
                           </TableCell>
+                          <TableCell className="text-muted-foreground">{rate}%</TableCell>
                           <TableCell className="text-right text-muted-foreground text-xs">View →</TableCell>
                         </TableRow>
                       );
