@@ -371,9 +371,9 @@ const Analytics = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-bold">{loading ? "—" : reads.length}</p>
-                  {sentUpdates.length > 0 && (
+                  {totalSends > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {Math.round((reads.length / Math.max(1, sentUpdates.length)) * 100)}% open rate (avg)
+                      {Math.round((reads.length / totalSends) * 100)}% open rate
                     </p>
                   )}
                 </CardContent>
