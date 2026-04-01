@@ -1086,6 +1086,35 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_logins: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          login_method: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          login_method?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          login_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_logins_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portal_otps: {
         Row: {
           code: string
