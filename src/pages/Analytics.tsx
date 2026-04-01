@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users } from "lucide-react";
+import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { format, subDays, startOfDay, startOfWeek, eachDayOfInterval, eachWeekOfInterval } from "date-fns";
 
 type TimeRange = "7d" | "30d" | "90d";
@@ -337,7 +338,9 @@ const Analytics = () => {
               <Button variant="ghost" size="sm" onClick={() => setDrillContact(null)}>
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
-              <h1 className="text-2xl font-bold text-foreground">{drillContact.full_name}</h1>
+              <Link to={`/contacts/${drillContact.id}`} className="text-2xl font-bold text-foreground hover:underline flex items-center gap-2">
+                {drillContact.full_name} <ExternalLink className="h-4 w-4" />
+              </Link>
               {drillContact.email && <span className="text-muted-foreground text-sm">{drillContact.email}</span>}
             </div>
 
