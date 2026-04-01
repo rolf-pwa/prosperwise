@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, Eye, LogIn, Send, ChevronLeft } from "lucide-react";
+import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users } from "lucide-react";
 import { format, subDays, startOfDay, startOfWeek, eachDayOfInterval, eachWeekOfInterval } from "date-fns";
 
 type TimeRange = "7d" | "30d" | "90d";
@@ -49,6 +49,7 @@ const Analytics = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [drillContact, setDrillContact] = useState<Contact | null>(null);
+  const [drillUpdate, setDrillUpdate] = useState<MarketingUpdate | null>(null);
 
   const rangeStart = useMemo(() => {
     const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
@@ -143,7 +144,78 @@ const Analytics = () => {
   return (
     <AppLayout>
       <div className="space-y-6 max-w-6xl">
-        {drillContact ? (
+        {drillUpdate ? (
+          (() => {
+            const updateReads = reads.filter((r) => r.update_id === drillUpdate.id);
+            const readers = updateReads
+              .map((r) => ({ ...r, contact: contactMap[r.contact_id] }))
+              .filter((r) => r.contact)
+              .sort((a, b) => new Date(b.read_at).getTime() - new Date(a.read_at).getTime());
+            return (
+              <>
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={() => setDrillUpdate(null)}>
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                  </Button>
+                  <div>
+                    <h1 className="text-2xl font-bold text-foreground">{drillUpdate.title}</h1>
+                    <p className="text-sm text-muted-foreground">
+                      Sent {format(new Date(drillUpdate.created_at), "MMM d, yyyy")}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2 flex flex-row items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Unique Opens</CardTitle>
+                    </CardHeader>
+                    <CardContent><p className="text-3xl font-bold">{readers.length}</p></CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Audience</CardTitle></CardHeader>
+                    <CardContent>
+                      <Badge variant="secondary" className="capitalize">{drillUpdate.target_governance_status}</Badge>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader><CardTitle className="text-sm">Who Opened</CardTitle></CardHeader>
+                  <CardContent>
+                    {readers.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No one has opened this update yet.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Client</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Opened At</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {readers.map((r) => (
+                            <TableRow
+                              key={r.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => { setDrillUpdate(null); setDrillContact(r.contact!); }}
+                            >
+                              <TableCell className="font-medium">{r.contact!.full_name}</TableCell>
+                              <TableCell className="text-muted-foreground">{r.contact!.email || "—"}</TableCell>
+                              <TableCell>{format(new Date(r.read_at), "MMM d, yyyy h:mm a")}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()
+        ) : drillContact ? (
           <>
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={() => setDrillContact(null)}>
@@ -346,23 +418,25 @@ const Analytics = () => {
                       <TableHead>Update</TableHead>
                       <TableHead>Sent</TableHead>
                       <TableHead>Opens</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sentUpdates.slice(0, 20).map((u) => {
                       const openCount = reads.filter((r) => r.update_id === u.id).length;
                       return (
-                        <TableRow key={u.id}>
+                        <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDrillUpdate(u)}>
                           <TableCell className="font-medium">{u.title}</TableCell>
                           <TableCell>{format(new Date(u.created_at), "MMM d, yyyy")}</TableCell>
                           <TableCell>
                             <Badge variant={openCount > 0 ? "default" : "secondary"}>{openCount}</Badge>
                           </TableCell>
+                          <TableCell className="text-right text-muted-foreground text-xs">View →</TableCell>
                         </TableRow>
                       );
                     })}
                     {sentUpdates.length === 0 && (
-                      <TableRow><TableCell colSpan={3} className="text-muted-foreground text-center">No updates sent yet</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-muted-foreground text-center">No updates sent yet</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
