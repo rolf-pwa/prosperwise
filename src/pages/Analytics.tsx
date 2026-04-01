@@ -25,6 +25,8 @@ interface MarketingUpdate {
   sent: boolean;
   created_at: string;
   target_governance_status: string;
+  target_contact_ids: string[] | null;
+  target_household_ids: string[] | null;
 }
 
 interface ReadRecord {
@@ -38,6 +40,8 @@ interface Contact {
   id: string;
   full_name: string;
   email: string | null;
+  governance_status: string;
+  household_id: string | null;
 }
 
 const Analytics = () => {
@@ -62,7 +66,7 @@ const Analytics = () => {
       supabase.from("portal_logins" as any).select("*").gte("created_at", rangeStart).order("created_at", { ascending: false }),
       supabase.from("marketing_updates").select("*").order("created_at", { ascending: false }),
       supabase.from("marketing_update_reads").select("*").gte("read_at", rangeStart).order("read_at", { ascending: false }),
-      supabase.from("contacts").select("id, full_name, email"),
+      supabase.from("contacts").select("id, full_name, email, governance_status, household_id"),
     ]).then(([loginsRes, updatesRes, readsRes, contactsRes]) => {
       setLogins((loginsRes.data as any) || []);
       setUpdates(updatesRes.data || []);
@@ -79,6 +83,23 @@ const Analytics = () => {
   }, [contacts]);
 
   const sentUpdates = useMemo(() => updates.filter((u) => u.sent), [updates]);
+
+  // Count recipients per update based on targeting rules
+  const getRecipientCount = (u: MarketingUpdate): number => {
+    const tContactIds = u.target_contact_ids || [];
+    const tHouseholdIds = u.target_household_ids || [];
+    if (tContactIds.length > 0) return tContactIds.length;
+    if (tHouseholdIds.length > 0) {
+      return contacts.filter((c) => c.household_id && tHouseholdIds.includes(c.household_id)).length;
+    }
+    if (u.target_governance_status === "all") return contacts.length;
+    return contacts.filter((c) => c.governance_status === u.target_governance_status).length;
+  };
+
+  const totalSends = useMemo(
+    () => sentUpdates.reduce((sum, u) => sum + getRecipientCount(u), 0),
+    [sentUpdates, contacts]
+  );
 
   // Build time-series buckets
   const buckets = useMemo(() => {
@@ -337,7 +358,10 @@ const Analytics = () => {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Updates Sent</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{loading ? "—" : sentUpdates.length}</p>
+                  <p className="text-3xl font-bold">{loading ? "—" : totalSends}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    across {sentUpdates.length} update{sentUpdates.length !== 1 ? "s" : ""}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -347,9 +371,9 @@ const Analytics = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-bold">{loading ? "—" : reads.length}</p>
-                  {sentUpdates.length > 0 && (
+                  {totalSends > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {Math.round((reads.length / Math.max(1, sentUpdates.length)) * 100)}% open rate (avg)
+                      {Math.round((reads.length / totalSends) * 100)}% open rate
                     </p>
                   )}
                 </CardContent>
@@ -416,27 +440,33 @@ const Analytics = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Update</TableHead>
-                      <TableHead>Sent</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Recipients</TableHead>
                       <TableHead>Opens</TableHead>
+                      <TableHead>Rate</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sentUpdates.slice(0, 20).map((u) => {
                       const openCount = reads.filter((r) => r.update_id === u.id).length;
+                      const recipientCount = getRecipientCount(u);
+                      const rate = recipientCount > 0 ? Math.round((openCount / recipientCount) * 100) : 0;
                       return (
                         <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDrillUpdate(u)}>
                           <TableCell className="font-medium">{u.title}</TableCell>
                           <TableCell>{format(new Date(u.created_at), "MMM d, yyyy")}</TableCell>
+                          <TableCell>{recipientCount}</TableCell>
                           <TableCell>
                             <Badge variant={openCount > 0 ? "default" : "secondary"}>{openCount}</Badge>
                           </TableCell>
+                          <TableCell className="text-muted-foreground">{rate}%</TableCell>
                           <TableCell className="text-right text-muted-foreground text-xs">View →</TableCell>
                         </TableRow>
                       );
                     })}
                     {sentUpdates.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-muted-foreground text-center">No updates sent yet</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-muted-foreground text-center">No updates sent yet</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
