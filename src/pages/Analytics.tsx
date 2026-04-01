@@ -49,6 +49,7 @@ const Analytics = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [drillContact, setDrillContact] = useState<Contact | null>(null);
+  const [drillUpdate, setDrillUpdate] = useState<MarketingUpdate | null>(null);
 
   const rangeStart = useMemo(() => {
     const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
