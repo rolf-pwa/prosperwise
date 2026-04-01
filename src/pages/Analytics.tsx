@@ -40,6 +40,8 @@ interface Contact {
   id: string;
   full_name: string;
   email: string | null;
+  governance_status: string;
+  household_id: string | null;
 }
 
 const Analytics = () => {
