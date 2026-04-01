@@ -168,10 +168,27 @@ const Analytics = () => {
         {drillUpdate ? (
           (() => {
             const updateReads = reads.filter((r) => r.update_id === drillUpdate.id);
+            const readContactIds = new Set(updateReads.map((r) => r.contact_id));
             const readers = updateReads
               .map((r) => ({ ...r, contact: contactMap[r.contact_id] }))
               .filter((r) => r.contact)
               .sort((a, b) => new Date(b.read_at).getTime() - new Date(a.read_at).getTime());
+
+            // Compute recipients for this update
+            const tContactIds = drillUpdate.target_contact_ids || [];
+            const tHouseholdIds = drillUpdate.target_household_ids || [];
+            let recipients: Contact[];
+            if (tContactIds.length > 0) {
+              recipients = contacts.filter((c) => tContactIds.includes(c.id));
+            } else if (tHouseholdIds.length > 0) {
+              recipients = contacts.filter((c) => c.household_id && tHouseholdIds.includes(c.household_id));
+            } else if (drillUpdate.target_governance_status === "all") {
+              recipients = contacts;
+            } else {
+              recipients = contacts.filter((c) => c.governance_status === drillUpdate.target_governance_status);
+            }
+            const notOpened = recipients.filter((c) => !readContactIds.has(c.id));
+
             return (
               <>
                 <div className="flex items-center gap-3">
@@ -186,53 +203,131 @@ const Analytics = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <Card>
                     <CardHeader className="pb-2 flex flex-row items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      <CardTitle className="text-sm font-medium text-muted-foreground">Unique Opens</CardTitle>
+                      <Send className="h-4 w-4 text-primary" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Recipients</CardTitle>
                     </CardHeader>
-                    <CardContent><p className="text-3xl font-bold">{readers.length}</p></CardContent>
+                    <CardContent><p className="text-3xl font-bold">{recipients.length}</p></CardContent>
                   </Card>
                   <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Audience</CardTitle></CardHeader>
+                    <CardHeader className="pb-2 flex flex-row items-center gap-2">
+                      <Eye className="h-4 w-4 text-primary" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Opened</CardTitle>
+                    </CardHeader>
                     <CardContent>
-                      <Badge variant="secondary" className="capitalize">{drillUpdate.target_governance_status}</Badge>
+                      <p className="text-3xl font-bold">{readers.length}</p>
+                      {recipients.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {Math.round((readers.length / recipients.length) * 100)}% open rate
+                        </p>
+                      )}
                     </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Not Opened</CardTitle></CardHeader>
+                    <CardContent><p className="text-3xl font-bold">{notOpened.length}</p></CardContent>
                   </Card>
                 </div>
 
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Who Opened</CardTitle></CardHeader>
-                  <CardContent>
-                    {readers.length === 0 ? (
-                      <p className="text-muted-foreground text-sm">No one has opened this update yet.</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Client</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Opened At</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {readers.map((r) => (
-                            <TableRow
-                              key={r.id}
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => { setDrillUpdate(null); setDrillContact(r.contact!); }}
-                            >
-                              <TableCell className="font-medium">{r.contact!.full_name}</TableCell>
-                              <TableCell className="text-muted-foreground">{r.contact!.email || "—"}</TableCell>
-                              <TableCell>{format(new Date(r.read_at), "MMM d, yyyy h:mm a")}</TableCell>
+                <Tabs defaultValue="recipients">
+                  <TabsList>
+                    <TabsTrigger value="recipients">All Recipients ({recipients.length})</TabsTrigger>
+                    <TabsTrigger value="opened">Opened ({readers.length})</TabsTrigger>
+                    <TabsTrigger value="not-opened">Not Opened ({notOpened.length})</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="recipients">
+                    <Card>
+                      <CardContent className="pt-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Client</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Status</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
+                          </TableHeader>
+                          <TableBody>
+                            {recipients.map((c) => {
+                              const readRecord = updateReads.find((r) => r.contact_id === c.id);
+                              return (
+                                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDrillUpdate(null); setDrillContact(c); }}>
+                                  <TableCell className="font-medium">{c.full_name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
+                                  <TableCell>
+                                    {readRecord ? (
+                                      <Badge variant="default">Opened {format(new Date(readRecord.read_at), "MMM d")}</Badge>
+                                    ) : (
+                                      <Badge variant="secondary">Not opened</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="opened">
+                    <Card>
+                      <CardContent className="pt-4">
+                        {readers.length === 0 ? (
+                          <p className="text-muted-foreground text-sm py-4 text-center">No one has opened this update yet.</p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Client</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Opened At</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {readers.map((r) => (
+                                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDrillUpdate(null); setDrillContact(r.contact!); }}>
+                                  <TableCell className="font-medium">{r.contact!.full_name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{r.contact!.email || "—"}</TableCell>
+                                  <TableCell>{format(new Date(r.read_at), "MMM d, yyyy h:mm a")}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="not-opened">
+                    <Card>
+                      <CardContent className="pt-4">
+                        {notOpened.length === 0 ? (
+                          <p className="text-muted-foreground text-sm py-4 text-center">Everyone has opened this update!</p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Client</TableHead>
+                                <TableHead>Email</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {notOpened.map((c) => (
+                                <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDrillUpdate(null); setDrillContact(c); }}>
+                                  <TableCell className="font-medium">{c.full_name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               </>
             );
           })()
