@@ -204,7 +204,7 @@ export default function Discovery() {
 
       {/* Chat Area */}
       <ScrollArea className="flex-1">
-        <div className="mx-auto max-w-2xl space-y-5 px-6 py-8">
+        <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div
@@ -440,7 +440,7 @@ export default function Discovery() {
       {/* Input */}
       {phase === "chat" && (
         <div className="shrink-0 px-6 py-4" style={{ borderTop: "1px solid #D3C5B7", backgroundColor: "#F8F6F2" }}>
-          <div className="mx-auto flex max-w-2xl items-end gap-3">
+          <div className="mx-auto flex max-w-3xl items-end gap-3">
             <textarea
               ref={inputRef}
               value={input}
@@ -467,7 +467,51 @@ export default function Discovery() {
               <Send className="h-4 w-4" style={{ color: "#F8F6F2" }} />
             </button>
           </div>
-          <p className="mx-auto mt-2 max-w-2xl text-center text-[10px] tracking-wide" style={{ color: "#A98C5A" }}>
+
+          {/* Quick-action buttons */}
+          <div className="mx-auto mt-3 grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { label: "FOUNDER", text: "Audit my Structural Friction." },
+              { label: "SUCCESSOR", text: "Start a 90-Day Quiet Period." },
+              { label: "PRIVACY", text: "How is my data secured?" },
+              { label: "METHODOLOGY", text: "What is a Sovereignty Charter?" },
+            ].map(({ label, text }) => (
+              <button
+                key={label}
+                onClick={() => {
+                  setInput(text);
+                  setTimeout(() => {
+                    const userMsg: Message = { role: "user", content: text };
+                    const newMessages = [...messages, userMsg];
+                    setMessages(newMessages);
+                    setInput("");
+                    sendToGeorgia(newMessages);
+                  }, 50);
+                }}
+                disabled={isLoading}
+                className="group flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 text-left transition-all disabled:opacity-40"
+                style={{
+                  backgroundColor: "#2A4034",
+                  border: "1px solid rgba(169,140,90,0.35)",
+                }}
+              >
+                <span
+                  className="text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: "#A98C5A" }}
+                >
+                  {label}
+                </span>
+                <span
+                  className="text-xs leading-snug"
+                  style={{ color: "#F8F6F2" }}
+                >
+                  {text}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <p className="mx-auto mt-3 max-w-3xl text-center text-[10px] tracking-wide" style={{ color: "#A98C5A" }}>
             Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
           </p>
         </div>
