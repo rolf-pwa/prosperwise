@@ -466,7 +466,7 @@ const Analytics = () => {
                       );
                     })}
                     {sentUpdates.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-muted-foreground text-center">No updates sent yet</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="text-muted-foreground text-center">No updates sent yet</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
