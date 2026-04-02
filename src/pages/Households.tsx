@@ -46,12 +46,14 @@ const Households = () => {
       { data: contacts },
       { data: vineyard },
       { data: storehouses },
+      { data: holdingTank },
     ] = await Promise.all([
       supabase.from("households").select("*").order("label"),
       supabase.from("families").select("id, name"),
       supabase.from("contacts").select("id, first_name, last_name, household_id"),
       supabase.from("vineyard_accounts").select("contact_id, current_value"),
       supabase.from("storehouses").select("contact_id, current_value"),
+      supabase.from("holding_tank").select("household_id, current_value").eq("status", "holding"),
     ]);
 
     const familyMap = new Map((families || []).map((f: any) => [f.id, f.name]));
