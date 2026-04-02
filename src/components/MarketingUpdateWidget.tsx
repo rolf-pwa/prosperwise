@@ -265,6 +265,7 @@ export function MarketingUpdateWidget() {
                   <SelectContent>
                     <SelectItem value="all">All Contacts</SelectItem>
                     <SelectItem value="sovereign">Sovereign Only</SelectItem>
+                    <SelectItem value="core">Core Only</SelectItem>
                     <SelectItem value="stabilization">Stabilization Only</SelectItem>
                     <SelectItem value="specific_contacts">Specific Contacts</SelectItem>
                     <SelectItem value="specific_households">Specific Households</SelectItem>
