@@ -193,6 +193,7 @@ export function MarketingUpdateWidget() {
   const TARGET_LABELS: Record<string, string> = {
     all: "All Contacts",
     sovereign: "Sovereign",
+    core: "Core",
     stabilization: "Stabilization",
     specific_contacts: "Specific Contacts",
     specific_households: "Specific Households",
