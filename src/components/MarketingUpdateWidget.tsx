@@ -140,7 +140,7 @@ export function MarketingUpdateWidget() {
       const insertPayload: any = {
         title: title.trim(),
         url: url.trim(),
-        target_governance_status: ["all", "sovereign", "stabilization"].includes(target) ? target : "all",
+        target_governance_status: ["all", "sovereign", "core", "stabilization"].includes(target) ? target : "all",
         published_by: user.id,
         target_contact_ids: target === "specific_contacts" ? selectedContactIds : [],
         target_household_ids: target === "specific_households" ? selectedHouseholdIds : [],
