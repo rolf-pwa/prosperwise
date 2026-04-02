@@ -11,6 +11,7 @@ import {
   Search,
   Loader2,
   ChevronRight,
+  Anchor,
 } from "lucide-react";
 
 interface HouseholdListItem {
