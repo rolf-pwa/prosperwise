@@ -22,6 +22,8 @@ interface HouseholdListItem {
   familyName: string;
   memberCount: number;
   totalAssets: number;
+  holdingTankTotal: number;
+  holdingTankCount: number;
 }
 
 const formatCurrency = (value: number) =>
