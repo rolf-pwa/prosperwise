@@ -325,18 +325,23 @@ const ContactForm = () => {
           ...(isEdit && id ? [{ label: form.first_name || "Contact", href: `/contacts/${id}` }] : []),
           { label: isEdit ? "Edit" : "New Contact" },
         ]} />
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(isEdit ? `/contacts/${id}` : "/contacts")}
-          >
-            <ArrowLeft className="h-4 w-4" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(isEdit ? `/contacts/${id}` : "/contacts")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold">
+              {isEdit ? "Edit Contact" : "New Contact"}
+            </h1>
+          </div>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving..." : isEdit ? "Update Contact" : "Create Contact"}
           </Button>
-          <h1 className="text-2xl font-bold">
-            {isEdit ? "Edit Contact" : "New Contact"}
-          </h1>
         </div>
 
         {/* Basic Info */}
