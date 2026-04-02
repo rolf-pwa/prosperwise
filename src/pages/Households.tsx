@@ -11,6 +11,7 @@ import {
   Search,
   Loader2,
   ChevronRight,
+  Anchor,
 } from "lucide-react";
 
 interface HouseholdListItem {
@@ -21,6 +22,8 @@ interface HouseholdListItem {
   familyName: string;
   memberCount: number;
   totalAssets: number;
+  holdingTankTotal: number;
+  holdingTankCount: number;
 }
 
 const formatCurrency = (value: number) =>
@@ -43,12 +46,14 @@ const Households = () => {
       { data: contacts },
       { data: vineyard },
       { data: storehouses },
+      { data: holdingTank },
     ] = await Promise.all([
       supabase.from("households").select("*").order("label"),
       supabase.from("families").select("id, name"),
       supabase.from("contacts").select("id, first_name, last_name, household_id"),
       supabase.from("vineyard_accounts").select("contact_id, current_value"),
       supabase.from("storehouses").select("contact_id, current_value"),
+      supabase.from("holding_tank").select("household_id, current_value").eq("status", "holding"),
     ]);
 
     const familyMap = new Map((families || []).map((f: any) => [f.id, f.name]));
@@ -68,6 +73,16 @@ const Households = () => {
       }
     }
 
+    // Aggregate holding tank per household
+    const hhHoldingTotal = new Map<string, number>();
+    const hhHoldingCount = new Map<string, number>();
+    for (const ht of holdingTank || []) {
+      if (ht.household_id) {
+        hhHoldingTotal.set(ht.household_id, (hhHoldingTotal.get(ht.household_id) || 0) + (Number(ht.current_value) || 0));
+        hhHoldingCount.set(ht.household_id, (hhHoldingCount.get(ht.household_id) || 0) + 1);
+      }
+    }
+
     const result: HouseholdListItem[] = (hhData || []).map((hh: any) => ({
       id: hh.id,
       label: hh.label,
@@ -76,6 +91,8 @@ const Households = () => {
       familyName: familyMap.get(hh.family_id) || "Unknown",
       memberCount: (contacts || []).filter((c: any) => c.household_id === hh.id).length,
       totalAssets: householdAssets.get(hh.id) || 0,
+      holdingTankTotal: hhHoldingTotal.get(hh.id) || 0,
+      holdingTankCount: hhHoldingCount.get(hh.id) || 0,
     }));
 
     setHouseholds(result);
@@ -149,8 +166,19 @@ const Households = () => {
                           <p className="text-sm font-semibold text-foreground">
                             {formatCurrency(hh.totalAssets)}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">Total Assets</p>
+                          <p className="text-[10px] text-muted-foreground">Portfolio Assets</p>
                         </div>
+                        {hh.holdingTankCount > 0 && (
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-amber-600">
+                              {formatCurrency(hh.holdingTankTotal)}
+                            </p>
+                            <p className="text-[10px] text-amber-600/70 flex items-center gap-0.5 justify-end">
+                              <Anchor className="h-2.5 w-2.5" />
+                              {hh.holdingTankCount} staged
+                            </p>
+                          </div>
+                        )}
                         <Badge variant="secondary" className="shrink-0">
                           {hh.memberCount} member{hh.memberCount !== 1 ? "s" : ""}
                         </Badge>
