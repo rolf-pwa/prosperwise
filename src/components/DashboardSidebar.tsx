@@ -54,6 +54,9 @@ export function DashboardSidebar() {
         const sovereignCount = Array.from(householdStatusMap.values()).filter(
           (s) => s === "sovereign"
         ).length;
+        const coreCount = Array.from(householdStatusMap.values()).filter(
+          (s) => s === "core"
+        ).length;
         const stabilizationCount = Array.from(householdStatusMap.values()).filter(
           (s) => s === "stabilization"
         ).length;
@@ -74,6 +77,7 @@ export function DashboardSidebar() {
           totalAssets,
           totalHouseholds: totalHouseholds ?? 0,
           sovereignCount,
+          coreCount,
           stabilizationCount,
           holdingTankTotal,
           holdingTankCount,
