@@ -73,6 +73,16 @@ const Households = () => {
       }
     }
 
+    // Aggregate holding tank per household
+    const hhHoldingTotal = new Map<string, number>();
+    const hhHoldingCount = new Map<string, number>();
+    for (const ht of holdingTank || []) {
+      if (ht.household_id) {
+        hhHoldingTotal.set(ht.household_id, (hhHoldingTotal.get(ht.household_id) || 0) + (Number(ht.current_value) || 0));
+        hhHoldingCount.set(ht.household_id, (hhHoldingCount.get(ht.household_id) || 0) + 1);
+      }
+    }
+
     const result: HouseholdListItem[] = (hhData || []).map((hh: any) => ({
       id: hh.id,
       label: hh.label,
@@ -81,6 +91,8 @@ const Households = () => {
       familyName: familyMap.get(hh.family_id) || "Unknown",
       memberCount: (contacts || []).filter((c: any) => c.household_id === hh.id).length,
       totalAssets: householdAssets.get(hh.id) || 0,
+      holdingTankTotal: hhHoldingTotal.get(hh.id) || 0,
+      holdingTankCount: hhHoldingCount.get(hh.id) || 0,
     }));
 
     setHouseholds(result);
