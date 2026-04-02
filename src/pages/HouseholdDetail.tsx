@@ -327,6 +327,8 @@ const HouseholdDetail = () => {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  <SelectItem value="core">Core</SelectItem>
                   <SelectItem value="stabilization">Stabilization Phase (Pre-Charter)</SelectItem>
                   <SelectItem value="sovereign">Sovereign Phase (Ratified Charter)</SelectItem>
                 </SelectContent>

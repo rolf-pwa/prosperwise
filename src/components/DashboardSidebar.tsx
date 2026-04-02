@@ -8,6 +8,7 @@ interface Stats {
   totalAssets: number;
   totalHouseholds: number;
   sovereignCount: number;
+  coreCount: number;
   stabilizationCount: number;
   holdingTankTotal: number;
   holdingTankCount: number;
@@ -53,6 +54,9 @@ export function DashboardSidebar() {
         const sovereignCount = Array.from(householdStatusMap.values()).filter(
           (s) => s === "sovereign"
         ).length;
+        const coreCount = Array.from(householdStatusMap.values()).filter(
+          (s) => s === "core"
+        ).length;
         const stabilizationCount = Array.from(householdStatusMap.values()).filter(
           (s) => s === "stabilization"
         ).length;
@@ -73,6 +77,7 @@ export function DashboardSidebar() {
           totalAssets,
           totalHouseholds: totalHouseholds ?? 0,
           sovereignCount,
+          coreCount,
           stabilizationCount,
           holdingTankTotal,
           holdingTankCount,
@@ -166,7 +171,7 @@ export function DashboardSidebar() {
             Governance Status
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center gap-6">
+        <CardContent className="flex items-center gap-4 flex-wrap">
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-sanctuary-green" />
             Sovereign
@@ -174,6 +179,11 @@ export function DashboardSidebar() {
           </span>
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Clock className="h-3.5 w-3.5 text-sanctuary-bronze" />
+            Core
+            <span className="font-semibold text-foreground ml-1">{stats.coreCount}</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
             Stabilization
             <span className="font-semibold text-foreground ml-1">{stats.stabilizationCount}</span>
           </span>

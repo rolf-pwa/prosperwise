@@ -140,7 +140,7 @@ export function MarketingUpdateWidget() {
       const insertPayload: any = {
         title: title.trim(),
         url: url.trim(),
-        target_governance_status: ["all", "sovereign", "stabilization"].includes(target) ? target : "all",
+        target_governance_status: ["all", "sovereign", "core", "stabilization"].includes(target) ? target : "all",
         published_by: user.id,
         target_contact_ids: target === "specific_contacts" ? selectedContactIds : [],
         target_household_ids: target === "specific_households" ? selectedHouseholdIds : [],
@@ -193,6 +193,7 @@ export function MarketingUpdateWidget() {
   const TARGET_LABELS: Record<string, string> = {
     all: "All Contacts",
     sovereign: "Sovereign",
+    core: "Core",
     stabilization: "Stabilization",
     specific_contacts: "Specific Contacts",
     specific_households: "Specific Households",
@@ -264,6 +265,7 @@ export function MarketingUpdateWidget() {
                   <SelectContent>
                     <SelectItem value="all">All Contacts</SelectItem>
                     <SelectItem value="sovereign">Sovereign Only</SelectItem>
+                    <SelectItem value="core">Core Only</SelectItem>
                     <SelectItem value="stabilization">Stabilization Only</SelectItem>
                     <SelectItem value="specific_contacts">Specific Contacts</SelectItem>
                     <SelectItem value="specific_households">Specific Households</SelectItem>

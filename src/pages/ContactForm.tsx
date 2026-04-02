@@ -46,7 +46,7 @@ const ContactForm = () => {
     phone: "",
     address: "",
     family_role: "head_of_family" as "head_of_family" | "spouse" | "beneficiary" | "minor" | "head_of_household",
-    governance_status: "stabilization" as "stabilization" | "sovereign" | "none",
+    governance_status: "stabilization" as "stabilization" | "sovereign" | "none" | "core",
     fiduciary_entity: "pws" as "pws" | "pwa",
     lawyer_name: "",
     lawyer_firm: "",
@@ -404,6 +404,7 @@ const ContactForm = () => {
                 <SelectTrigger><SelectValue placeholder="Select status…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none" className="text-muted-foreground">— None —</SelectItem>
+                  <SelectItem value="core">Core</SelectItem>
                   <SelectItem value="stabilization">Stabilization</SelectItem>
                   <SelectItem value="sovereign">Sovereign</SelectItem>
                 </SelectContent>
