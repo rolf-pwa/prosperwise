@@ -166,8 +166,19 @@ const Households = () => {
                           <p className="text-sm font-semibold text-foreground">
                             {formatCurrency(hh.totalAssets)}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">Total Assets</p>
+                          <p className="text-[10px] text-muted-foreground">Portfolio Assets</p>
                         </div>
+                        {hh.holdingTankCount > 0 && (
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-amber-600">
+                              {formatCurrency(hh.holdingTankTotal)}
+                            </p>
+                            <p className="text-[10px] text-amber-600/70 flex items-center gap-0.5 justify-end">
+                              <Anchor className="h-2.5 w-2.5" />
+                              {hh.holdingTankCount} staged
+                            </p>
+                          </div>
+                        )}
                         <Badge variant="secondary" className="shrink-0">
                           {hh.memberCount} member{hh.memberCount !== 1 ? "s" : ""}
                         </Badge>
