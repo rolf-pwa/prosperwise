@@ -404,6 +404,7 @@ const ContactForm = () => {
                 <SelectTrigger><SelectValue placeholder="Select status…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none" className="text-muted-foreground">— None —</SelectItem>
+                  <SelectItem value="core">Core</SelectItem>
                   <SelectItem value="stabilization">Stabilization</SelectItem>
                   <SelectItem value="sovereign">Sovereign</SelectItem>
                 </SelectContent>

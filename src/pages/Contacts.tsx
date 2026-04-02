@@ -237,7 +237,7 @@ const Contacts = () => {
                             : ""
                         }
                       >
-                        {c.governance_status === "sovereign" ? "Sovereign" : "Stabilization"}
+                        {c.governance_status === "sovereign" ? "Sovereign" : c.governance_status === "core" ? "Core" : "Stabilization"}
                       </Badge>
                     )}
                   </div>

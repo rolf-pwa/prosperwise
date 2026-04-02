@@ -8,6 +8,7 @@ interface Stats {
   totalAssets: number;
   totalHouseholds: number;
   sovereignCount: number;
+  coreCount: number;
   stabilizationCount: number;
   holdingTankTotal: number;
   holdingTankCount: number;
