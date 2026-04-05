@@ -133,13 +133,12 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
     markMessagesSeen(contactId, allAdvisorMsgIds);
     setSeenIds(getSeenMessageIds(contactId));
 
-    // Mark client notifications read
+    // Mark client notifications read via secure edge function
     if (clientNotifs.length > 0) {
       const ids = clientNotifs.map((n) => n.id);
-      await supabase
-        .from("portal_client_notifications" as any)
-        .update({ read: true } as any)
-        .in("id", ids);
+      await supabase.functions.invoke("portal-notifications", {
+        body: { action: "mark_read", contact_id: contactId, notification_ids: ids },
+      });
       setClientNotifs([]);
     }
   };
