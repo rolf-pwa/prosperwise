@@ -59,9 +59,8 @@ export function PortalUpdates({ governanceStatus, contactId, householdId, portal
   const markAsRead = async (updateId: string) => {
     if (readIds.has(updateId)) return;
     setReadIds((prev) => new Set(prev).add(updateId));
-    await (supabase.from("marketing_update_reads" as any) as any).insert({
-      contact_id: contactId,
-      update_id: updateId,
+    await supabase.functions.invoke("portal-track", {
+      body: { action: "record_update_read", contact_id: contactId, update_id: updateId },
     });
   };
 
