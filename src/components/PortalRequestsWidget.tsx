@@ -58,6 +58,7 @@ export function PortalRequestsWidget() {
   const [selected, setSelected] = useState<PortalRequest | null>(null);
   const [staffNotes, setStaffNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   const fetchRequests = async () => {
     try {
@@ -118,10 +119,18 @@ export function PortalRequestsWidget() {
     }
   };
 
-  const getFileUrl = (path: string) => {
-    const { data } = supabase.storage.from("portal-uploads").getPublicUrl(path);
-    return data?.publicUrl || "#";
-  };
+  // Load signed URLs when a request with files is selected
+  useEffect(() => {
+    if (!selected?.file_urls?.length) return;
+    (async () => {
+      const urls: Record<string, string> = {};
+      for (const path of selected.file_urls!) {
+        const { data } = await supabase.storage.from("portal-uploads").createSignedUrl(path, 3600);
+        if (data?.signedUrl) urls[path] = data.signedUrl;
+      }
+      setSignedUrls((prev) => ({ ...prev, ...urls }));
+    })();
+  }, [selected]);
 
   const activeRequests = requests.filter((r) => r.status !== "resolved");
   const resolvedRequests = requests.filter((r) => r.status === "resolved");
@@ -243,7 +252,7 @@ export function PortalRequestsWidget() {
                     return (
                       <a
                         key={i}
-                        href={getFileUrl(url)}
+                        href={signedUrls[url] || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
