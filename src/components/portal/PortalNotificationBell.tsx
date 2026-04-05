@@ -72,16 +72,14 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
 
   useEffect(() => {
     setSeenIds(getSeenMessageIds(contactId));
-    // Fetch portal client notifications
+    // Fetch portal client notifications via secure edge function
     (async () => {
-      const { data } = await supabase
-        .from("portal_client_notifications" as any)
-        .select("*")
-        .eq("contact_id", contactId)
-        .eq("read", false)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (data) setClientNotifs(data as unknown as ClientNotification[]);
+      const resp = await supabase.functions.invoke("portal-notifications", {
+        body: { action: "list", contact_id: contactId },
+      });
+      if (!resp.error && resp.data?.data) {
+        setClientNotifs(resp.data.data as ClientNotification[]);
+      }
     })();
   }, [contactId]);
 
