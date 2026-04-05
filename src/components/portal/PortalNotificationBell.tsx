@@ -72,16 +72,14 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
 
   useEffect(() => {
     setSeenIds(getSeenMessageIds(contactId));
-    // Fetch portal client notifications
+    // Fetch portal client notifications via secure edge function
     (async () => {
-      const { data } = await supabase
-        .from("portal_client_notifications" as any)
-        .select("*")
-        .eq("contact_id", contactId)
-        .eq("read", false)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (data) setClientNotifs(data as unknown as ClientNotification[]);
+      const resp = await supabase.functions.invoke("portal-notifications", {
+        body: { action: "list", contact_id: contactId },
+      });
+      if (!resp.error && resp.data?.data) {
+        setClientNotifs(resp.data.data as ClientNotification[]);
+      }
     })();
   }, [contactId]);
 
@@ -135,13 +133,12 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
     markMessagesSeen(contactId, allAdvisorMsgIds);
     setSeenIds(getSeenMessageIds(contactId));
 
-    // Mark client notifications read
+    // Mark client notifications read via secure edge function
     if (clientNotifs.length > 0) {
       const ids = clientNotifs.map((n) => n.id);
-      await supabase
-        .from("portal_client_notifications" as any)
-        .update({ read: true } as any)
-        .in("id", ids);
+      await supabase.functions.invoke("portal-notifications", {
+        body: { action: "mark_read", contact_id: contactId, notification_ids: ids },
+      });
       setClientNotifs([]);
     }
   };
@@ -158,11 +155,10 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
       setOpen(false);
       onNavigateToRequests();
     } else {
-      // Mark this client notification as read
-      await supabase
-        .from("portal_client_notifications" as any)
-        .update({ read: true } as any)
-        .eq("id", notif.id);
+      // Mark this client notification as read via secure edge function
+      await supabase.functions.invoke("portal-notifications", {
+        body: { action: "mark_read", contact_id: contactId, notification_ids: [notif.id] },
+      });
       setClientNotifs((prev) => prev.filter((n) => n.id !== notif.id));
       setOpen(false);
       if (onNavigateToTasks) onNavigateToTasks();
