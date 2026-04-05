@@ -107,7 +107,9 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
             body: { action: "getTasksForProject", portal_token: portalToken },
           }),
           contactId
-            ? supabase.from("portal_task_interactions").select("task_gid").eq("contact_id", contactId)
+            ? supabase.functions.invoke("portal-track", {
+                body: { action: "get_interactions", contact_id: contactId },
+              }).then(r => ({ data: r.data?.data || [] }))
             : Promise.resolve({ data: [] }),
         ]);
         if (tasksRes.error) throw tasksRes.error;
