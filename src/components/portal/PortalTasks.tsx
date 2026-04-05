@@ -185,19 +185,14 @@ export function PortalTasks({ portalToken, clientName, contactId }: Props) {
       setInteractedGids((prev) => new Set(prev).add(task.gid));
       // Record interaction and notify staff in parallel
       const displayName = clientName || "A client";
-      await Promise.all([
-        supabase.from("portal_task_interactions").upsert(
-          { contact_id: contactId, task_gid: task.gid },
-          { onConflict: "contact_id,task_gid" }
-        ),
-        supabase.from("staff_notifications").insert({
+      await supabase.functions.invoke("portal-track", {
+        body: {
+          action: "record_task_interaction",
           contact_id: contactId,
-          title: `${displayName} opened a task`,
-          body: `"${task.name}"`,
-          source_type: "task_opened",
-          link: `/contacts/${contactId}`,
-        }),
-      ]);
+          task_gid: task.gid,
+          client_name: displayName,
+        },
+      });
     }
   };
 
