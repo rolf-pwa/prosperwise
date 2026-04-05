@@ -155,11 +155,10 @@ export function PortalNotificationBell({ requests, contactId, onNavigateToReques
       setOpen(false);
       onNavigateToRequests();
     } else {
-      // Mark this client notification as read
-      await supabase
-        .from("portal_client_notifications" as any)
-        .update({ read: true } as any)
-        .eq("id", notif.id);
+      // Mark this client notification as read via secure edge function
+      await supabase.functions.invoke("portal-notifications", {
+        body: { action: "mark_read", contact_id: contactId, notification_ids: [notif.id] },
+      });
       setClientNotifs((prev) => prev.filter((n) => n.id !== notif.id));
       setOpen(false);
       if (onNavigateToTasks) onNavigateToTasks();
