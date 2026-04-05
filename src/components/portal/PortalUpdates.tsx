@@ -29,15 +29,12 @@ export function PortalUpdates({ governanceStatus, contactId, householdId, portal
   useEffect(() => {
     (async () => {
       const [updatesRes, readsRes] = await Promise.all([
-        supabase
-          .from("marketing_updates")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("marketing_update_reads" as any)
-          .select("update_id")
-          .eq("contact_id", contactId) as any,
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_updates", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_reads", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
       ]);
 
       const allUpdates = ((updatesRes.data as any[]) || []).filter((u) => {
@@ -62,9 +59,8 @@ export function PortalUpdates({ governanceStatus, contactId, householdId, portal
   const markAsRead = async (updateId: string) => {
     if (readIds.has(updateId)) return;
     setReadIds((prev) => new Set(prev).add(updateId));
-    await (supabase.from("marketing_update_reads" as any) as any).insert({
-      contact_id: contactId,
-      update_id: updateId,
+    await supabase.functions.invoke("portal-track", {
+      body: { action: "record_update_read", contact_id: contactId, update_id: updateId },
     });
   };
 
@@ -156,10 +152,12 @@ export function useUnreadUpdateCount(governanceStatus: string, contactId: string
     if (!contactId) return;
     (async () => {
       const [updatesRes, readsRes] = await Promise.all([
-        supabase.from("marketing_updates").select("id, target_governance_status, target_contact_ids, target_household_ids").limit(100),
-        (supabase.from("marketing_update_reads" as any) as any)
-          .select("update_id")
-          .eq("contact_id", contactId),
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_updates", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_reads", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
       ]);
 
       const filtered = ((updatesRes.data as any[]) || []).filter((u) => {
