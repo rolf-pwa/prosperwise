@@ -119,10 +119,18 @@ export function PortalRequestsWidget() {
     }
   };
 
-  const getFileUrl = async (path: string) => {
-    const { data } = await supabase.storage.from("portal-uploads").createSignedUrl(path, 3600);
-    return data?.signedUrl || "#";
-  };
+  // Load signed URLs when a request with files is selected
+  useEffect(() => {
+    if (!selected?.file_urls?.length) return;
+    (async () => {
+      const urls: Record<string, string> = {};
+      for (const path of selected.file_urls!) {
+        const { data } = await supabase.storage.from("portal-uploads").createSignedUrl(path, 3600);
+        if (data?.signedUrl) urls[path] = data.signedUrl;
+      }
+      setSignedUrls((prev) => ({ ...prev, ...urls }));
+    })();
+  }, [selected]);
 
   const activeRequests = requests.filter((r) => r.status !== "resolved");
   const resolvedRequests = requests.filter((r) => r.status === "resolved");
