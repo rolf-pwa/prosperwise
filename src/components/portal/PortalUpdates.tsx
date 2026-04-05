@@ -29,15 +29,12 @@ export function PortalUpdates({ governanceStatus, contactId, householdId, portal
   useEffect(() => {
     (async () => {
       const [updatesRes, readsRes] = await Promise.all([
-        supabase
-          .from("marketing_updates")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("marketing_update_reads" as any)
-          .select("update_id")
-          .eq("contact_id", contactId) as any,
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_updates", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_reads", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
       ]);
 
       const allUpdates = ((updatesRes.data as any[]) || []).filter((u) => {
