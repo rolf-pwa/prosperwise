@@ -152,10 +152,12 @@ export function useUnreadUpdateCount(governanceStatus: string, contactId: string
     if (!contactId) return;
     (async () => {
       const [updatesRes, readsRes] = await Promise.all([
-        supabase.from("marketing_updates").select("id, target_governance_status, target_contact_ids, target_household_ids").limit(100),
-        (supabase.from("marketing_update_reads" as any) as any)
-          .select("update_id")
-          .eq("contact_id", contactId),
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_updates", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
+        supabase.functions.invoke("portal-track", {
+          body: { action: "get_reads", contact_id: contactId },
+        }).then(r => ({ data: r.data?.data || [] })),
       ]);
 
       const filtered = ((updatesRes.data as any[]) || []).filter((u) => {
