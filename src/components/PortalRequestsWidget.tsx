@@ -118,9 +118,9 @@ export function PortalRequestsWidget() {
     }
   };
 
-  const getFileUrl = (path: string) => {
-    const { data } = supabase.storage.from("portal-uploads").getPublicUrl(path);
-    return data?.publicUrl || "#";
+  const getFileUrl = async (path: string) => {
+    const { data } = await supabase.storage.from("portal-uploads").createSignedUrl(path, 3600);
+    return data?.signedUrl || "#";
   };
 
   const activeRequests = requests.filter((r) => r.status !== "resolved");

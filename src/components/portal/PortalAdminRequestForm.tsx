@@ -81,16 +81,16 @@ export function PortalAdminRequestForm({
       // Upload files first
       const fileUrls: string[] = [];
       for (const file of files) {
-        const ext = file.name.split(".").pop() || "bin";
-        const path = `${contactId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("portal-uploads")
-          .upload(path, file, { upsert: false });
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
+        const formData = new FormData();
+        formData.append("contact_id", contactId);
+        formData.append("file", file);
+        const resp = await supabase.functions.invoke("portal-upload", {
+          body: formData,
+        });
+        if (resp.error || resp.data?.error) {
           throw new Error(`Failed to upload ${file.name}`);
         }
-        fileUrls.push(path);
+        fileUrls.push(resp.data.path);
       }
 
       // Submit request via edge function
