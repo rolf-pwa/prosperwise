@@ -58,6 +58,7 @@ export function PortalRequestsWidget() {
   const [selected, setSelected] = useState<PortalRequest | null>(null);
   const [staffNotes, setStaffNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   const fetchRequests = async () => {
     try {
