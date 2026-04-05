@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Advisors can view all vineyard accounts" ON vineyard_accounts;
