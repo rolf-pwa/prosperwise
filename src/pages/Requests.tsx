@@ -148,38 +148,29 @@ const Requests = () => {
         .eq("user_id", user?.id || "")
         .maybeSingle();
 
-      const { error: err } = await supabase
-        .from("portal_request_messages")
-        .insert({
+      const { data, error: err } = await supabase.functions.invoke("portal-request-reply", {
+        body: {
           request_id: selected.id,
           sender_type: "advisor",
           sender_name: profile?.full_name || "Your Personal CFO",
           content: replyText.trim(),
-        });
-      if (err) throw err;
+        },
+      });
 
-      // Also mark as in_progress if still submitted
-      if (selected.status === "submitted") {
-        await supabase
-          .from("portal_requests")
-          .update({ status: "in_progress" })
-          .eq("id", selected.id);
+      if (err || data?.error) {
+        throw err || new Error(data.error);
       }
-
-      // Notify client of new message (non-blocking)
-      supabase.functions.invoke("notify-portal-request", {
-        body: { request_id: selected.id, event_type: "message" },
-      }).catch((e) => console.error("[Notify] Error:", e));
 
       setReplyText("");
       toast.success("Reply sent to client");
-      // Refresh to get updated messages
-      const { data } = await supabase
+
+      const { data: refreshed } = await supabase
         .from("portal_requests")
         .select("*, contact:contacts(full_name), messages:portal_request_messages(*)")
         .eq("id", selected.id)
         .maybeSingle();
-      if (data) setSelected(data as any);
+
+      if (refreshed) setSelected(refreshed as any);
       fetchRequests();
     } catch {
       toast.error("Failed to send reply");
