@@ -3,30 +3,70 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
-if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
-    const { request_id, content, sender_type, sender_name, portal_token } = await req.json();
+    const body = await req.json().catch(() => null);
+    const request_id = typeof body?.request_id === "string" ? body.request_id : "";
+    const content = typeof body?.content === "string" ? body.content.trim() : "";
+    const sender_type = body?.sender_type;
+    const sender_name = typeof body?.sender_name === "string" ? body.sender_name.trim() || null : null;
+    const portal_token = typeof body?.portal_token === "string" ? body.portal_token : null;
 
-    if (!request_id || !content || !sender_type) {
-      return new Response(JSON.stringify({ error: "Missing fields" }), {
+    if (!request_id || !content || (sender_type !== "client" && sender_type !== "advisor")) {
+      return new Response(JSON.stringify({ error: "Missing or invalid fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
 
-    // If client sender, validate portal token
+    if (!supabaseUrl || !serviceKey || !publishableKey) {
+      throw new Error("Missing backend configuration");
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    if (sender_type === "advisor") {
+      const authHeader = req.headers.get("Authorization") ?? "";
+
+      if (!authHeader.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Auth required" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const supabaseUser = createClient(supabaseUrl, publishableKey, {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      });
+
+      const { data: userData, error: userError } = await supabaseUser.auth.getUser();
+
+      if (userError || !userData.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    let requestData: any = null;
+
     if (sender_type === "client") {
       if (!portal_token) {
         return new Response(JSON.stringify({ error: "Auth required" }), {
@@ -50,12 +90,13 @@ if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders }
         });
       }
 
-      // Verify the request belongs to this contact
-      const { data: requestData } = await supabase
+      const { data } = await supabase
         .from("portal_requests")
-        .select("contact_id")
+        .select("contact_id, request_type, status, contacts(full_name)")
         .eq("id", request_id)
         .maybeSingle();
+
+      requestData = data;
 
       if (!requestData || requestData.contact_id !== tokenData.contact_id) {
         return new Response(JSON.stringify({ error: "Not authorized" }), {
@@ -63,46 +104,55 @@ if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders }
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    } else {
+      const { data } = await supabase
+        .from("portal_requests")
+        .select("contact_id, request_type, status, contacts(full_name)")
+        .eq("id", request_id)
+        .maybeSingle();
+
+      requestData = data;
+
+      if (!requestData) {
+        return new Response(JSON.stringify({ error: "Request not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    // Insert the message
     const { error: insertError } = await supabase
       .from("portal_request_messages")
       .insert({
         request_id,
         sender_type,
-        sender_name: sender_name || null,
+        sender_name,
         content,
       });
 
     if (insertError) throw insertError;
 
-    // If client sent a message, create in-app notification for staff
     if (sender_type === "client") {
-      // Get contact info for the notification
-      const { data: requestData2 } = await supabase
-        .from("portal_requests")
-        .select("contact_id, request_type, contacts(full_name)")
-        .eq("id", request_id)
-        .maybeSingle();
-
-      const contactName = (requestData2 as any)?.contacts?.full_name || "A client";
-      const requestType = (requestData2 as any)?.request_type || "request";
+      const contactName = requestData?.contacts?.full_name || "A client";
+      const requestType = requestData?.request_type || "request";
 
       await supabase.from("staff_notifications").insert({
         title: `${contactName} replied to a ${requestType} request`,
-        body: content.length > 100 ? content.substring(0, 100) + "…" : content,
+        body: content.length > 100 ? `${content.substring(0, 100)}…` : content,
         link: "/requests",
-        contact_id: (requestData2 as any)?.contact_id || null,
+        contact_id: requestData?.contact_id || null,
         source_type: "request_message",
       });
     }
 
-    // Send notification email (non-blocking)
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    // Notify the other party: if advisor sent, notify client; if client sent, skip (staff sees in CRM)
     if (sender_type === "advisor") {
+      if (requestData?.status === "submitted") {
+        await supabase
+          .from("portal_requests")
+          .update({ status: "in_progress" })
+          .eq("id", request_id);
+      }
+
       fetch(`${supabaseUrl}/functions/v1/notify-portal-request`, {
         method: "POST",
         headers: {
