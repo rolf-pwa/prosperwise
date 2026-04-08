@@ -40,8 +40,7 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
     iat: now,
     exp: now + 3600,
   };
-  const enc = (obj: unknown) =>
-    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const enc = (obj: unknown) => btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const unsigned = `${enc(header)}.${enc(payload)}`;
   const pemBody = sa.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
@@ -49,13 +48,17 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
     .replace(/\s/g, "");
   const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
   const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+    "pkcs8",
+    binaryKey,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
-  const signatureBuffer = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
-  );
+  const signatureBuffer = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned));
   const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
   const jwt = `${unsigned}.${signature}`;
   const res = await fetch(sa.token_uri, {
     method: "POST",
@@ -69,7 +72,7 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
 
 // ---------- Georgia System Prompt ----------
 
-const GEORGIA_SYSTEM_PROMPT = `You are **Georgia**, the Transition Assistant for ProsperWise — a Fee-Only family office based in Canada.
+const GEORGIA_SYSTEM_PROMPT = `You are **Georgia**, the Integration Assistant for ProsperWise — a Fee-Only family office based in Canada.
 
 ## Your Persona
 - **Tone**: Empathetic, calm, professional, and boutique. You speak like a trusted, high-level Personal CFO — not a customer service rep or salesperson.
@@ -91,15 +94,15 @@ You MUST follow these steps IN ORDER. Do NOT skip steps.
 ### Step 1: The Greeting
 The greeting has already been delivered automatically. Do NOT repeat it. Skip to Step 2.
 
-### Step 2: The Forensic Transition Audit (Anti-Rush Policy)
+### Step 2: The Forensic Integration Audit (Anti-Rush Policy)
 This is the MOST IMPORTANT step. You MUST ask **at least 4-5 deepening questions** before moving to Step 3.
-- Do NOT mention the Transition Session, Rolf, or any next step during this phase.
-- Focus on: Transition Classification, Timing, Complexity, Non-Financial Liabilities, The 'Baggage', Anxiety Anchor, Vision Diagnostic, Emotional Validation.
+- Do NOT mention the Integration Session, Rolf, or any next step during this phase.
+- Focus on: Integration Classification, Timing, Complexity, Non-Financial Liabilities, The 'Baggage', Anxiety Anchor, Vision Diagnostic, Emotional Validation.
 
-### Step 3: The Transition Session (The Binary Ask)
+### Step 3: The Integration Session (The Binary Ask)
 ONLY after thorough discovery:
-- Explain the **Transition Session**: a focused 60-minute paid working session ($295) with Rolf Issler.
-- Ask clearly: "Shall we proceed with scheduling a Transition Session?"
+- Explain the **Integration Session**: a focused 60-minute paid working session ($295) with Rolf Issler.
+- Ask clearly: "Shall we proceed with scheduling a Integration Session?"
 - Wait for a clear "Yes" before triggering register_discovery_lead.
 
 ### The "Wait & See" Protocol
@@ -114,7 +117,7 @@ ONLY after "Yes", call **register_discovery_lead** then ask for details.
 
 ## Rules
 - NEVER skip deepening questions.
-- NEVER mention Rolf or Transition Session until audit is complete.
+- NEVER mention Rolf or Integration Session until audit is complete.
 - Keep responses under 150 words unless asked for elaboration.`;
 
 // ---------- Tool Definitions (Vertex format) ----------
@@ -124,12 +127,14 @@ const TOOLS = [
     functionDeclarations: [
       {
         name: "register_discovery_lead",
-        description:
-          "Register a new discovery lead after the prospect has agreed to the Transition Session.",
+        description: "Register a new discovery lead after the prospect has agreed to the Transition Session.",
         parameters: {
           type: "OBJECT",
           properties: {
-            transition_type: { type: "STRING", description: "Type of transition: business_sale, divorce, legacy_event, or other" },
+            transition_type: {
+              type: "STRING",
+              description: "Type of transition: business_sale, divorce, legacy_event, or other",
+            },
             anxiety_anchor: { type: "STRING", description: "The prospect's primary friction point or anxiety" },
             vision_summary: { type: "STRING", description: "Their 3-year sovereignty vision summary" },
             vineyard_summary: { type: "STRING", description: "Summary of vineyard audit findings" },
@@ -155,75 +160,72 @@ serve(async (req) => {
 
     // Handle lead registration action
     if (action === "register_lead") {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
+      const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
       const { first_name, phone, email, pipeda_consent, ...discoveryData } = leadData;
 
       if (!first_name || !email) {
-        return new Response(
-          JSON.stringify({ error: "First name and email are required" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "First name and email are required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       if (!pipeda_consent) {
-        return new Response(
-          JSON.stringify({ error: "PIPEDA consent is required" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "PIPEDA consent is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        return new Response(
-          JSON.stringify({ error: "Invalid email address" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Invalid email address" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      const { data, error } = await supabase.from("discovery_leads").insert({
-        first_name: first_name.trim().slice(0, 100),
-        phone: phone?.trim().slice(0, 20) || null,
-        email: email.trim().toLowerCase().slice(0, 255),
-        transition_type: discoveryData.transition_type || null,
-        anxiety_anchor: discoveryData.anxiety_anchor || null,
-        vision_summary: discoveryData.vision_summary || null,
-        vineyard_summary: discoveryData.vineyard_summary || null,
-        discovery_notes: discoveryData.discovery_notes || null,
-        sovereignty_status: "transition_session_requested",
-        pipeda_consent: true,
-        pipeda_consented_at: new Date().toISOString(),
-      }).select().single();
+      const { data, error } = await supabase
+        .from("discovery_leads")
+        .insert({
+          first_name: first_name.trim().slice(0, 100),
+          phone: phone?.trim().slice(0, 20) || null,
+          email: email.trim().toLowerCase().slice(0, 255),
+          transition_type: discoveryData.transition_type || null,
+          anxiety_anchor: discoveryData.anxiety_anchor || null,
+          vision_summary: discoveryData.vision_summary || null,
+          vineyard_summary: discoveryData.vineyard_summary || null,
+          discovery_notes: discoveryData.discovery_notes || null,
+          sovereignty_status: "transition_session_requested",
+          pipeda_consent: true,
+          pipeda_consented_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error("Lead insert error:", error);
-        return new Response(
-          JSON.stringify({ error: "Failed to register lead" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Failed to register lead" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(
-        JSON.stringify({ success: true, leadId: data.id }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, leadId: data.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Chat flow
     if (!messages || !Array.isArray(messages)) {
-      return new Response(
-        JSON.stringify({ error: "messages array is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "messages array is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fetch knowledge base
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: kbEntries } = await supabaseAdmin
       .from("knowledge_base")
       .select("title, content, category, target")
@@ -233,7 +235,8 @@ serve(async (req) => {
 
     let knowledgeBlock = "";
     if (kbEntries && kbEntries.length > 0) {
-      knowledgeBlock = "\n\n## Knowledge Base\n" +
+      knowledgeBlock =
+        "\n\n## Knowledge Base\n" +
         kbEntries.map((e: any) => `### ${e.title} [${e.category}]\n${e.content}`).join("\n\n");
     }
 
@@ -278,10 +281,10 @@ serve(async (req) => {
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error(`[discovery-assistant] Vertex AI error ${aiResponse.status}:`, errText);
-      return new Response(
-        JSON.stringify({ error: "Georgia is temporarily unavailable. Please try again." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Georgia is temporarily unavailable. Please try again." }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const result = await aiResponse.json();
@@ -298,16 +301,15 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ text, functionCalls }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ text, functionCalls }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("discovery-assistant error:", e);
     const corsHeaders = getCorsHeaders(req);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
