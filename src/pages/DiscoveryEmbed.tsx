@@ -59,7 +59,7 @@ export default function DiscoveryEmbed() {
   const saved = loadSavedState();
   const welcomeMessage: Message = {
     role: "assistant",
-    content: "Welcome to ProsperWise. My name is Georgia, and I am your Transition Assistant. Most people come here during a time of significant transition — a business sale, a separation, or a legacy event. How can I help you navigate your transition?"
+    content: "Hi. I'm Georgia.\n\nBefore you share anything: this conversation is completely private. Nothing you tell me is stored or shared unless you choose to take a next step with us. Your data stays in Canada.\n\nWhatever brought you here today — an inheritance, a business sale, a windfall you weren't expecting — there's no rush in this conversation. No decisions to make. No forms to fill in.\n\nWhen you're ready, just tell me — in your own words — what's going on for you at the moment."
   };
   const [messages, setMessages] = useState<Message[]>(saved?.messages?.length ? saved.messages : [welcomeMessage]);
   const [input, setInput] = useState("");
@@ -425,9 +425,12 @@ export default function DiscoveryEmbed() {
             </button>
           </div>
 
-          <p className="mx-auto mt-3 max-w-3xl text-center text-[10px] tracking-wide" style={{ color: C.bronze }}>
-            Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
-          </p>
+          <div className="mx-auto mt-3 max-w-3xl flex items-center justify-center gap-1.5">
+            <Lock className="h-3 w-3" style={{ color: C.bronze }} />
+            <p className="text-[10px] tracking-wide" style={{ color: C.bronze }}>
+              Private · Canadian servers (Montréal) · Nothing stored until you choose to take a next step
+            </p>
+          </div>
         </div>
       )}
     </div>
