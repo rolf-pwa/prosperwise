@@ -70,6 +70,7 @@ export default function DiscoveryEmbed() {
   const [pipedaConsent, setPipedaConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -77,7 +78,10 @@ export default function DiscoveryEmbed() {
   }, [messages, phase, discoveryData]);
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]");
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [messages, isLoading]);
 
 
@@ -212,7 +216,7 @@ export default function DiscoveryEmbed() {
       </header>
 
       {/* Chat Area */}
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea className="flex-1 min-h-0" ref={scrollAreaRef}>
         <div className="space-y-3 p-3">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
