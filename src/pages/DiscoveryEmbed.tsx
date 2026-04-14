@@ -59,7 +59,7 @@ export default function DiscoveryEmbed() {
   const saved = loadSavedState();
   const welcomeMessage: Message = {
     role: "assistant",
-    content: "Welcome to ProsperWise. My name is Georgia, and I am your Transition Assistant. Most people come here during a time of significant transition — a business sale, a separation, or a legacy event. How can I help you navigate your transition?"
+    content: "Hi. I'm Georgia.\n\nBefore you share anything: this conversation is completely private. Nothing you tell me is stored or shared unless you choose to take a next step with us. Your data stays in Canada.\n\nWhatever brought you here today — an inheritance, a business sale, a windfall you weren't expecting — there's no rush in this conversation. No decisions to make. No forms to fill in.\n\nWhen you're ready, just tell me — in your own words — what's going on for you at the moment."
   };
   const [messages, setMessages] = useState<Message[]>(saved?.messages?.length ? saved.messages : [welcomeMessage]);
   const [input, setInput] = useState("");
