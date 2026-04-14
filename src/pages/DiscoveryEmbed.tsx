@@ -159,7 +159,7 @@ export default function DiscoveryEmbed() {
         {
           role: "assistant",
           content:
-            "Thank you. Your information has been received. Rolf Issler will be in touch shortly to schedule your Transition Session. You have taken an important first step toward sovereignty.",
+            "Thank you. Your information has been received. You can book your Stabilisation Session with Rolf directly using the link below — choose a time that works for you.",
         },
       ]);
     } catch (err) {
@@ -376,11 +376,20 @@ export default function DiscoveryEmbed() {
                 >
                   <ShieldCheck className="h-4.5 w-4.5" style={{ color: C.bronze }} />
                 </div>
-                <p className="text-xs font-semibold font-serif" style={{ color: C.green }}>Transition Session Requested</p>
+                <p className="text-xs font-semibold font-serif" style={{ color: C.green }}>Stabilisation Session</p>
                 <p className="mt-1 text-[10px]" style={{ color: C.muted }}>
-                  Rolf Issler will reach out within 1–2 business days.
+                  Book your session with Rolf — choose a time that works for you.
                 </p>
-                <p className="mt-2 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
+                <a
+                  href="https://calendar.app.google/bmJQCSYuaebpZKVeA"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-xs font-semibold tracking-wide transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: C.green, color: C.vellum, border: `1px solid ${C.border}` }}
+                >
+                  Book Stabilisation Session — $249
+                </a>
+                <p className="mt-3 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
                   Fee-Only · Canada · PIPEDA
                 </p>
               </div>
