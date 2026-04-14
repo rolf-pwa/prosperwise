@@ -425,9 +425,12 @@ export default function DiscoveryEmbed() {
             </button>
           </div>
 
-          <p className="mx-auto mt-3 max-w-3xl text-center text-[10px] tracking-wide" style={{ color: C.bronze }}>
-            Protected by PIPEDA · Data processed in Canada · Fee-Only advisory
-          </p>
+          <div className="mx-auto mt-3 max-w-3xl flex items-center justify-center gap-1.5">
+            <Lock className="h-3 w-3" style={{ color: C.bronze }} />
+            <p className="text-[10px] tracking-wide" style={{ color: C.bronze }}>
+              Private · Canadian servers (Montréal) · Nothing stored until you choose to take a next step
+            </p>
+          </div>
         </div>
       )}
     </div>
