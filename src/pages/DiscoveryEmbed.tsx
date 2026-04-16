@@ -385,7 +385,7 @@ export default function DiscoveryEmbed() {
                   Book your session with Rolf — choose a time that works for you.
                 </p>
                 <a
-                  href="https://calendar.app.google/bmJQCSYuaebpZKVeA"
+                  href="https://www.prosperwise.ca/stabilization"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-xs font-semibold tracking-wide transition-opacity hover:opacity-90"
