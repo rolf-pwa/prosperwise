@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, ArrowRight, Check, TreesIcon, FileText } from "lucide-react";
+import { Loader2, UserPlus, ArrowRight, Check, TreesIcon, FileText, Info, X } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
