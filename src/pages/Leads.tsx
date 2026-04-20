@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, ArrowRight, Check, TreesIcon, FileText } from "lucide-react";
+import { Loader2, UserPlus, ArrowRight, Check, TreesIcon, FileText, Info, X } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
@@ -65,10 +65,27 @@ export default function Leads() {
       const { data, error } = await supabase
         .from("discovery_leads")
         .select("*")
-        .neq("sovereignty_status", "converted_to_contact")
+        .not("sovereignty_status", "in", "(converted_to_contact,dismissed)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Lead[];
+    },
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const { error } = await supabase
+        .from("discovery_leads")
+        .update({ sovereignty_status: "dismissed" })
+        .eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discovery-leads"] });
+      toast.success("Lead dismissed");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to dismiss lead");
     },
   });
 
@@ -192,6 +209,19 @@ export default function Leads() {
           </p>
         </div>
 
+        <div className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="space-y-1 text-sm">
+            <p className="font-medium text-foreground">What happens on conversion?</p>
+            <p className="text-muted-foreground">
+              <strong>Convert to Contact</strong> initializes a Family and Household in the
+              Sovereignty Tree, creates a Contact record, carries over the Stabilization Map, and
+              triggers fee tier calculation. <strong>Dismiss</strong> removes the lead from this
+              queue without creating any records.
+            </p>
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -270,6 +300,16 @@ export default function Leads() {
                       {format(new Date(lead.created_at), "MMM d, yyyy 'at' h:mm a")}
                     </p>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => dismissMutation.mutate(lead.id)}
+                        disabled={dismissMutation.isPending}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="mr-1.5 h-3.5 w-3.5" />
+                        Dismiss
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
