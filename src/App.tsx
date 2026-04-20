@@ -38,6 +38,7 @@ import BulkOnboarding from "./pages/BulkOnboarding";
 import Recaps from "./pages/Recaps";
 import Analytics from "./pages/Analytics";
 import StabilizationMap from "./pages/StabilizationMap";
+import StabilizationMapResolver from "./pages/StabilizationMapResolver";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,8 @@ const App = () => (
             <Route path="/content-hub/:id" element={<ProtectedRoute><ContentEditor /></ProtectedRoute>} />
             <Route path="/recaps" element={<ProtectedRoute><Recaps /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/stabilization-map/lead/:leadId" element={<ProtectedRoute><StabilizationMapResolver /></ProtectedRoute>} />
+            <Route path="/stabilization-map/contact/:contactId" element={<ProtectedRoute><StabilizationMapResolver /></ProtectedRoute>} />
             <Route path="/stabilization-map/:id" element={<ProtectedRoute><StabilizationMap /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
