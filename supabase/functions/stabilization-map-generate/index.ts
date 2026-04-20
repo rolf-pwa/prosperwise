@@ -179,11 +179,11 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { leadId, mapId } = body as { leadId?: string; mapId?: string };
+    const { leadId, mapId, contactId } = body as { leadId?: string; mapId?: string; contactId?: string };
 
-    if (!leadId && !mapId) {
+    if (!leadId && !mapId && !contactId) {
       return new Response(
-        JSON.stringify({ error: "leadId or mapId is required" }),
+        JSON.stringify({ error: "leadId, contactId, or mapId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -193,7 +193,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Resolve the lead (from either leadId or via mapId)
+    // Resolve the lead (from either leadId, mapId, or contactId)
     let resolvedLeadId = leadId;
     let existingMapId = mapId;
 
@@ -204,6 +204,54 @@ serve(async (req) => {
         .eq("id", mapId)
         .maybeSingle();
       resolvedLeadId = existing?.lead_id || undefined;
+    }
+
+    // If only contactId provided, find existing map (or seed one from the contact directly)
+    if (!resolvedLeadId && !existingMapId && contactId) {
+      const { data: existingForContact } = await supabase
+        .from("stabilization_maps")
+        .select("id, lead_id")
+        .eq("contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingForContact?.id) {
+        existingMapId = existingForContact.id;
+        resolvedLeadId = existingForContact.lead_id || undefined;
+      }
+
+      // No map yet? Bootstrap from contact data without requiring a lead
+      if (!existingMapId) {
+        const { data: contact } = await supabase
+          .from("contacts")
+          .select("first_name, last_name")
+          .eq("id", contactId)
+          .single();
+        if (!contact) {
+          return new Response(
+            JSON.stringify({ error: "Contact not found" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const { data: inserted, error: insErr } = await supabase
+          .from("stabilization_maps")
+          .insert({
+            contact_id: contactId,
+            client_first_name: contact.first_name || "",
+            client_last_name: contact.last_name || "",
+            session_date: new Date().toISOString().slice(0, 10),
+            generation_status: "ready",
+            situation_summary: "Manually authored — no lead intake on file. Edit fields directly.",
+          })
+          .select("id")
+          .single();
+        if (insErr || !inserted) throw new Error("Failed to seed map for contact");
+        return new Response(
+          JSON.stringify({ success: true, mapId: inserted.id, seeded: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     if (!resolvedLeadId) {
