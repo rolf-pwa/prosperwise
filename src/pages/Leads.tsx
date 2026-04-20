@@ -209,6 +209,19 @@ export default function Leads() {
           </p>
         </div>
 
+        <div className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="space-y-1 text-sm">
+            <p className="font-medium text-foreground">What happens on conversion?</p>
+            <p className="text-muted-foreground">
+              <strong>Convert to Contact</strong> initializes a Family and Household in the
+              Sovereignty Tree, creates a Contact record, carries over the Stabilization Map, and
+              triggers fee tier calculation. <strong>Dismiss</strong> removes the lead from this
+              queue without creating any records.
+            </p>
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
