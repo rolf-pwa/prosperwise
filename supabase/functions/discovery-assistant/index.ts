@@ -305,6 +305,21 @@ serve(async (req) => {
         });
       }
 
+      // Fire-and-forget: auto-draft Stabilization Map
+      try {
+        const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/stabilization-map-generate`;
+        fetch(fnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ leadId: data.id }),
+        }).catch((e) => console.error("Auto-draft map trigger failed:", e));
+      } catch (e) {
+        console.error("Map trigger setup error:", e);
+      }
+
       return new Response(JSON.stringify({ success: true, leadId: data.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
