@@ -284,7 +284,7 @@ export default function Leads() {
                         onClick={() => openConvertDialog(lead)}
                       >
                         <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
-                        Convert to Family
+                        Convert to Contact
                       </Button>
                     </div>
                   </div>
