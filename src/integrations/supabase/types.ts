@@ -1526,6 +1526,132 @@ export type Database = {
           },
         ]
       }
+      stabilization_maps: {
+        Row: {
+          client_first_name: string
+          client_last_name: string
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          event_type: string
+          footer_note: string
+          generation_error: string | null
+          generation_status: string
+          id: string
+          lead_id: string | null
+          logic_trace: string | null
+          next_step_1: string
+          next_step_2: string
+          next_step_3: string
+          next_step_4: string
+          next_step_5: string
+          risk_1: string
+          risk_2: string
+          risk_3: string
+          risk_4: string
+          risk_5: string
+          session_date: string | null
+          situation_summary: string
+          solicitation_detail: string
+          solicitation_status: string
+          sovereignty_charter_detail: string
+          sovereignty_charter_status: string
+          storehouse_detail: string
+          storehouse_status: string
+          tax_detail: string
+          tax_status: string
+          updated_at: string
+          urgency_flag: string
+        }
+        Insert: {
+          client_first_name?: string
+          client_last_name?: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          footer_note?: string
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          lead_id?: string | null
+          logic_trace?: string | null
+          next_step_1?: string
+          next_step_2?: string
+          next_step_3?: string
+          next_step_4?: string
+          next_step_5?: string
+          risk_1?: string
+          risk_2?: string
+          risk_3?: string
+          risk_4?: string
+          risk_5?: string
+          session_date?: string | null
+          situation_summary?: string
+          solicitation_detail?: string
+          solicitation_status?: string
+          sovereignty_charter_detail?: string
+          sovereignty_charter_status?: string
+          storehouse_detail?: string
+          storehouse_status?: string
+          tax_detail?: string
+          tax_status?: string
+          updated_at?: string
+          urgency_flag?: string
+        }
+        Update: {
+          client_first_name?: string
+          client_last_name?: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          footer_note?: string
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          lead_id?: string | null
+          logic_trace?: string | null
+          next_step_1?: string
+          next_step_2?: string
+          next_step_3?: string
+          next_step_4?: string
+          next_step_5?: string
+          risk_1?: string
+          risk_2?: string
+          risk_3?: string
+          risk_4?: string
+          risk_5?: string
+          session_date?: string | null
+          situation_summary?: string
+          solicitation_detail?: string
+          solicitation_status?: string
+          sovereignty_charter_detail?: string
+          sovereignty_charter_status?: string
+          storehouse_detail?: string
+          storehouse_status?: string
+          tax_detail?: string
+          tax_status?: string
+          updated_at?: string
+          urgency_flag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stabilization_maps_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stabilization_maps_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_notifications: {
         Row: {
           body: string | null
