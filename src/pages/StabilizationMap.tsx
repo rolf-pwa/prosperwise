@@ -97,7 +97,16 @@ export default function StabilizationMap() {
 
   const sessionDateLabel = useMemo(() => {
     if (!map?.session_date) return "";
-    try { return format(new Date(map.session_date), "MMMM d, yyyy"); } catch { return map.session_date; }
+    try {
+      // Parse YYYY-MM-DD format directly to avoid timezone issues
+      const match = map.session_date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const [, year, month, day] = match;
+        const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+        return format(date, "MMMM d, yyyy");
+      }
+      return format(new Date(map.session_date), "MMMM d, yyyy");
+    } catch { return map.session_date; }
   }, [map?.session_date]);
 
   const fullName = useMemo(() => {
