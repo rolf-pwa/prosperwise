@@ -269,7 +269,12 @@ export default function StabilizationMap() {
               <strong style={{ display: "block", fontSize: "8.5pt", fontWeight: 600 }}>Rolf Issler</strong>
               <p style={{ fontSize: "7.5pt", color: "rgba(255,255,255,.5)", marginTop: "1pt" }}>Founder · Sudden Wealth Specialist · Fee-Only · Canada</p>
             </div>
-            <div style={{ fontSize: "7pt", color: "rgba(255,255,255,.35)", marginTop: "auto" }}>www.prosperwise.ca</div>
+            <div style={{ marginTop: "auto", paddingTop: "4mm" }}>
+              <div style={{ fontSize: "6.5pt", color: "rgba(255,255,255,.4)", lineHeight: 1.5 }}>
+                © {new Date().getFullYear()} ProsperWise Advisors · www.prosperwise.ca<br />
+                Data residency: Canada. All client data stored and processed in Canadian data centers in compliance with PIPEDA.
+              </div>
+            </div>
           </aside>
 
           {/* Main */}
@@ -327,10 +332,6 @@ export default function StabilizationMap() {
             {/* Footer */}
             <div style={{ background: "#A98C5A", color: "#fff", margin: "auto -10mm 0 -10mm", padding: "3mm 10mm", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: "8.5pt", fontWeight: 500, maxWidth: "60%" }}>{map.footer_note}</div>
-              <div style={{ fontSize: "7.5pt", color: "rgba(255,255,255,.55)", textAlign: "right" }}>
-                © {new Date().getFullYear()} ProsperWise Advisors &nbsp;·&nbsp; www.prosperwise.ca &nbsp;·&nbsp; Kelowna, BC<br />
-                Confidential — prepared for {fullName}{sessionDateLabel && <> &nbsp;·&nbsp; Session date: {sessionDateLabel}</>}
-              </div>
             </div>
           </main>
         </div>
