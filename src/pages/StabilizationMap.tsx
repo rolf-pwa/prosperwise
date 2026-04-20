@@ -234,7 +234,7 @@ export default function StabilizationMap() {
           {/* Sidebar */}
           <aside style={{ width: "72mm", backgroundColor: "#2A4034", color: "#fff", padding: "10mm 7mm", display: "flex", flexDirection: "column", gap: "6mm", flexShrink: 0 }}>
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "20pt", fontWeight: 600, lineHeight: 1.1 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "22pt", fontWeight: 300, lineHeight: 1.1 }}>
                 ProsperWise
                 <span style={{ display: "block", fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: "2pt" }}>
                   Sovereignty Operating System
@@ -277,7 +277,7 @@ export default function StabilizationMap() {
                 Stabilization Map &nbsp;·&nbsp; Prepared for <strong>{fullName}</strong>
                 {sessionDateLabel && <> &nbsp;·&nbsp; {sessionDateLabel}</>}
               </div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "22pt", fontWeight: 600, color: "#3B3F3F", lineHeight: 1.1 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "26pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1, letterSpacing: "-0.005em" }}>
                 {map.event_type} &nbsp;·&nbsp; Post-Close Governance<br />
                 Your Sovereignty OS — Session One Findings
               </div>
@@ -348,7 +348,7 @@ export default function StabilizationMap() {
           body { background: white !important; }
           .stab-doc { box-shadow: none !important; }
         }
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
       `}</style>
     </div>
   );
