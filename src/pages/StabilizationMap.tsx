@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
 type StatusKind = "red" | "amber" | "green";
 
@@ -234,17 +235,18 @@ export default function StabilizationMap() {
           {/* Sidebar */}
           <aside style={{ width: "72mm", backgroundColor: "#2A4034", color: "#fff", padding: "10mm 7mm", display: "flex", flexDirection: "column", gap: "6mm", flexShrink: 0 }}>
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "22pt", fontWeight: 300, lineHeight: 1.1 }}>
-                ProsperWise
-                <span style={{ display: "block", fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: "2pt" }}>
-                  Sovereignty Operating System
-                </span>
+              <img
+                src={pwLogoWhite}
+                alt="ProsperWise"
+                style={{ width: "48mm", height: "auto", display: "block", marginBottom: "3mm" }}
+              />
+              <div style={{ fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase" }}>
+                Sovereignty Operating System
               </div>
             </div>
             <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
-            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16pt", lineHeight: 1.25 }}>
-              Prosper in <em style={{ color: "rgba(255,255,255,.45)", fontStyle: "italic" }}>silence.</em><br />
-              Govern by <em style={{ color: "rgba(255,255,255,.45)", fontStyle: "italic" }}>charter.</em>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16pt", fontWeight: 300, lineHeight: 1.3 }}>
+              Don't Invest. <em style={{ fontStyle: "italic", color: "rgba(255,255,255,.7)" }}>Integrate.</em>
             </div>
             <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
             <div>
