@@ -303,6 +303,16 @@ export default function Leads() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        onClick={() => dismissMutation.mutate(lead.id)}
+                        disabled={dismissMutation.isPending}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="mr-1.5 h-3.5 w-3.5" />
+                        Dismiss
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => navigate(`/stabilization-map/lead/${lead.id}`)}
                       >
                         <FileText className="mr-1.5 h-3.5 w-3.5" />
