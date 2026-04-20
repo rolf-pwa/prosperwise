@@ -65,10 +65,27 @@ export default function Leads() {
       const { data, error } = await supabase
         .from("discovery_leads")
         .select("*")
-        .neq("sovereignty_status", "converted_to_contact")
+        .not("sovereignty_status", "in", "(converted_to_contact,dismissed)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Lead[];
+    },
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      const { error } = await supabase
+        .from("discovery_leads")
+        .update({ sovereignty_status: "dismissed" })
+        .eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discovery-leads"] });
+      toast.success("Lead dismissed");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to dismiss lead");
     },
   });
 
