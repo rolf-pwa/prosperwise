@@ -308,6 +308,12 @@ const ContactDetail = () => {
             />
             <Button
               variant="outline"
+              onClick={() => navigate(`/stabilization-map/contact/${id}`)}
+            >
+              Stabilization Map
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}
             >
               Edit Contact
