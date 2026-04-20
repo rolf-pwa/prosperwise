@@ -150,6 +150,12 @@ export default function Leads() {
         .update({ sovereignty_status: "converted_to_contact" })
         .eq("id", convertTarget.id);
 
+      // 4b. Carry the Stabilization Map over to the new contact
+      await supabase
+        .from("stabilization_maps")
+        .update({ contact_id: contact.id })
+        .eq("lead_id", convertTarget.id);
+
       // 5. Trigger fee tier calculation
       await recalcTier((family as any).id);
 
