@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, ArrowRight, Check, TreesIcon } from "lucide-react";
+import { Loader2, UserPlus, ArrowRight, Check, TreesIcon, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
@@ -259,18 +259,28 @@ export default function Leads() {
                     </div>
                   )}
 
-                  <div className="mt-3 flex items-center justify-between">
+                  <div className="mt-3 flex items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(lead.created_at), "MMM d, yyyy 'at' h:mm a")}
                     </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openConvertDialog(lead)}
-                    >
-                      <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
-                      Convert to Family
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => navigate(`/stabilization-map/lead/${lead.id}`)}
+                      >
+                        <FileText className="mr-1.5 h-3.5 w-3.5" />
+                        Stabilization Map
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openConvertDialog(lead)}
+                      >
+                        <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
+                        Convert to Family
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
