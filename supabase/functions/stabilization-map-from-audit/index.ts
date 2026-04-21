@@ -19,7 +19,9 @@ function getCorsHeaders(req: Request) {
 
 // ---------- Vertex AI ----------
 const REGION = "northamerica-northeast1";
-const MODEL = "gemini-2.5-flash";
+// gemini-2.5-pro handles long PDFs + complex tool calls far more reliably
+// than 2.5-flash, which frequently returns MALFORMED_FUNCTION_CALL on this schema.
+const MODEL = "gemini-2.5-pro";
 const MAX_PDF_BYTES = 25 * 1024 * 1024; // 25 MB
 
 interface ServiceAccountKey {
@@ -309,7 +311,7 @@ serve(async (req) => {
         toolConfig: {
           functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["populate_stabilization_map"] },
         },
-        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
       }),
     });
 
@@ -325,15 +327,31 @@ serve(async (req) => {
     }
 
     const result = await aiRes.json();
-    const parts = result.candidates?.[0]?.content?.parts || [];
-    const fnCall = parts.find((p: any) => p.functionCall)?.functionCall;
+    const candidate = result.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    let fnCall = parts.find((p: any) => p.functionCall)?.functionCall;
+
+    // Fallback: gemini sometimes emits the function call as Python-style text
+    // when it truncates or misformats. Try to recover JSON args from it.
+    if ((!fnCall || !fnCall.args) && candidate?.finishReason === "MALFORMED_FUNCTION_CALL") {
+      const raw = candidate?.finishMessage || "";
+      console.warn("[stabilization-map-from-audit] MALFORMED_FUNCTION_CALL, attempting recovery");
+      // best-effort: not reliable enough to use; just log and fail clearly
+      console.warn("[stabilization-map-from-audit] raw fragment:", raw.slice(0, 300));
+    }
 
     if (!fnCall || !fnCall.args) {
-      console.error("[stabilization-map-from-audit] No function call returned", JSON.stringify(result).slice(0, 500));
+      const reason = candidate?.finishReason || "unknown";
+      console.error("[stabilization-map-from-audit] No function call returned", reason, JSON.stringify(result).slice(0, 800));
+      const userMsg = reason === "MAX_TOKENS"
+        ? "AI response was cut off — try again"
+        : reason === "MALFORMED_FUNCTION_CALL"
+        ? "AI returned malformed output — please retry"
+        : "AI did not return structured data";
       await supabase.from("stabilization_maps")
-        .update({ generation_status: "failed", generation_error: "AI did not return structured data" })
+        .update({ generation_status: "failed", generation_error: userMsg })
         .eq("id", mapId!);
-      return new Response(JSON.stringify({ error: "AI did not return structured data", mapId }), {
+      return new Response(JSON.stringify({ error: userMsg, mapId }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
