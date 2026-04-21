@@ -28,6 +28,7 @@ import { StatementUpload } from "@/components/StatementUpload";
 import { HoldingTank } from "@/components/HoldingTank";
 import { AssetContainer, type MoveTarget } from "@/components/AssetContainer";
 import { ProfessionalLinker } from "@/components/ProfessionalLinker";
+import { StabilizationMapButton } from "@/components/StabilizationMapButton";
 import { 
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
@@ -306,12 +307,7 @@ const ContactDetail = () => {
               contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
               onMerged={fetchData}
             />
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/stabilization-map/contact/${id}`)}
-            >
-              Stabilization Map
-            </Button>
+            <StabilizationMapButton contactId={id!} />
             <Button
               variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}
