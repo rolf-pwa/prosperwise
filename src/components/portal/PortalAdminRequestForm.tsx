@@ -24,6 +24,7 @@ const REQUEST_TYPES = [
 interface Props {
   contactId: string;
   contactName: string;
+  portalToken: string;
   onSubmitted: () => void;
   onCancel: () => void;
   prefillType?: string;
@@ -36,6 +37,7 @@ type Phase = "form" | "uploading" | "submitted";
 export function PortalAdminRequestForm({
   contactId,
   contactName,
+  portalToken,
   onSubmitted,
   onCancel,
   prefillType,
@@ -83,6 +85,7 @@ export function PortalAdminRequestForm({
       for (const file of files) {
         const formData = new FormData();
         formData.append("contact_id", contactId);
+        formData.append("portal_token", portalToken);
         formData.append("file", file);
         const resp = await supabase.functions.invoke("portal-upload", {
           body: formData,

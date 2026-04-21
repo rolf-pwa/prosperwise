@@ -20,10 +20,11 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   contactName?: string;
   contactId?: string;
+  portalToken?: string;
   onRequestSubmitted?: () => void;
 }
 
-export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, onRequestSubmitted }: Props) {
+export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, portalToken, onRequestSubmitted }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -172,6 +173,7 @@ export function PortalGeorgiaChat({ open, onOpenChange, contactName, contactId, 
                 <PortalAdminRequestForm
                   contactId={contactId}
                   contactName={contactName || ""}
+                  portalToken={portalToken || ""}
                   onSubmitted={handleFormSubmitted}
                   onCancel={handleFormCancel}
                   prefillType={formTrigger.requestType}
