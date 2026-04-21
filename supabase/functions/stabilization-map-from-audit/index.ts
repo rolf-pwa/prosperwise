@@ -19,7 +19,9 @@ function getCorsHeaders(req: Request) {
 
 // ---------- Vertex AI ----------
 const REGION = "northamerica-northeast1";
-const MODEL = "gemini-2.5-flash";
+// gemini-2.5-pro handles long PDFs + complex tool calls far more reliably
+// than 2.5-flash, which frequently returns MALFORMED_FUNCTION_CALL on this schema.
+const MODEL = "gemini-2.5-pro";
 const MAX_PDF_BYTES = 25 * 1024 * 1024; // 25 MB
 
 interface ServiceAccountKey {
