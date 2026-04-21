@@ -311,7 +311,7 @@ serve(async (req) => {
         toolConfig: {
           functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["populate_stabilization_map"] },
         },
-        generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
       }),
     });
 
