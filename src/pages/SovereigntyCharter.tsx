@@ -804,6 +804,10 @@ export default function SovereigntyCharter() {
                   {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                   Refresh with AI
                 </Button>
+                <Button size="sm" variant="outline" onClick={syncCharterFolder} disabled={syncDriveSources.isPending || !contact.google_drive_url || !googleStatus.data?.connected}>
+                  {syncDriveSources.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderSync className="mr-2 h-4 w-4" />}
+                  Sync Drive folder
+                </Button>
                 <Button size="sm" onClick={ratifyCharter} disabled={ratifying || charter.draft_status === "ratified"}>
                   {ratifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                   {charter.draft_status === "ratified" ? "Ratified" : "Ratify charter"}
@@ -841,6 +845,32 @@ export default function SovereigntyCharter() {
                 {charter.generation_summary ? (
                   <p className="mt-3 text-sm text-muted-foreground">{charter.generation_summary}</p>
                 ) : null}
+              </div>
+
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Drive intake folder</p>
+                    <p className="text-sm text-muted-foreground">Auto-syncs the fixed <span className="font-medium text-foreground">Sovereignty Charter Sources</span> subfolder inside this contact’s Drive folder.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={syncCharterFolder} disabled={syncDriveSources.isPending || !contact.google_drive_url || !googleStatus.data?.connected}>
+                    {syncDriveSources.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderSync className="mr-2 h-4 w-4" />}
+                    Sync now
+                  </Button>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Connection</p>
+                    <p className="mt-1">{googleStatus.data?.connected ? "Google Drive connected" : "Connect Google Drive to enable folder sync"}</p>
+                    <p className="mt-2 break-all text-xs">{contact.google_drive_url || "No contact Drive folder linked yet."}</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Sync activity</p>
+                    <p className="mt-1">Status: {charterSyncStatus.status || "idle"}</p>
+                    <p className="mt-1">Last checked: {formatDate(charterSyncStatus.lastCheckedAt, "Not yet checked")}</p>
+                    <p className="mt-1">Last import: {formatDate(charterSyncStatus.lastSyncedAt, "No imports yet")}</p>
+                  </div>
+                </div>
               </div>
 
               <CharterSourceEditor
