@@ -38,7 +38,6 @@ type HarvestSnapshot = {
   storehouse_id: string | null;
   snapshot_date: string;
   boy_value: number | null;
-  ytd_value: number | null;
   current_harvest: number | null;
   current_value: number | null;
 };
@@ -217,7 +216,7 @@ serve(async (req) => {
         .order("storehouse_number"),
       supabase
         .from("account_harvest_snapshots")
-        .select("id, vineyard_account_id, storehouse_id, snapshot_date, boy_value, ytd_value, current_harvest, current_value")
+        .select("id, vineyard_account_id, storehouse_id, snapshot_date, boy_value, current_harvest, current_value")
         .eq("contact_id", contactId)
         .order("snapshot_date", { ascending: false }),
     ]);
@@ -242,10 +241,8 @@ serve(async (req) => {
       .filter(Boolean) as HarvestSnapshot[];
 
     const totalVineyardBOY = vineyardHarvestSnapshots.reduce((sum, item) => sum + (Number(item.boy_value) || 0), 0);
-    const totalVineyardYTD = vineyardHarvestSnapshots.reduce((sum, item) => sum + (Number(item.ytd_value) || Number(item.current_value) || 0), 0);
     const totalVineyardHarvest = vineyardHarvestSnapshots.reduce((sum, item) => sum + (Number(item.current_harvest) || 0), 0);
     const totalStorehouseBOY = storehouseHarvestSnapshots.reduce((sum, item) => sum + (Number(item.boy_value) || 0), 0);
-    const totalStorehouseYTD = storehouseHarvestSnapshots.reduce((sum, item) => sum + (Number(item.ytd_value) || Number(item.current_value) || 0), 0);
     const totalStorehouseHarvest = storehouseHarvestSnapshots.reduce((sum, item) => sum + (Number(item.current_harvest) || 0), 0);
     const missingVineyardHarvestCount = vineyardAccounts.length - vineyardHarvestSnapshots.length;
     const missingStorehouseHarvestCount = storehouses.length - storehouseHarvestSnapshots.length;
@@ -294,8 +291,8 @@ serve(async (req) => {
       misalignedStorehouses.length > 0 ? `${misalignedStorehouses.length} Storehouse item(s) are marked misaligned with the Charter.` : undefined,
       pendingStorehouses.length > 0 ? `${pendingStorehouses.length} Storehouse item(s) still need Charter review.` : undefined,
       underfundedStorehouses.length > 0 ? `${underfundedStorehouses.length} Storehouse target(s) are below required funding levels.` : undefined,
-      missingVineyardHarvestCount > 0 ? `${missingVineyardHarvestCount} Vineyard account(s) are missing BOY/YTD harvest tracking.` : undefined,
-      missingStorehouseHarvestCount > 0 ? `${missingStorehouseHarvestCount} Storehouse item(s) are missing BOY/YTD harvest tracking.` : undefined,
+      missingVineyardHarvestCount > 0 ? `${missingVineyardHarvestCount} Vineyard account(s) are missing BOY/current harvest tracking.` : undefined,
+      missingStorehouseHarvestCount > 0 ? `${missingStorehouseHarvestCount} Storehouse item(s) are missing BOY/current harvest tracking.` : undefined,
       negativeHarvestCount > 0 ? `${negativeHarvestCount} tracked account(s) show a negative current harvest and need review.` : undefined,
       vineyardAccounts.length > 0 && storehouses.length === 0 ? "Vineyard assets exist without a matching Storehouse reserve framework." : undefined,
       contact.governance_status === "stabilization" ? "Contact is still in Stabilization Phase, so full sovereign governance is not yet complete." : undefined,
@@ -309,7 +306,7 @@ serve(async (req) => {
       misalignedStorehouses.length > 0 ? "Resolve Storehouse items marked misaligned and ratify their intended role." : undefined,
       pendingStorehouses.length > 0 ? "Approve Storehouse items still sitting in pending review." : undefined,
       underfundedStorehouses.length > 0 ? "Fund the under-target Storehouses according to their target floors." : undefined,
-      missingVineyardHarvestCount > 0 || missingStorehouseHarvestCount > 0 ? "Complete BOY and YTD harvest tracking for every matched account before the next quarterly review." : undefined,
+      missingVineyardHarvestCount > 0 || missingStorehouseHarvestCount > 0 ? "Complete BOY and current harvest tracking for every matched account before the next quarterly review." : undefined,
       negativeHarvestCount > 0 ? "Review accounts with negative current harvest and confirm whether losses or cash flows explain the variance." : undefined,
       vineyardAccounts.length > 0 && storehouseTotal === 0 ? "Pair core Vineyard assets with reserve and protection lanes before the next 90-day cycle." : undefined,
       contact.governance_status === "stabilization" ? "Complete the move from Stabilization into ratified governance so the system can be enforced." : undefined,
@@ -343,11 +340,11 @@ serve(async (req) => {
 
     const vineyardDetail = vineyardAccounts.length === 0
       ? "No Vineyard accounts are recorded, so the core asset layer cannot be reviewed this quarter."
-      : `${vineyardAccounts.length} Vineyard account(s) are recorded with an aggregate value of ${formatMoney(vineyardTotal)} across ${uniqueDefined(vineyardAccounts.map((item) => item.account_type)).join(", ") || "the current account mix"}. Harvest tracking covers ${vineyardHarvestSnapshots.length}/${vineyardAccounts.length} account(s): BOY ${formatMoney(totalVineyardBOY)}, YTD ${formatMoney(totalVineyardYTD)}, current harvest ${formatMoney(totalVineyardHarvest)}.`;
+      : `${vineyardAccounts.length} Vineyard account(s) are recorded with an aggregate value of ${formatMoney(vineyardTotal)} across ${uniqueDefined(vineyardAccounts.map((item) => item.account_type)).join(", ") || "the current account mix"}. Harvest tracking covers ${vineyardHarvestSnapshots.length}/${vineyardAccounts.length} account(s): BOY ${formatMoney(totalVineyardBOY)}, current harvest ${formatMoney(totalVineyardHarvest)}.`;
 
     const storehouseDetail = storehouses.length === 0
       ? "No Storehouse structure exists yet, so reserves, protection pools, and liquidity lanes are not currently mapped."
-      : `${storehouses.length} Storehouse item(s) are present; ${alignedStorehouses.length} aligned, ${pendingStorehouses.length} pending review, ${misalignedStorehouses.length} misaligned, and ${fundedStorehouses.length} fully funded to target. Harvest tracking covers ${storehouseHarvestSnapshots.length}/${storehouses.length} item(s): BOY ${formatMoney(totalStorehouseBOY)}, YTD ${formatMoney(totalStorehouseYTD)}, current harvest ${formatMoney(totalStorehouseHarvest)}.`;
+      : `${storehouses.length} Storehouse item(s) are present; ${alignedStorehouses.length} aligned, ${pendingStorehouses.length} pending review, ${misalignedStorehouses.length} misaligned, and ${fundedStorehouses.length} fully funded to target. Harvest tracking covers ${storehouseHarvestSnapshots.length}/${storehouses.length} item(s): BOY ${formatMoney(totalStorehouseBOY)}, current harvest ${formatMoney(totalStorehouseHarvest)}.`;
 
     const crossSystemDetail = crossSystemStatus === "Aligned"
       ? "The Charter, core assets, and reserve lanes are all present and show no material conflicts in this review cycle."
