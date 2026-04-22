@@ -1207,7 +1207,7 @@ function CharterSourceEditor({
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-foreground">Resource {index + 1}</p>
-                <p className="text-xs text-muted-foreground">{source.sourceKind.replaceAll("_", " ")}</p>
+                <p className="text-xs text-muted-foreground">{source.sourceKind.replace(/_/g, " ")}</p>
               </div>
               <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(source.id)} disabled={sources.length === 1}>
                 <Trash2 className="h-4 w-4" />
