@@ -1188,6 +1188,25 @@ export default function SovereigntyCharter() {
           </div>
         </div>
 
+        {charter.full_markdown?.trim() ? (
+          <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
+            <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
+              <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
+                Full Charter
+              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "23pt", fontWeight: 300, lineHeight: 1.08 }}>
+                Long-Form Constitutional Draft
+              </div>
+            </div>
+
+            <div style={{ padding: "12mm" }}>
+              <div className="prose prose-sm max-w-none prose-headings:font-normal prose-headings:text-inherit prose-p:text-inherit prose-strong:text-inherit prose-li:text-inherit">
+                <ReactMarkdown>{charter.full_markdown}</ReactMarkdown>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <style>{`
           @media print {
             @page { size: A4 portrait; margin: 0; }
