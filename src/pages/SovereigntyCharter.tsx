@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, FolderSync, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useGoogleStatus, useSyncCharterDriveSources } from "@/hooks/useGoogle";
 import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
