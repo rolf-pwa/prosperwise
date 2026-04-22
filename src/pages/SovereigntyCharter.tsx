@@ -508,6 +508,11 @@ export default function SovereigntyCharter() {
             title,
             inputMode,
             contentText,
+          importOrigin: source.importOrigin,
+          externalFileId: source.externalFileId || undefined,
+          externalModifiedAt: source.externalModifiedAt || undefined,
+          externalFolderId: source.externalFolderId || undefined,
+          syncError: source.syncError || undefined,
           };
         }
 
@@ -521,6 +526,11 @@ export default function SovereigntyCharter() {
             title,
             inputMode,
             sourceUrl,
+            importOrigin: source.importOrigin,
+            externalFileId: source.externalFileId || undefined,
+            externalModifiedAt: source.externalModifiedAt || undefined,
+            externalFolderId: source.externalFolderId || undefined,
+            syncError: source.syncError || undefined,
           };
         }
 
@@ -544,6 +554,11 @@ export default function SovereigntyCharter() {
           storagePath,
           fileName,
           mimeType,
+          importOrigin: source.importOrigin,
+          externalFileId: source.externalFileId || undefined,
+          externalModifiedAt: source.externalModifiedAt || undefined,
+          externalFolderId: source.externalFolderId || undefined,
+          syncError: source.syncError || undefined,
         };
       })
     );
@@ -584,6 +599,11 @@ export default function SovereigntyCharter() {
           storedPath: source.storage_path,
           fileName: source.file_name,
           mimeType: source.mime_type,
+          importOrigin: source.import_origin,
+          externalFileId: source.external_file_id,
+          externalModifiedAt: source.external_modified_at,
+          externalFolderId: source.external_folder_id,
+          syncError: source.sync_error,
         })));
       }
 
