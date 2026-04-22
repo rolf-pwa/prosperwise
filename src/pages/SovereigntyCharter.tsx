@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Trash2, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,9 +200,12 @@ const newSourceDraft = (kind: CharterSourceKind = "note", mode: CharterSourceInp
 export default function SovereigntyCharter() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [ratifying, setRatifying] = useState(false);
   const [contact, setContact] = useState<ContactRecord | null>(null);
   const [family, setFamily] = useState<FamilyRecord | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
@@ -210,6 +213,7 @@ export default function SovereigntyCharter() {
   const [storehouseRules, setStorehouseRules] = useState<StorehouseRule[]>([]);
   const [waterfallPriorities, setWaterfallPriorities] = useState<WaterfallPriority[]>([]);
   const [charter, setCharter] = useState<CharterRecord | null>(null);
+  const [charterSources, setCharterSources] = useState<CharterSourceDraft[]>([newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
 
   const fullName = useMemo(() => {
     if (!contact) return "";
@@ -322,7 +326,7 @@ export default function SovereigntyCharter() {
     setContact(resolvedContact);
 
     const familyId = resolvedContact.family_id;
-    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes] = await Promise.all([
+    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes, sourceRes] = await Promise.all([
       familyId
         ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -335,6 +339,7 @@ export default function SovereigntyCharter() {
         ? supabase.from("waterfall_priorities").select("id, priority_order, priority_label, priority_description, target_amount, is_active").eq("family_id", familyId).order("priority_order")
         : Promise.resolve({ data: [], error: null }),
       supabase.from("sovereignty_charters" as any).select("*").eq("contact_id", contactId).maybeSingle(),
+      supabase.from("sovereignty_charter_sources" as any).select("*").eq("contact_id", contactId).order("sort_order"),
     ]);
 
     if (familyRes.error) toast.error(familyRes.error.message);
@@ -343,6 +348,7 @@ export default function SovereigntyCharter() {
     if (rulesRes.error) toast.error(rulesRes.error.message);
     if (waterfallRes.error) toast.error(waterfallRes.error.message);
     if (charterRes.error) toast.error(charterRes.error.message);
+    if (sourceRes.error) toast.error(sourceRes.error.message);
 
     const resolvedFamily = (familyRes.data as FamilyRecord | null) || null;
     const resolvedVineyard = (vineyardRes.data as VineyardAccount[] | null) || [];
@@ -355,6 +361,20 @@ export default function SovereigntyCharter() {
     setStorehouses(resolvedStorehouses);
     setStorehouseRules(resolvedRules);
     setWaterfallPriorities(resolvedWaterfalls);
+
+    const resolvedSources = (((sourceRes.data as unknown) as CharterSourceRecord[] | null) || []).map((source) => ({
+      id: source.id,
+      sourceKind: source.source_kind,
+      title: source.title,
+      inputMode: source.input_mode,
+      contentText: source.content_text || source.extracted_text || "",
+      sourceUrl: source.source_url || "",
+      file: null,
+      storedPath: source.storage_path,
+      fileName: source.file_name,
+      mimeType: source.mime_type,
+    }));
+    setCharterSources(resolvedSources.length ? resolvedSources : [newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
 
     const totalStewardship =
       resolvedVineyard.reduce((sum, account) => sum + (account.current_value || 0), 0) +
@@ -425,6 +445,177 @@ export default function SovereigntyCharter() {
         },
       };
     });
+  };
+
+  const updateSource = (id: string, patch: Partial<CharterSourceDraft>) => {
+    setCharterSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
+  };
+
+  const addSource = (kind: CharterSourceKind = "note", mode: CharterSourceInputMode = kind === "link" ? "url" : "text") => {
+    setCharterSources((current) => [...current, newSourceDraft(kind, mode)]);
+  };
+
+  const removeSource = (id: string) => {
+    setCharterSources((current) => (current.length > 1 ? current.filter((source) => source.id !== id) : current));
+  };
+
+  const handleSourceFileChange = (id: string) => async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    updateSource(id, {
+      file,
+      storedPath: null,
+      fileName: file?.name || null,
+      mimeType: file?.type || null,
+    });
+  };
+
+  const buildDraftPayload = async () => {
+    if (!contactId) throw new Error("Contact not found");
+
+    const preparedSources = await Promise.all(
+      charterSources.map(async (source) => {
+        const title = sanitizeSourceTitle(source.title);
+        const inputMode = source.inputMode;
+
+        if (inputMode === "text") {
+          const contentText = sanitizeSourceText(source.contentText);
+          if (!contentText) throw new Error(`Add text for ${title}`);
+          return {
+            sourceKind: source.sourceKind,
+            title,
+            inputMode,
+            contentText,
+          };
+        }
+
+        if (inputMode === "url") {
+          const sourceUrl = sanitizeSourceUrl(source.sourceUrl);
+          if (!sourceUrl || !isValidSourceUrl(sourceUrl)) {
+            throw new Error(`Enter a valid HTTPS link for ${title}`);
+          }
+          return {
+            sourceKind: source.sourceKind,
+            title,
+            inputMode,
+            sourceUrl,
+          };
+        }
+
+        let storagePath = source.storedPath;
+        let fileName = source.fileName;
+        let mimeType = source.mimeType;
+
+        if (source.file) {
+          storagePath = await uploadCharterSourceFile(contactId, source.file);
+          fileName = source.file.name;
+          mimeType = source.file.type || source.mimeType || undefined;
+          updateSource(source.id, { storedPath: storagePath, fileName, mimeType });
+        }
+
+        if (!storagePath) throw new Error(`Upload a file for ${title}`);
+
+        return {
+          sourceKind: source.sourceKind,
+          title,
+          inputMode,
+          storagePath,
+          fileName,
+          mimeType,
+        };
+      })
+    );
+
+    return {
+      contactId,
+      charterId: charter?.id,
+      sources: preparedSources,
+    };
+  };
+
+  const generateDraft = async () => {
+    if (!contactId) return;
+    setDrafting(true);
+    try {
+      const payload = await buildDraftPayload();
+      const data = await draftSovereigntyCharter(payload);
+
+      if (data?.charter) {
+        const savedCharter = data.charter as Record<string, unknown>;
+        setCharter((current) => current ? {
+          ...current,
+          ...savedCharter,
+          id: typeof savedCharter.id === "string" ? savedCharter.id : current.id,
+          custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+        } : current);
+      }
+
+      if (Array.isArray(data?.sources)) {
+        setCharterSources((data.sources as CharterSourceRecord[]).map((source) => ({
+          id: source.id,
+          sourceKind: source.source_kind,
+          title: source.title,
+          inputMode: source.input_mode,
+          contentText: source.content_text || source.extracted_text || "",
+          sourceUrl: source.source_url || "",
+          file: null,
+          storedPath: source.storage_path,
+          fileName: source.file_name,
+          mimeType: source.mime_type,
+        })));
+      }
+
+      toast.success(data?.summary || "Initial charter draft generated");
+      setEditing(false);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to generate charter draft");
+    } finally {
+      setDrafting(false);
+    }
+  };
+
+  const ratifyCharter = async () => {
+    if (!charter?.id || !contactId) {
+      toast.error("Save or generate the charter before ratifying it");
+      return;
+    }
+
+    setRatifying(true);
+    const ratifiedAt = new Date().toISOString();
+    const footerDateLabel = formatDate(ratifiedAt);
+    const footerStatus = "Ratified / Sovereign phase";
+
+    const { error: charterError } = await supabase
+      .from("sovereignty_charters" as any)
+      .update({
+        draft_status: "ratified",
+        ratified_at: ratifiedAt,
+        ratified_by: user?.id || null,
+        footer_status: footerStatus,
+        footer_date_label: footerDateLabel,
+      })
+      .eq("id", charter.id);
+
+    if (charterError) {
+      setRatifying(false);
+      toast.error(charterError.message);
+      return;
+    }
+
+    const { error: contactError } = await supabase
+      .from("contacts")
+      .update({ charter_url: `/sovereignty-charter/contact/${contactId}` })
+      .eq("id", contactId);
+
+    setRatifying(false);
+
+    if (contactError) {
+      toast.error(contactError.message);
+      return;
+    }
+
+    toast.success("Charter ratified and linked to the portal");
+    await load();
   };
 
   const save = async () => {
@@ -514,6 +705,10 @@ export default function SovereigntyCharter() {
                 <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>
                   Cancel
                 </Button>
+                <Button size="sm" variant="outline" onClick={generateDraft} disabled={saving || drafting}>
+                  {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
+                  Generate draft
+                </Button>
                 <Button size="sm" onClick={save} disabled={saving}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Save
@@ -523,6 +718,14 @@ export default function SovereigntyCharter() {
               <>
                 <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                   <Pencil className="mr-2 h-4 w-4" /> Edit
+                </Button>
+                <Button size="sm" variant="outline" onClick={generateDraft} disabled={drafting}>
+                  {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  Refresh with AI
+                </Button>
+                <Button size="sm" onClick={ratifyCharter} disabled={ratifying || charter.draft_status === "ratified"}>
+                  {ratifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                  {charter.draft_status === "ratified" ? "Ratified" : "Ratify charter"}
                 </Button>
                 {sourceCharterUrl && (
                   <Button size="sm" variant="outline" asChild>
@@ -544,6 +747,29 @@ export default function SovereigntyCharter() {
         <div className="mx-auto max-w-[1100px] px-6 py-6 print:hidden">
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">AI drafting workflow</p>
+                    <p className="text-sm text-muted-foreground">Upload statements, paste Stabilization Session notes, or add Gemini transcript links before generating the first charter draft.</p>
+                  </div>
+                  <div className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+                    Status: {charter.draft_status || "draft"}
+                  </div>
+                </div>
+                {charter.generation_summary ? (
+                  <p className="mt-3 text-sm text-muted-foreground">{charter.generation_summary}</p>
+                ) : null}
+              </div>
+
+              <CharterSourceEditor
+                sources={charterSources}
+                onAdd={addSource}
+                onRemove={removeSource}
+                onUpdate={updateSource}
+                onFileChange={handleSourceFileChange}
+              />
+
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Document Title">
                   <Input value={charter.title} onChange={(e) => updateField("title", e.target.value)} />
@@ -634,6 +860,21 @@ export default function SovereigntyCharter() {
       )}
 
       <div className="mx-auto max-w-[210mm] px-6 py-6 print:p-0 print:max-w-none">
+        {(charter.generation_summary || charter.last_generated_at || charter.ratified_at) && (
+          <div className="mb-6 rounded-lg border border-border bg-card p-4 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Draft lifecycle</p>
+                <p className="text-sm text-muted-foreground">{charter.generation_summary || "This charter is ready for review and ratification."}</p>
+              </div>
+              <div className="space-y-1 text-right text-xs text-muted-foreground">
+                {charter.last_generated_at ? <div>Last AI draft: {formatDate(charter.last_generated_at, charter.last_generated_at)}</div> : null}
+                {charter.ratified_at ? <div>Ratified: {formatDate(charter.ratified_at, charter.ratified_at)}</div> : null}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className={pageWrap} style={pageStyle}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "10mm 12mm 9mm" }}>
             <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "54mm", height: "auto", display: "block", marginBottom: "4mm" }} />
@@ -922,6 +1163,120 @@ function CustomContainerEditor({
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function CharterSourceEditor({
+  sources,
+  onAdd,
+  onRemove,
+  onUpdate,
+  onFileChange,
+}: {
+  sources: CharterSourceDraft[];
+  onAdd: (kind?: CharterSourceKind, mode?: CharterSourceInputMode) => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, patch: Partial<CharterSourceDraft>) => void;
+  onFileChange: (id: string) => (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Charter resources</h3>
+          <p className="text-sm text-muted-foreground">Mix uploads, pasted notes, and links. The AI uses these alongside the existing account structure.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => onAdd("statement", "upload")}>
+            <Upload className="mr-2 h-4 w-4" /> Statement
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onAdd("stabilization_session", "text")}>
+            <FileText className="mr-2 h-4 w-4" /> Session notes
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onAdd("link", "url")}>
+            <ExternalLink className="mr-2 h-4 w-4" /> Link
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {sources.map((source, index) => (
+          <div key={source.id} className="rounded-md border border-border p-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Resource {index + 1}</p>
+                <p className="text-xs text-muted-foreground">{source.sourceKind.replace(/_/g, " ")}</p>
+              </div>
+              <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(source.id)} disabled={sources.length === 1}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr_0.9fr]">
+              <Field label="Title">
+                <Input value={source.title} onChange={(e) => onUpdate(source.id, { title: e.target.value })} />
+              </Field>
+              <Field label="Resource type">
+                <select
+                  value={source.sourceKind}
+                  onChange={(e) => onUpdate(source.id, { sourceKind: e.target.value as CharterSourceKind })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="statement">Account statement</option>
+                  <option value="stabilization_session">Stabilization Session</option>
+                  <option value="meeting_transcript">Meeting transcript</option>
+                  <option value="link">Reference link</option>
+                  <option value="note">Advisor note</option>
+                </select>
+              </Field>
+              <Field label="Input mode">
+                <select
+                  value={source.inputMode}
+                  onChange={(e) => onUpdate(source.id, {
+                    inputMode: e.target.value as CharterSourceInputMode,
+                    contentText: e.target.value === "text" ? source.contentText : "",
+                    sourceUrl: e.target.value === "url" ? source.sourceUrl : "",
+                    file: e.target.value === "upload" ? source.file : null,
+                    storedPath: e.target.value === "upload" ? source.storedPath : null,
+                  })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="upload">Upload file</option>
+                  <option value="text">Paste text</option>
+                  <option value="url">Link</option>
+                </select>
+              </Field>
+            </div>
+
+            <div className="mt-4">
+              {source.inputMode === "upload" ? (
+                <Field label="Source file">
+                  <div className="rounded-md border border-dashed border-border p-4">
+                    <Input type="file" onChange={onFileChange(source.id)} accept=".pdf,.txt,.md,.doc,.docx" />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {source.fileName ? `Selected: ${source.fileName}` : source.storedPath ? "Previously uploaded file ready for reuse." : "Upload account statements or supporting files up to 20MB."}
+                    </p>
+                  </div>
+                </Field>
+              ) : source.inputMode === "url" ? (
+                <Field label="Reference URL">
+                  <Input value={source.sourceUrl} onChange={(e) => onUpdate(source.id, { sourceUrl: e.target.value })} placeholder="https://" />
+                </Field>
+              ) : (
+                <Field label="Resource text">
+                  <Textarea
+                    value={source.contentText}
+                    onChange={(e) => onUpdate(source.id, { contentText: e.target.value })}
+                    rows={6}
+                    placeholder="Paste the Stabilization Session summary, Gemini meeting transcript, or advisor notes here."
+                  />
+                </Field>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
