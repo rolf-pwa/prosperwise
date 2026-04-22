@@ -632,13 +632,13 @@ export default function SovereigntyCharter() {
             </div>
 
             {charter.custom_sections.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
                 {charter.custom_sections.map((section) => (
-                  <ContainerCard
+                  <PageOneContainerCard
                     key={`page-one-${section.id}`}
                     title={section.title}
                     meta={section.meta}
-                    items={section.body.split("\n").map((line) => line.trim()).filter(Boolean)}
+                    body={section.body}
                   />
                 ))}
               </div>
@@ -831,6 +831,27 @@ function ArticleCard({ title, body }: { title: string; body: string }) {
     <div style={{ border: "1px solid #D3C5B7", padding: "4mm", background: "#fff" }}>
       <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "13pt", fontWeight: 500, color: "#3B3F3F", marginBottom: "1.5mm" }}>{title}</div>
       <p style={{ fontSize: "7.5pt", lineHeight: 1.6, color: "#3B3F3F" }}>{body}</p>
+    </div>
+  );
+}
+
+function PageOneContainerCard({ title, meta, body }: { title: string; meta?: string; body: string }) {
+  const lines = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return (
+    <div style={{ border: "1px solid #D3C5B7", padding: "4mm", background: "#fff" }}>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "13pt", fontWeight: 500, color: "#3B3F3F", marginBottom: "1.5mm" }}>{title}</div>
+      {meta ? <div style={{ fontSize: "7pt", color: "#6B7070", marginBottom: "2mm", textTransform: "uppercase", letterSpacing: ".08em" }}>{meta}</div> : null}
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5mm" }}>
+        {lines.map((line, index) => (
+          <p key={index} style={{ fontSize: "7.5pt", lineHeight: 1.6, color: "#3B3F3F" }}>
+            {line}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }
