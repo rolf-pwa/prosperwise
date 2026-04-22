@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Loader2, Pencil, Plus, Printer, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Trash2, Upload, WandSparkles } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
 type ContactRecord = {
@@ -109,6 +111,24 @@ type CharterRecord = {
   footer_status: string;
   footer_date_label: string;
   custom_sections: CustomSectionGroups;
+  draft_status?: CharterDraftStatus;
+  ratified_at?: string | null;
+  ratified_by?: string | null;
+  generation_summary?: string | null;
+  last_generated_at?: string | null;
+};
+
+type CharterSourceDraft = {
+  id: string;
+  sourceKind: CharterSourceKind;
+  title: string;
+  inputMode: CharterSourceInputMode;
+  contentText: string;
+  sourceUrl: string;
+  file: File | null;
+  storedPath: string | null;
+  fileName: string | null;
+  mimeType: string | null;
 };
 
 const formatCurrency = (value: number | null | undefined) =>
@@ -153,6 +173,28 @@ const newCustomContainer = (): CustomContainer => ({
   title: "Additional Container",
   meta: "Current — · Target —",
   body: "Describe the purpose, constraints, and operating rules for this container.",
+});
+
+const newSourceDraft = (kind: CharterSourceKind = "note", mode: CharterSourceInputMode = "text"): CharterSourceDraft => ({
+  id: crypto.randomUUID(),
+  sourceKind: kind,
+  title:
+    kind === "statement"
+      ? "Account statement"
+      : kind === "stabilization_session"
+        ? "Stabilization Session"
+        : kind === "meeting_transcript"
+          ? "Gemini meeting transcript"
+          : kind === "link"
+            ? "Reference link"
+            : "Advisor note",
+  inputMode: mode,
+  contentText: "",
+  sourceUrl: "",
+  file: null,
+  storedPath: null,
+  fileName: null,
+  mimeType: null,
 });
 
 export default function SovereigntyCharter() {
