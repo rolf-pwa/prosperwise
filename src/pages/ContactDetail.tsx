@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Bell, BellOff, Trash2, Clock, AlertCircle, Shield, 
@@ -49,6 +50,7 @@ interface Storehouse {
   visibility_scope: string;
   current_value: number | null;
   target_value: number | null;
+  book_value: number | null;
 }
 
 interface HouseholdMember {
@@ -61,11 +63,58 @@ interface HouseholdMember {
 interface VineyardAccount {
   id: string;
   account_name: string;
+  account_number?: string | null;
   account_type: string;
+  book_value: number | null;
   current_value: number | null;
   notes: string | null;
   visibility_scope: string;
 }
+
+interface HarvestSnapshot {
+  id: string;
+  snapshot_date: string;
+  reporting_year: number;
+  boy_value: number;
+  ytd_value: number;
+  current_harvest: number;
+  current_value: number;
+  notes: string | null;
+  vineyard_account_id: string | null;
+  storehouse_id: string | null;
+}
+
+interface HarvestDraft {
+  id?: string;
+  snapshot_date: string;
+  boy_value: string;
+  ytd_value: string;
+  current_harvest: string;
+  current_value: string;
+  notes: string;
+}
+
+const formatCurrency = (value: number | null | undefined) =>
+  value == null || Number.isNaN(value)
+    ? "—"
+    : new Intl.NumberFormat("en-CA", {
+        style: "currency",
+        currency: "CAD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value);
+
+const toInputValue = (value: number | null | undefined) =>
+  value == null || Number.isNaN(value) ? "" : String(value);
+
+const parseMoney = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getHarvestKey = (kind: "vineyard" | "storehouse", id: string) => `${kind}:${id}`;
 
 const ContactDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -84,6 +133,9 @@ const ContactDetail = () => {
   const [loading, setLoading] = useState(true);
   const [statementFiles, setStatementFiles] = useState<File[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
+  const [harvestSnapshots, setHarvestSnapshots] = useState<HarvestSnapshot[]>([]);
+  const [harvestDrafts, setHarvestDrafts] = useState<Record<string, HarvestDraft>>({});
+  const [savingHarvestKey, setSavingHarvestKey] = useState<string | null>(null);
   const [corporateStakes, setCorporateStakes] = useState<Array<{
     corporation_id: string;
     corporation_name: string;
@@ -105,16 +157,18 @@ const ContactDetail = () => {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [contactRes, storehouseRes, , , accountsRes] = await Promise.all([
+    const [contactRes, storehouseRes, , , accountsRes, harvestRes] = await Promise.all([
       supabase.from("contacts").select("*").eq("id", id).maybeSingle(),
       supabase.from("storehouses").select("*").eq("contact_id", id).order("storehouse_number"),
       Promise.resolve({ data: [] }),
       supabase.from("family_relationships").select("id, member_contact_id, relationship_label, contact:contacts!family_relationships_member_contact_id_fkey(id, first_name, last_name)").eq("contact_id", id),
       supabase.from("vineyard_accounts" as any).select("*").eq("contact_id", id).order("created_at"),
+      supabase.from("account_harvest_snapshots").select("*").eq("contact_id", id).order("snapshot_date", { ascending: false }),
     ]);
     setContact(contactRes.data);
     setStorehouses(storehouseRes.data || []);
     setVineyardAccounts((accountsRes.data as any) || []);
+    setHarvestSnapshots((harvestRes.data as any) || []);
 
     if (contactRes.data?.household_id) {
       const { data: hhMembers } = await supabase
@@ -190,6 +244,57 @@ const ContactDetail = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const latestByKey = harvestSnapshots.reduce<Record<string, HarvestSnapshot>>((acc, snapshot) => {
+      const key = snapshot.vineyard_account_id
+        ? getHarvestKey("vineyard", snapshot.vineyard_account_id)
+        : snapshot.storehouse_id
+          ? getHarvestKey("storehouse", snapshot.storehouse_id)
+          : null;
+
+      if (!key) return acc;
+
+      const current = acc[key];
+      if (!current || new Date(snapshot.snapshot_date) > new Date(current.snapshot_date)) {
+        acc[key] = snapshot;
+      }
+      return acc;
+    }, {});
+
+    const today = new Date().toISOString().slice(0, 10);
+    const nextDrafts: Record<string, HarvestDraft> = {};
+
+    vineyardAccounts.forEach((account) => {
+      const key = getHarvestKey("vineyard", account.id);
+      const snapshot = latestByKey[key];
+      nextDrafts[key] = {
+        id: snapshot?.id,
+        snapshot_date: snapshot?.snapshot_date ?? today,
+        boy_value: toInputValue(snapshot?.boy_value ?? account.book_value),
+        ytd_value: toInputValue(snapshot?.ytd_value ?? account.current_value),
+        current_harvest: toInputValue(snapshot?.current_harvest),
+        current_value: toInputValue(snapshot?.current_value ?? account.current_value),
+        notes: snapshot?.notes ?? "",
+      };
+    });
+
+    storehouses.forEach((storehouse) => {
+      const key = getHarvestKey("storehouse", storehouse.id);
+      const snapshot = latestByKey[key];
+      nextDrafts[key] = {
+        id: snapshot?.id,
+        snapshot_date: snapshot?.snapshot_date ?? today,
+        boy_value: toInputValue(snapshot?.boy_value ?? storehouse.book_value),
+        ytd_value: toInputValue(snapshot?.ytd_value ?? storehouse.current_value),
+        current_harvest: toInputValue(snapshot?.current_harvest),
+        current_value: toInputValue(snapshot?.current_value ?? storehouse.current_value),
+        notes: snapshot?.notes ?? "",
+      };
+    });
+
+    setHarvestDrafts(nextDrafts);
+  }, [harvestSnapshots, vineyardAccounts, storehouses]);
+
   const handleIngestStatements = async () => {
     if (!statementFiles.length || !contact) return;
     setIsIngesting(true);
@@ -214,6 +319,73 @@ const ContactDetail = () => {
       toast.error(err.message || "Ingestion failed");
     } finally {
       setIsIngesting(false);
+    }
+  };
+
+  const updateHarvestDraft = (key: string, field: keyof HarvestDraft, value: string) => {
+    setHarvestDrafts((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveHarvestSnapshot = async (
+    key: string,
+    account: { id: string; name: string; kind: "vineyard" | "storehouse" }
+  ) => {
+    const draft = harvestDrafts[key];
+    if (!draft) return;
+
+    const boyValue = parseMoney(draft.boy_value) ?? 0;
+    const ytdValue = parseMoney(draft.ytd_value);
+    const currentValue = parseMoney(draft.current_value) ?? 0;
+    const calculatedHarvest = (ytdValue ?? currentValue) - boyValue;
+    const currentHarvest = parseMoney(draft.current_harvest) ?? calculatedHarvest;
+
+    const payload = {
+      contact_id: id!,
+      snapshot_date: draft.snapshot_date,
+      boy_value: boyValue,
+      ytd_value: ytdValue ?? currentValue,
+      current_harvest: currentHarvest,
+      current_value: currentValue,
+      notes: draft.notes.trim() || null,
+      vineyard_account_id: account.kind === "vineyard" ? account.id : null,
+      storehouse_id: account.kind === "storehouse" ? account.id : null,
+    };
+
+    setSavingHarvestKey(key);
+    try {
+      if (draft.id) {
+        const { error } = await supabase
+          .from("account_harvest_snapshots")
+          .update(payload)
+          .eq("id", draft.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("account_harvest_snapshots").insert(payload);
+        if (error) throw error;
+      }
+
+      const sourceTable = account.kind === "vineyard" ? "vineyard_accounts" : "storehouses";
+      const { error: sourceError } = await supabase
+        .from(sourceTable as any)
+        .update({
+          book_value: boyValue,
+          current_value: currentValue,
+        } as any)
+        .eq("id", account.id);
+      if (sourceError) throw sourceError;
+
+      toast.success(`${account.name} harvest tracking saved.`);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save harvest tracking.");
+    } finally {
+      setSavingHarvestKey(null);
     }
   };
 
@@ -517,6 +689,112 @@ const ContactDetail = () => {
 
                 {/* Holding Tank */}
                 <HoldingTank contactId={id!} onAccountMoved={() => fetchData()} />
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Annual Harvest Tracking</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Quarterly statement uploads can prefill these values. You can review and override BOY, YTD, Harvest, and current values here.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {vineyardAccounts.length === 0 && storehouses.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No Vineyard or Storehouse accounts available yet.</p>
+                    ) : (
+                      <>
+                        {vineyardAccounts.map((account) => {
+                          const key = getHarvestKey("vineyard", account.id);
+                          const draft = harvestDrafts[key];
+                          const boy = parseMoney(draft?.boy_value ?? "") ?? account.book_value ?? 0;
+                          const ytd = parseMoney(draft?.ytd_value ?? "") ?? parseMoney(draft?.current_value ?? "") ?? account.current_value ?? 0;
+                          const harvest = parseMoney(draft?.current_harvest ?? "") ?? (ytd - boy);
+
+                          return (
+                            <div key={account.id} className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-medium">{account.account_name}</p>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <Badge variant="outline">Vineyard</Badge>
+                                    <span>{account.account_type}</span>
+                                    {account.account_number && <span>Acct #{account.account_number}</span>}
+                                  </div>
+                                </div>
+                                <div className="text-right text-xs text-muted-foreground">
+                                  <p>Calculated Harvest</p>
+                                  <p className="text-sm font-semibold text-foreground">{formatCurrency(harvest)}</p>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-3 md:grid-cols-4">
+                                <Input type="date" value={draft?.snapshot_date ?? ""} onChange={(e) => updateHarvestDraft(key, "snapshot_date", e.target.value)} />
+                                <Input type="number" placeholder="BOY" value={draft?.boy_value ?? ""} onChange={(e) => updateHarvestDraft(key, "boy_value", e.target.value)} />
+                                <Input type="number" placeholder="YTD" value={draft?.ytd_value ?? ""} onChange={(e) => updateHarvestDraft(key, "ytd_value", e.target.value)} />
+                                <Input type="number" placeholder="Current Value" value={draft?.current_value ?? ""} onChange={(e) => updateHarvestDraft(key, "current_value", e.target.value)} />
+                              </div>
+
+                              <div className="grid gap-3 md:grid-cols-[220px_1fr_auto]">
+                                <Input type="number" placeholder="Current Harvest" value={draft?.current_harvest ?? ""} onChange={(e) => updateHarvestDraft(key, "current_harvest", e.target.value)} />
+                                <Textarea className="min-h-[44px]" placeholder="Notes" value={draft?.notes ?? ""} onChange={(e) => updateHarvestDraft(key, "notes", e.target.value)} />
+                                <Button
+                                  onClick={() => saveHarvestSnapshot(key, { id: account.id, name: account.account_name, kind: "vineyard" })}
+                                  disabled={savingHarvestKey === key || !(draft?.snapshot_date)}
+                                >
+                                  {savingHarvestKey === key ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {storehouses.map((storehouse) => {
+                          const key = getHarvestKey("storehouse", storehouse.id);
+                          const draft = harvestDrafts[key];
+                          const boy = parseMoney(draft?.boy_value ?? "") ?? storehouse.book_value ?? 0;
+                          const ytd = parseMoney(draft?.ytd_value ?? "") ?? parseMoney(draft?.current_value ?? "") ?? storehouse.current_value ?? 0;
+                          const harvest = parseMoney(draft?.current_harvest ?? "") ?? (ytd - boy);
+                          const label = storehouse.asset_type || storehouse.label || STOREHOUSE_NAMES[storehouse.storehouse_number - 1];
+
+                          return (
+                            <div key={storehouse.id} className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-medium">{label}</p>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <Badge variant="outline">{STOREHOUSE_NAMES[storehouse.storehouse_number - 1]}</Badge>
+                                    {storehouse.risk_cap && <span>{storehouse.risk_cap}</span>}
+                                  </div>
+                                </div>
+                                <div className="text-right text-xs text-muted-foreground">
+                                  <p>Calculated Harvest</p>
+                                  <p className="text-sm font-semibold text-foreground">{formatCurrency(harvest)}</p>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-3 md:grid-cols-4">
+                                <Input type="date" value={draft?.snapshot_date ?? ""} onChange={(e) => updateHarvestDraft(key, "snapshot_date", e.target.value)} />
+                                <Input type="number" placeholder="BOY" value={draft?.boy_value ?? ""} onChange={(e) => updateHarvestDraft(key, "boy_value", e.target.value)} />
+                                <Input type="number" placeholder="YTD" value={draft?.ytd_value ?? ""} onChange={(e) => updateHarvestDraft(key, "ytd_value", e.target.value)} />
+                                <Input type="number" placeholder="Current Value" value={draft?.current_value ?? ""} onChange={(e) => updateHarvestDraft(key, "current_value", e.target.value)} />
+                              </div>
+
+                              <div className="grid gap-3 md:grid-cols-[220px_1fr_auto]">
+                                <Input type="number" placeholder="Current Harvest" value={draft?.current_harvest ?? ""} onChange={(e) => updateHarvestDraft(key, "current_harvest", e.target.value)} />
+                                <Textarea className="min-h-[44px]" placeholder="Notes" value={draft?.notes ?? ""} onChange={(e) => updateHarvestDraft(key, "notes", e.target.value)} />
+                                <Button
+                                  onClick={() => saveHarvestSnapshot(key, { id: storehouse.id, name: label, kind: "storehouse" })}
+                                  disabled={savingHarvestKey === key || !(draft?.snapshot_date)}
+                                >
+                                  {savingHarvestKey === key ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* The Vineyard Accounts */}
                 <AssetContainer

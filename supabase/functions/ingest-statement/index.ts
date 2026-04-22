@@ -29,6 +29,16 @@ interface ServiceAccountKey {
   token_uri: string;
 }
 
+function normalizeAccountToken(value: string | null | undefined) {
+  return (value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function getSnapshotDate(input?: string | null) {
+  if (!input) return new Date().toISOString().slice(0, 10);
+  const parsed = new Date(input);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString().slice(0, 10) : parsed.toISOString().slice(0, 10);
+}
+
 async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
@@ -119,6 +129,7 @@ Deno.serve(async (req) => {
     const systemContent = `You are a financial statement parser for a Canadian family office. Extract investment/brokerage account data from the uploaded document.
 Return a JSON object with this exact structure:
 {
+  "statement_date": "YYYY-MM-DD or null",
   "accounts": [
     {
       "account_name": "Institution - Account Type (e.g. iA Financial - RRSP)",
@@ -127,6 +138,8 @@ Return a JSON object with this exact structure:
       "account_owner": "Full name of the account holder or null",
       "custodian": "Name of the financial institution",
       "book_value": number or null,
+      "ytd_value": number or null,
+      "current_harvest": number or null,
       "current_value": number or null,
       "notes": "Any classification notes"
     }
@@ -135,7 +148,10 @@ Return a JSON object with this exact structure:
   "missing_fields": ["list of fields that could not be confidently extracted"]
 }
 Guidelines:
+- "statement_date" should be the statement end date or valuation date shown on the document
 - "book_value" is the beginning-of-year value, cost basis, or original investment amount
+- "ytd_value" is the year-to-date market value if the statement shows a YTD figure; otherwise use the latest value shown
+- "current_harvest" is the year-to-date gain/loss, growth, or harvest amount if shown; otherwise calculate it from YTD/current minus BOY when possible
 - "current_value" is the most recent market value shown
 - Extract the account owner name from the statement header/title
 - Identify the custodian/institution from the statement branding
@@ -179,9 +195,81 @@ Guidelines:
       throw new Error("Failed to parse AI response as JSON: " + jsonStr.slice(0, 200));
     }
 
-    // Insert extracted accounts into the Holding Tank
+    const snapshotDate = getSnapshotDate(parsed.statement_date);
+    const { data: existingVineyard } = await adminClient
+      .from("vineyard_accounts")
+      .select("id, account_name, account_number, book_value, current_value")
+      .eq("contact_id", contactId);
+    const { data: existingStorehouses } = await adminClient
+      .from("storehouses")
+      .select("id, label, asset_type, book_value, current_value")
+      .eq("contact_id", contactId);
+
+    const vineyardByNumber = new Map((existingVineyard || [])
+      .filter((item) => item.account_number)
+      .map((item) => [normalizeAccountToken(item.account_number), item]));
+    const vineyardByName = new Map((existingVineyard || []).map((item) => [normalizeAccountToken(item.account_name), item]));
+    const storehouseByName = new Map((existingStorehouses || []).flatMap((item) => {
+      const tokens = [item.label, item.asset_type].filter(Boolean).map((value) => normalizeAccountToken(value));
+      return tokens.map((token) => [token, item] as const);
+    }));
+
+    let snapshotUpdates = 0;
+    const unmatchedAccounts = [];
+
+    // Insert extracted accounts into the Holding Tank and/or tracking snapshots
     const insertedAccounts = [];
     for (const account of parsed.accounts || []) {
+      const normalizedNumber = normalizeAccountToken(account.account_number);
+      const normalizedName = normalizeAccountToken(account.account_name);
+      const matchedVineyard = (normalizedNumber && vineyardByNumber.get(normalizedNumber)) || vineyardByName.get(normalizedName);
+      const matchedStorehouse = storehouseByName.get(normalizedName);
+      const matchedAccount = matchedVineyard || matchedStorehouse;
+      const ytdValue = account.ytd_value ?? account.current_value ?? 0;
+      const boyValue = account.book_value ?? 0;
+      const currentValue = account.current_value ?? ytdValue;
+      const currentHarvest = account.current_harvest ?? (ytdValue - boyValue);
+
+      if (matchedAccount) {
+        const isVineyard = "account_name" in matchedAccount;
+        const idColumn = isVineyard ? "vineyard_account_id" : "storehouse_id";
+        const sourceTable = isVineyard ? "vineyard_accounts" : "storehouses";
+
+        const { data: existingSnapshot } = await adminClient
+          .from("account_harvest_snapshots")
+          .select("id")
+          .eq(idColumn, matchedAccount.id)
+          .eq("snapshot_date", snapshotDate)
+          .maybeSingle();
+
+        const snapshotPayload = {
+          contact_id: contactId,
+          snapshot_date: snapshotDate,
+          boy_value: boyValue,
+          ytd_value: ytdValue,
+          current_harvest: currentHarvest,
+          current_value: currentValue,
+          notes: account.notes || null,
+          vineyard_account_id: isVineyard ? matchedAccount.id : null,
+          storehouse_id: isVineyard ? null : matchedAccount.id,
+        };
+
+        const snapshotQuery = existingSnapshot?.id
+          ? adminClient.from("account_harvest_snapshots").update(snapshotPayload).eq("id", existingSnapshot.id)
+          : adminClient.from("account_harvest_snapshots").insert(snapshotPayload);
+
+        const { error: snapshotErr } = await snapshotQuery;
+        if (!snapshotErr) {
+          snapshotUpdates += 1;
+          await adminClient
+            .from(sourceTable)
+            .update({ book_value: boyValue, current_value: currentValue })
+            .eq("id", matchedAccount.id);
+          continue;
+        }
+      }
+
+      unmatchedAccounts.push(account.account_name);
       const { data: htItem, error: htErr } = await adminClient
         .from("holding_tank")
         .insert({
@@ -211,10 +299,12 @@ Guidelines:
       created_by: user.id,
       proposed_data: {
         holding_tank_ids: insertedAccounts.map((a: any) => a.id),
+        harvest_snapshot_updates: snapshotUpdates,
+        unmatched_accounts: unmatchedAccounts,
         summary: parsed.summary,
         missing_fields: parsed.missing_fields || [],
       },
-      logic_trace: `AI extracted ${parsed.accounts?.length || 0} accounts from uploaded statement. File: ${filePath}. Missing fields: ${(parsed.missing_fields || []).join(", ") || "none"}`,
+      logic_trace: `AI extracted ${parsed.accounts?.length || 0} accounts from uploaded statement. Harvest snapshots updated: ${snapshotUpdates}. Holding tank inserts: ${insertedAccounts.length}. File: ${filePath}. Missing fields: ${(parsed.missing_fields || []).join(", ") || "none"}`,
       status: "pending",
     });
 
@@ -223,6 +313,8 @@ Guidelines:
         success: true,
         accountsExtracted: parsed.accounts?.length || 0,
         accountsInserted: insertedAccounts.length,
+        harvestSnapshotsUpdated: snapshotUpdates,
+        unmatchedAccounts,
         missingFields: parsed.missing_fields || [],
         summary: parsed.summary,
       }),
