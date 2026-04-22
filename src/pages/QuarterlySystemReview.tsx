@@ -48,6 +48,31 @@ type QuarterlyReview = {
   logic_trace: string | null;
 };
 
+type ReviewHarvestSnapshot = {
+  id: string;
+  snapshot_date: string;
+  boy_value: number;
+  ytd_value: number;
+  current_harvest: number;
+  current_value: number;
+  vineyard_account_id: string | null;
+  storehouse_id: string | null;
+};
+
+type ReviewVineyardAccount = {
+  id: string;
+  account_name: string;
+  account_type: string;
+  current_value: number | null;
+};
+
+type ReviewStorehouse = {
+  id: string;
+  label: string;
+  storehouse_number: number;
+  current_value: number | null;
+};
+
 const STATUS_KIND: Record<string, StatusKind> = {
   Missing: "red",
   "Needs Review": "red",
@@ -64,6 +89,16 @@ const STATUS_COLOR: Record<StatusKind, string> = {
 
 const STATUS_OPTIONS: ReviewStatus[] = ["Missing", "Needs Review", "Needs Attention", "Partial", "Aligned"];
 
+const formatCurrency = (value: number | null | undefined) =>
+  value == null || Number.isNaN(value)
+    ? "—"
+    : new Intl.NumberFormat("en-CA", {
+        style: "currency",
+        currency: "CAD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value);
+
 export default function QuarterlySystemReview() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -72,6 +107,9 @@ export default function QuarterlySystemReview() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [harvestSnapshots, setHarvestSnapshots] = useState<ReviewHarvestSnapshot[]>([]);
+  const [vineyardAccounts, setVineyardAccounts] = useState<ReviewVineyardAccount[]>([]);
+  const [storehouses, setStorehouses] = useState<ReviewStorehouse[]>([]);
 
   const isFreshGeneration = (updatedAt?: string | null) => {
     if (!updatedAt) return false;
@@ -95,6 +133,39 @@ export default function QuarterlySystemReview() {
     }
 
     setReview(data);
+
+    if (data?.contact_id) {
+      const [harvestRes, vineyardRes, storehouseRes] = await Promise.all([
+        supabase
+          .from("account_harvest_snapshots")
+          .select("id, snapshot_date, boy_value, ytd_value, current_harvest, current_value, vineyard_account_id, storehouse_id")
+          .eq("contact_id", data.contact_id)
+          .order("snapshot_date", { ascending: false }),
+        supabase
+          .from("vineyard_accounts" as any)
+          .select("id, account_name, account_type, current_value")
+          .eq("contact_id", data.contact_id)
+          .order("created_at"),
+        supabase
+          .from("storehouses")
+          .select("id, label, storehouse_number, current_value")
+          .eq("contact_id", data.contact_id)
+          .order("storehouse_number"),
+      ]);
+
+      if (harvestRes.error) toast.error(harvestRes.error.message);
+      if (vineyardRes.error) toast.error(vineyardRes.error.message);
+      if (storehouseRes.error) toast.error(storehouseRes.error.message);
+
+      setHarvestSnapshots((harvestRes.data as ReviewHarvestSnapshot[] | null) || []);
+      setVineyardAccounts(((vineyardRes.data as unknown) as ReviewVineyardAccount[] | null) || []);
+      setStorehouses((storehouseRes.data as ReviewStorehouse[] | null) || []);
+    } else {
+      setHarvestSnapshots([]);
+      setVineyardAccounts([]);
+      setStorehouses([]);
+    }
+
     setLoading(false);
   };
 
@@ -197,6 +268,42 @@ export default function QuarterlySystemReview() {
   const isActivelyGenerating = isGenerating && !isGenerationStale;
   const gaps = [review.gap_1, review.gap_2, review.gap_3, review.gap_4, review.gap_5];
   const priorities = [review.priority_1, review.priority_2, review.priority_3, review.priority_4, review.priority_5];
+  const latestHarvestByKey = harvestSnapshots.reduce<Record<string, ReviewHarvestSnapshot>>((acc, snapshot) => {
+    const key = snapshot.vineyard_account_id
+      ? `vineyard:${snapshot.vineyard_account_id}`
+      : snapshot.storehouse_id
+        ? `storehouse:${snapshot.storehouse_id}`
+        : null;
+    if (!key) return acc;
+    const existing = acc[key];
+    if (!existing || new Date(snapshot.snapshot_date).getTime() > new Date(existing.snapshot_date).getTime()) {
+      acc[key] = snapshot;
+    }
+    return acc;
+  }, {});
+
+  const vineyardHarvestRows = vineyardAccounts.map((account) => ({
+    id: account.id,
+    label: account.account_name,
+    kindLabel: account.account_type,
+    snapshot: latestHarvestByKey[`vineyard:${account.id}`] ?? null,
+  }));
+
+  const storehouseHarvestRows = storehouses.map((storehouse) => ({
+    id: storehouse.id,
+    label: storehouse.label,
+    kindLabel: `Storehouse #${storehouse.storehouse_number}`,
+    snapshot: latestHarvestByKey[`storehouse:${storehouse.id}`] ?? null,
+  }));
+
+  const harvestTotals = [...vineyardHarvestRows, ...storehouseHarvestRows].reduce((totals, row) => {
+    if (!row.snapshot) return totals;
+    totals.boy += Number(row.snapshot.boy_value) || 0;
+    totals.ytd += Number(row.snapshot.ytd_value) || 0;
+    totals.harvest += Number(row.snapshot.current_harvest) || 0;
+    totals.current += Number(row.snapshot.current_value) || 0;
+    return totals;
+  }, { boy: 0, ytd: 0, harvest: 0, current: 0 });
 
   return (
     <div className="min-h-screen bg-[#F8F6F2]">
@@ -355,6 +462,61 @@ export default function QuarterlySystemReview() {
           </main>
         </div>
 
+        <div className="stab-doc print-page-break bg-white shadow-lg print:shadow-none" style={{ width: "297mm", minHeight: "210mm", display: "flex", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
+          <aside style={{ width: "72mm", backgroundColor: "#2A4034", color: "#fff", padding: "10mm 7mm", display: "flex", flexDirection: "column", gap: "6mm", flexShrink: 0 }}>
+            <div>
+              <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "48mm", height: "auto", display: "block", marginBottom: "3mm" }} />
+              <div style={{ fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase" }}>
+                Annual Harvest Review
+              </div>
+            </div>
+            <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16pt", fontWeight: 300, lineHeight: 1.3 }}>
+              Track movement through the year. <em style={{ fontStyle: "italic", color: "rgba(255,255,255,.7)" }}>Not just the ending balance.</em>
+            </div>
+            <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
+            <div>
+              <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginBottom: "2mm" }}>Harvest Totals</div>
+              <div style={{ marginBottom: "3mm" }}>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>BOY</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.boy)}</p>
+              </div>
+              <div style={{ marginBottom: "3mm" }}>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>YTD</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.ytd)}</p>
+              </div>
+              <div style={{ marginBottom: "3mm" }}>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Current Harvest</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.harvest)}</p>
+              </div>
+              <div>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Current Value</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.current)}</p>
+              </div>
+            </div>
+          </aside>
+
+          <main style={{ flex: 1, padding: "10mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
+            <div>
+              <div style={{ fontSize: "7.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "1.5mm" }}>
+                Quarterly System Review &nbsp;·&nbsp; Harvest Detail for <strong>{fullName}</strong>
+                {reviewDateLabel && <> &nbsp;·&nbsp; {reviewDateLabel}</>}
+              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "24pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1 }}>
+                BOY · YTD · Current Harvest Detail
+              </div>
+              <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
+            </div>
+
+            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", fontSize: "7.5pt", lineHeight: 1.6 }}>
+              This page summarizes the latest harvest snapshot for each Vineyard and Storehouse account included in the quarterly review.
+            </div>
+
+            <HarvestTable title="Vineyard Accounts" rows={vineyardHarvestRows} emptyLabel="No Vineyard accounts are available for harvest review." />
+            <HarvestTable title="Storehouses" rows={storehouseHarvestRows} emptyLabel="No Storehouse items are available for harvest review." />
+          </main>
+        </div>
+
         {review.logic_trace && !editing && (
           <div className="mt-6 rounded-lg border border-[#D3C5B7] bg-white p-4 text-xs text-[#6B7070] print:hidden">
             <div className="mb-1 font-semibold uppercase tracking-wider text-[#A98C5A]">Review Logic Trace (staff only)</div>
@@ -368,6 +530,7 @@ export default function QuarterlySystemReview() {
           @page { size: A4 landscape; margin: 0; }
           body { background: white !important; }
           .stab-doc { box-shadow: none !important; }
+          .print-page-break { break-before: page; margin-top: 0 !important; }
         }
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
       `}</style>
@@ -380,6 +543,10 @@ const colItem: React.CSSProperties = { display: "flex", alignItems: "flex-start"
 const colText: React.CSSProperties = { fontSize: "8.5pt", color: "#3B3F3F", lineHeight: 1.4 };
 const dot: React.CSSProperties = { width: "6px", height: "6px", borderRadius: "50%", background: "#A98C5A", flexShrink: 0, marginTop: "2pt" };
 const sq: React.CSSProperties = { width: "6px", height: "6px", background: "#A98C5A", flexShrink: 0, marginTop: "2pt" };
+const tableHeadCellWide: React.CSSProperties = { padding: "2.5mm 2mm", width: "30%", borderBottom: "1px solid #D3C5B7", fontWeight: 600 };
+const tableHeadCell: React.CSSProperties = { padding: "2.5mm 2mm", borderBottom: "1px solid #D3C5B7", fontWeight: 600 };
+const tableBodyCellWide: React.CSSProperties = { padding: "2.5mm 2mm", width: "30%", verticalAlign: "top", color: "#3B3F3F" };
+const tableBodyCell: React.CSSProperties = { padding: "2.5mm 2mm", verticalAlign: "top", color: "#3B3F3F" };
 
 function StatusCard({ label, status, detail }: { label: string; status: string; detail: string }) {
   const kind = STATUS_KIND[status] || "amber";
@@ -392,6 +559,57 @@ function StatusCard({ label, status, detail }: { label: string; status: string; 
         </span>
       </strong>
       <p style={{ fontSize: "7.5pt", color: "#3B3F3F", lineHeight: 1.5 }}>{detail || "—"}</p>
+    </div>
+  );
+}
+
+function HarvestTable({
+  title,
+  rows,
+  emptyLabel,
+}: {
+  title: string;
+  rows: Array<{
+    id: string;
+    label: string;
+    kindLabel: string;
+    snapshot: ReviewHarvestSnapshot | null;
+  }>;
+  emptyLabel: string;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2mm" }}>
+      <div style={colLabel}>{title}</div>
+      {rows.length === 0 ? (
+        <div style={{ background: "#F8F6F2", padding: "4mm", fontSize: "8pt", color: "#6B7070" }}>{emptyLabel}</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: "7.5pt" }}>
+          <thead>
+            <tr style={{ background: "#F8F6F2", textAlign: "left", color: "#6B7070" }}>
+              <th style={tableHeadCellWide}>Account</th>
+              <th style={tableHeadCell}>Type</th>
+              <th style={tableHeadCell}>Snapshot</th>
+              <th style={tableHeadCell}>BOY</th>
+              <th style={tableHeadCell}>YTD</th>
+              <th style={tableHeadCell}>Harvest</th>
+              <th style={tableHeadCell}>Current</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} style={{ borderBottom: "1px solid #E5DDD3" }}>
+                <td style={tableBodyCellWide}>{row.label}</td>
+                <td style={tableBodyCell}>{row.kindLabel}</td>
+                <td style={tableBodyCell}>{row.snapshot?.snapshot_date || "—"}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.boy_value)}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.ytd_value)}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.current_harvest)}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.current_value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
