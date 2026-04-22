@@ -23,6 +23,11 @@ export interface CharterSourceRecord {
   storage_path: string | null;
   file_name: string | null;
   mime_type: string | null;
+  import_origin: string;
+  external_file_id: string | null;
+  external_modified_at: string | null;
+  external_folder_id: string | null;
+  sync_error: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -40,6 +45,11 @@ export interface DraftCharterPayload {
     storagePath?: string;
     fileName?: string;
     mimeType?: string;
+    importOrigin?: string;
+    externalFileId?: string;
+    externalModifiedAt?: string;
+    externalFolderId?: string;
+    syncError?: string;
   }>;
 }
 

@@ -21,6 +21,11 @@ const SourceSchema = z.object({
   storagePath: z.string().trim().max(500).optional(),
   fileName: z.string().trim().max(255).optional(),
   mimeType: z.string().trim().max(255).optional(),
+  importOrigin: z.string().trim().max(50).optional(),
+  externalFileId: z.string().trim().max(255).optional(),
+  externalModifiedAt: z.string().datetime().optional(),
+  externalFolderId: z.string().trim().max(255).optional(),
+  syncError: z.string().trim().max(2000).optional(),
 }).superRefine((value, ctx) => {
   if (value.inputMode === "text" && !value.contentText) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Text content is required" });
@@ -222,6 +227,11 @@ serve(async (req) => {
             storage_path: source.storagePath || null,
             file_name: source.fileName || null,
             mime_type: source.mimeType || null,
+            import_origin: source.importOrigin || "manual",
+            external_file_id: source.externalFileId || null,
+            external_modified_at: source.externalModifiedAt || null,
+            external_folder_id: source.externalFolderId || null,
+            sync_error: source.syncError || null,
             sort_order: index,
             created_by: user.id,
           },

@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, FolderSync, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useGoogleStatus, useSyncCharterDriveSources } from "@/hooks/useGoogle";
 import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
@@ -19,6 +20,7 @@ type ContactRecord = {
   full_name: string;
   family_id: string | null;
   household_id: string | null;
+  google_drive_url: string | null;
   charter_url: string | null;
   quiet_period_start_date: string | null;
   governance_status: string;
@@ -129,6 +131,11 @@ type CharterSourceDraft = {
   storedPath: string | null;
   fileName: string | null;
   mimeType: string | null;
+  importOrigin?: string;
+  externalFileId?: string | null;
+  externalModifiedAt?: string | null;
+  externalFolderId?: string | null;
+  syncError?: string | null;
 };
 
 const formatCurrency = (value: number | null | undefined) =>
@@ -201,6 +208,8 @@ export default function SovereigntyCharter() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const googleStatus = useGoogleStatus();
+  const syncDriveSources = useSyncCharterDriveSources();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -214,6 +223,7 @@ export default function SovereigntyCharter() {
   const [waterfallPriorities, setWaterfallPriorities] = useState<WaterfallPriority[]>([]);
   const [charter, setCharter] = useState<CharterRecord | null>(null);
   const [charterSources, setCharterSources] = useState<CharterSourceDraft[]>([newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
+  const [charterSyncStatus, setCharterSyncStatus] = useState<{ lastCheckedAt?: string | null; lastSyncedAt?: string | null; folderId?: string | null; status?: string | null }>({});
 
   const fullName = useMemo(() => {
     if (!contact) return "";
@@ -312,7 +322,7 @@ export default function SovereigntyCharter() {
     setLoading(true);
     const { data: contactData, error: contactError } = await supabase
       .from("contacts")
-      .select("id, first_name, last_name, full_name, family_id, household_id, charter_url, quiet_period_start_date, governance_status, lawyer_name, accountant_name, executor_name, poa_name, email, phone")
+      .select("id, first_name, last_name, full_name, family_id, household_id, google_drive_url, charter_url, quiet_period_start_date, governance_status, lawyer_name, accountant_name, executor_name, poa_name, email, phone")
       .eq("id", contactId)
       .maybeSingle();
 
@@ -326,7 +336,7 @@ export default function SovereigntyCharter() {
     setContact(resolvedContact);
 
     const familyId = resolvedContact.family_id;
-    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes, sourceRes] = await Promise.all([
+    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes, sourceRes, syncRes] = await Promise.all([
       familyId
         ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -340,6 +350,7 @@ export default function SovereigntyCharter() {
         : Promise.resolve({ data: [], error: null }),
       supabase.from("sovereignty_charters" as any).select("*").eq("contact_id", contactId).maybeSingle(),
       supabase.from("sovereignty_charter_sources" as any).select("*").eq("contact_id", contactId).order("sort_order"),
+      supabase.from("drive_watch_state").select("charter_last_checked_at, charter_last_synced_at, charter_folder_id, charter_sync_status").eq("contact_id", contactId).maybeSingle(),
     ]);
 
     if (familyRes.error) toast.error(familyRes.error.message);
@@ -349,6 +360,7 @@ export default function SovereigntyCharter() {
     if (waterfallRes.error) toast.error(waterfallRes.error.message);
     if (charterRes.error) toast.error(charterRes.error.message);
     if (sourceRes.error) toast.error(sourceRes.error.message);
+    if (syncRes.error) toast.error(syncRes.error.message);
 
     const resolvedFamily = (familyRes.data as FamilyRecord | null) || null;
     const resolvedVineyard = (vineyardRes.data as VineyardAccount[] | null) || [];
@@ -373,8 +385,19 @@ export default function SovereigntyCharter() {
       storedPath: source.storage_path,
       fileName: source.file_name,
       mimeType: source.mime_type,
+      importOrigin: source.import_origin,
+      externalFileId: source.external_file_id,
+      externalModifiedAt: source.external_modified_at,
+      externalFolderId: source.external_folder_id,
+      syncError: source.sync_error,
     }));
     setCharterSources(resolvedSources.length ? resolvedSources : [newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
+    setCharterSyncStatus({
+      lastCheckedAt: syncRes.data?.charter_last_checked_at || null,
+      lastSyncedAt: syncRes.data?.charter_last_synced_at || null,
+      folderId: syncRes.data?.charter_folder_id || null,
+      status: syncRes.data?.charter_sync_status || null,
+    });
 
     const totalStewardship =
       resolvedVineyard.reduce((sum, account) => sum + (account.current_value || 0), 0) +
@@ -485,6 +508,11 @@ export default function SovereigntyCharter() {
             title,
             inputMode,
             contentText,
+          importOrigin: source.importOrigin,
+          externalFileId: source.externalFileId || undefined,
+          externalModifiedAt: source.externalModifiedAt || undefined,
+          externalFolderId: source.externalFolderId || undefined,
+          syncError: source.syncError || undefined,
           };
         }
 
@@ -498,6 +526,11 @@ export default function SovereigntyCharter() {
             title,
             inputMode,
             sourceUrl,
+            importOrigin: source.importOrigin,
+            externalFileId: source.externalFileId || undefined,
+            externalModifiedAt: source.externalModifiedAt || undefined,
+            externalFolderId: source.externalFolderId || undefined,
+            syncError: source.syncError || undefined,
           };
         }
 
@@ -521,6 +554,11 @@ export default function SovereigntyCharter() {
           storagePath,
           fileName,
           mimeType,
+          importOrigin: source.importOrigin,
+          externalFileId: source.externalFileId || undefined,
+          externalModifiedAt: source.externalModifiedAt || undefined,
+          externalFolderId: source.externalFolderId || undefined,
+          syncError: source.syncError || undefined,
         };
       })
     );
@@ -561,6 +599,11 @@ export default function SovereigntyCharter() {
           storedPath: source.storage_path,
           fileName: source.file_name,
           mimeType: source.mime_type,
+          importOrigin: source.import_origin,
+          externalFileId: source.external_file_id,
+          externalModifiedAt: source.external_modified_at,
+          externalFolderId: source.external_folder_id,
+          syncError: source.sync_error,
         })));
       }
 
@@ -571,6 +614,44 @@ export default function SovereigntyCharter() {
       toast.error(error instanceof Error ? error.message : "Unable to generate charter draft");
     } finally {
       setDrafting(false);
+    }
+  };
+
+  const syncCharterFolder = async () => {
+    if (!contactId) return;
+    try {
+      const data = await syncDriveSources.mutateAsync(contactId);
+      if (Array.isArray(data?.sources)) {
+        setCharterSources((data.sources as CharterSourceRecord[]).map((source) => ({
+          id: source.id,
+          sourceKind: source.source_kind,
+          title: source.title,
+          inputMode: source.input_mode,
+          contentText: source.content_text || source.extracted_text || "",
+          sourceUrl: source.source_url || "",
+          file: null,
+          storedPath: source.storage_path,
+          fileName: source.file_name,
+          mimeType: source.mime_type,
+          importOrigin: source.import_origin,
+          externalFileId: source.external_file_id,
+          externalModifiedAt: source.external_modified_at,
+          externalFolderId: source.external_folder_id,
+          syncError: source.sync_error,
+        })));
+      }
+
+      setCharterSyncStatus({
+        lastCheckedAt: data?.charterLastCheckedAt || new Date().toISOString(),
+        lastSyncedAt: data?.charterLastSyncedAt || (data?.importedCount > 0 ? new Date().toISOString() : charterSyncStatus.lastSyncedAt),
+        folderId: data?.folderId || charterSyncStatus.folderId || null,
+        status: data?.status || "idle",
+      });
+
+      toast.success(data?.message || "Charter Drive folder synced");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sync charter folder");
     }
   };
 
@@ -723,6 +804,10 @@ export default function SovereigntyCharter() {
                   {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                   Refresh with AI
                 </Button>
+                <Button size="sm" variant="outline" onClick={syncCharterFolder} disabled={syncDriveSources.isPending || !contact.google_drive_url || !googleStatus.data?.connected}>
+                  {syncDriveSources.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderSync className="mr-2 h-4 w-4" />}
+                  Sync Drive folder
+                </Button>
                 <Button size="sm" onClick={ratifyCharter} disabled={ratifying || charter.draft_status === "ratified"}>
                   {ratifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                   {charter.draft_status === "ratified" ? "Ratified" : "Ratify charter"}
@@ -760,6 +845,32 @@ export default function SovereigntyCharter() {
                 {charter.generation_summary ? (
                   <p className="mt-3 text-sm text-muted-foreground">{charter.generation_summary}</p>
                 ) : null}
+              </div>
+
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Drive intake folder</p>
+                    <p className="text-sm text-muted-foreground">Auto-syncs the fixed <span className="font-medium text-foreground">Sovereignty Charter Sources</span> subfolder inside this contact’s Drive folder.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={syncCharterFolder} disabled={syncDriveSources.isPending || !contact.google_drive_url || !googleStatus.data?.connected}>
+                    {syncDriveSources.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderSync className="mr-2 h-4 w-4" />}
+                    Sync now
+                  </Button>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Connection</p>
+                    <p className="mt-1">{googleStatus.data?.connected ? "Google Drive connected" : "Connect Google Drive to enable folder sync"}</p>
+                    <p className="mt-2 break-all text-xs">{contact.google_drive_url || "No contact Drive folder linked yet."}</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Sync activity</p>
+                    <p className="mt-1">Status: {charterSyncStatus.status || "idle"}</p>
+                    <p className="mt-1">Last checked: {formatDate(charterSyncStatus.lastCheckedAt, "Not yet checked")}</p>
+                    <p className="mt-1">Last import: {formatDate(charterSyncStatus.lastSyncedAt, "No imports yet")}</p>
+                  </div>
+                </div>
               </div>
 
               <CharterSourceEditor

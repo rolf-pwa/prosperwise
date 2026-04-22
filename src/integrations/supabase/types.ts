@@ -651,6 +651,10 @@ export type Database = {
       }
       drive_watch_state: {
         Row: {
+          charter_folder_id: string | null
+          charter_last_checked_at: string | null
+          charter_last_synced_at: string | null
+          charter_sync_status: string
           contact_id: string
           created_at: string
           id: string
@@ -659,6 +663,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          charter_folder_id?: string | null
+          charter_last_checked_at?: string | null
+          charter_last_synced_at?: string | null
+          charter_sync_status?: string
           contact_id: string
           created_at?: string
           id?: string
@@ -667,6 +675,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          charter_folder_id?: string | null
+          charter_last_checked_at?: string | null
+          charter_last_synced_at?: string | null
+          charter_sync_status?: string
           contact_id?: string
           created_at?: string
           id?: string
@@ -1711,9 +1723,13 @@ export type Database = {
           content_text: string | null
           created_at: string
           created_by: string
+          external_file_id: string | null
+          external_folder_id: string | null
+          external_modified_at: string | null
           extracted_text: string | null
           file_name: string | null
           id: string
+          import_origin: string
           input_mode: string
           mime_type: string | null
           sort_order: number
@@ -1721,6 +1737,7 @@ export type Database = {
           source_url: string | null
           storage_bucket: string | null
           storage_path: string | null
+          sync_error: string | null
           title: string
           updated_at: string
         }
@@ -1730,9 +1747,13 @@ export type Database = {
           content_text?: string | null
           created_at?: string
           created_by: string
+          external_file_id?: string | null
+          external_folder_id?: string | null
+          external_modified_at?: string | null
           extracted_text?: string | null
           file_name?: string | null
           id?: string
+          import_origin?: string
           input_mode?: string
           mime_type?: string | null
           sort_order?: number
@@ -1740,6 +1761,7 @@ export type Database = {
           source_url?: string | null
           storage_bucket?: string | null
           storage_path?: string | null
+          sync_error?: string | null
           title?: string
           updated_at?: string
         }
@@ -1749,9 +1771,13 @@ export type Database = {
           content_text?: string | null
           created_at?: string
           created_by?: string
+          external_file_id?: string | null
+          external_folder_id?: string | null
+          external_modified_at?: string | null
           extracted_text?: string | null
           file_name?: string | null
           id?: string
+          import_origin?: string
           input_mode?: string
           mime_type?: string | null
           sort_order?: number
@@ -1759,6 +1785,7 @@ export type Database = {
           source_url?: string | null
           storage_bucket?: string | null
           storage_path?: string | null
+          sync_error?: string | null
           title?: string
           updated_at?: string
         }
