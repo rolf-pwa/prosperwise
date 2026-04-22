@@ -559,6 +559,57 @@ function StatusCard({ label, status, detail }: { label: string; status: string; 
   );
 }
 
+function HarvestTable({
+  title,
+  rows,
+  emptyLabel,
+}: {
+  title: string;
+  rows: Array<{
+    id: string;
+    label: string;
+    kindLabel: string;
+    snapshot: ReviewHarvestSnapshot | null;
+  }>;
+  emptyLabel: string;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2mm" }}>
+      <div style={colLabel}>{title}</div>
+      {rows.length === 0 ? (
+        <div style={{ background: "#F8F6F2", padding: "4mm", fontSize: "8pt", color: "#6B7070" }}>{emptyLabel}</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: "7.5pt" }}>
+          <thead>
+            <tr style={{ background: "#F8F6F2", textAlign: "left", color: "#6B7070" }}>
+              <th style={tableHeadCellWide}>Account</th>
+              <th style={tableHeadCell}>Type</th>
+              <th style={tableHeadCell}>Snapshot</th>
+              <th style={tableHeadCell}>BOY</th>
+              <th style={tableHeadCell}>YTD</th>
+              <th style={tableHeadCell}>Harvest</th>
+              <th style={tableHeadCell}>Current</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} style={{ borderBottom: "1px solid #E5DDD3" }}>
+                <td style={tableBodyCellWide}>{row.label}</td>
+                <td style={tableBodyCell}>{row.kindLabel}</td>
+                <td style={tableBodyCell}>{row.snapshot?.snapshot_date || "—"}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.boy_value)}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.ytd_value)}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.current_harvest)}</td>
+                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.current_value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function EditorForm({ review, onChange }: { review: QuarterlyReview; onChange: (key: keyof QuarterlyReview, value: string) => void }) {
   const F = (key: keyof QuarterlyReview, label: string, multiline = false) => (
     <div className="space-y-1">
