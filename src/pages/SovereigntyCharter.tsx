@@ -208,6 +208,8 @@ export default function SovereigntyCharter() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const googleStatus = useGoogleStatus();
+  const syncDriveSources = useSyncCharterDriveSources();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -221,6 +223,7 @@ export default function SovereigntyCharter() {
   const [waterfallPriorities, setWaterfallPriorities] = useState<WaterfallPriority[]>([]);
   const [charter, setCharter] = useState<CharterRecord | null>(null);
   const [charterSources, setCharterSources] = useState<CharterSourceDraft[]>([newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
+  const [charterSyncStatus, setCharterSyncStatus] = useState<{ lastCheckedAt?: string | null; lastSyncedAt?: string | null; folderId?: string | null; status?: string | null }>({});
 
   const fullName = useMemo(() => {
     if (!contact) return "";
@@ -319,7 +322,7 @@ export default function SovereigntyCharter() {
     setLoading(true);
     const { data: contactData, error: contactError } = await supabase
       .from("contacts")
-      .select("id, first_name, last_name, full_name, family_id, household_id, charter_url, quiet_period_start_date, governance_status, lawyer_name, accountant_name, executor_name, poa_name, email, phone")
+      .select("id, first_name, last_name, full_name, family_id, household_id, google_drive_url, charter_url, quiet_period_start_date, governance_status, lawyer_name, accountant_name, executor_name, poa_name, email, phone")
       .eq("id", contactId)
       .maybeSingle();
 
@@ -333,7 +336,7 @@ export default function SovereigntyCharter() {
     setContact(resolvedContact);
 
     const familyId = resolvedContact.family_id;
-    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes, sourceRes] = await Promise.all([
+    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes, sourceRes, syncRes] = await Promise.all([
       familyId
         ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -347,6 +350,7 @@ export default function SovereigntyCharter() {
         : Promise.resolve({ data: [], error: null }),
       supabase.from("sovereignty_charters" as any).select("*").eq("contact_id", contactId).maybeSingle(),
       supabase.from("sovereignty_charter_sources" as any).select("*").eq("contact_id", contactId).order("sort_order"),
+      supabase.from("drive_watch_state").select("charter_last_checked_at, charter_last_synced_at, charter_folder_id, charter_sync_status").eq("contact_id", contactId).maybeSingle(),
     ]);
 
     if (familyRes.error) toast.error(familyRes.error.message);
@@ -356,6 +360,7 @@ export default function SovereigntyCharter() {
     if (waterfallRes.error) toast.error(waterfallRes.error.message);
     if (charterRes.error) toast.error(charterRes.error.message);
     if (sourceRes.error) toast.error(sourceRes.error.message);
+    if (syncRes.error) toast.error(syncRes.error.message);
 
     const resolvedFamily = (familyRes.data as FamilyRecord | null) || null;
     const resolvedVineyard = (vineyardRes.data as VineyardAccount[] | null) || [];
@@ -380,8 +385,19 @@ export default function SovereigntyCharter() {
       storedPath: source.storage_path,
       fileName: source.file_name,
       mimeType: source.mime_type,
+      importOrigin: source.import_origin,
+      externalFileId: source.external_file_id,
+      externalModifiedAt: source.external_modified_at,
+      externalFolderId: source.external_folder_id,
+      syncError: source.sync_error,
     }));
     setCharterSources(resolvedSources.length ? resolvedSources : [newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
+    setCharterSyncStatus({
+      lastCheckedAt: syncRes.data?.charter_last_checked_at || null,
+      lastSyncedAt: syncRes.data?.charter_last_synced_at || null,
+      folderId: syncRes.data?.charter_folder_id || null,
+      status: syncRes.data?.charter_sync_status || null,
+    });
 
     const totalStewardship =
       resolvedVineyard.reduce((sum, account) => sum + (account.current_value || 0), 0) +
