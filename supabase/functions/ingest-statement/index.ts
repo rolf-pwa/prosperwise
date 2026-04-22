@@ -138,7 +138,6 @@ Return a JSON object with this exact structure:
       "account_owner": "Full name of the account holder or null",
       "custodian": "Name of the financial institution",
       "book_value": number or null,
-      "ytd_value": number or null,
       "current_harvest": number or null,
       "current_value": number or null,
       "notes": "Any classification notes"
@@ -150,8 +149,7 @@ Return a JSON object with this exact structure:
 Guidelines:
 - "statement_date" should be the statement end date or valuation date shown on the document
 - "book_value" is the beginning-of-year value, cost basis, or original investment amount
-- "ytd_value" is the year-to-date market value if the statement shows a YTD figure; otherwise use the latest value shown
-- "current_harvest" is the year-to-date gain/loss, growth, or harvest amount if shown; otherwise calculate it from YTD/current minus BOY when possible
+- "current_harvest" is the year-to-date gain/loss, growth, or harvest amount if shown; otherwise calculate it from current value minus BOY when possible
 - "current_value" is the most recent market value shown
 - Extract the account owner name from the statement header/title
 - Identify the custodian/institution from the statement branding
@@ -225,10 +223,9 @@ Guidelines:
       const matchedVineyard = (normalizedNumber && vineyardByNumber.get(normalizedNumber)) || vineyardByName.get(normalizedName);
       const matchedStorehouse = storehouseByName.get(normalizedName);
       const matchedAccount = matchedVineyard || matchedStorehouse;
-      const ytdValue = account.ytd_value ?? account.current_value ?? 0;
       const boyValue = account.book_value ?? 0;
-      const currentValue = account.current_value ?? ytdValue;
-      const currentHarvest = account.current_harvest ?? (ytdValue - boyValue);
+      const currentValue = account.current_value ?? 0;
+      const currentHarvest = account.current_harvest ?? (currentValue - boyValue);
 
       if (matchedAccount) {
         const isVineyard = "account_name" in matchedAccount;
@@ -246,7 +243,7 @@ Guidelines:
           contact_id: contactId,
           snapshot_date: snapshotDate,
           boy_value: boyValue,
-          ytd_value: ytdValue,
+          ytd_value: currentValue,
           current_harvest: currentHarvest,
           current_value: currentValue,
           notes: account.notes || null,

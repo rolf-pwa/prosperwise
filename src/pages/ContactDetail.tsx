@@ -76,7 +76,6 @@ interface HarvestSnapshot {
   snapshot_date: string;
   reporting_year: number;
   boy_value: number;
-  ytd_value: number;
   current_harvest: number;
   current_value: number;
   notes: string | null;
@@ -88,7 +87,6 @@ interface HarvestDraft {
   id?: string;
   snapshot_date: string;
   boy_value: string;
-  ytd_value: string;
   current_harvest: string;
   current_value: string;
   notes: string;
@@ -271,7 +269,6 @@ const ContactDetail = () => {
         id: snapshot?.id,
         snapshot_date: snapshot?.snapshot_date ?? today,
         boy_value: toInputValue(snapshot?.boy_value ?? account.book_value),
-        ytd_value: toInputValue(snapshot?.ytd_value ?? account.current_value),
         current_harvest: toInputValue(snapshot?.current_harvest),
         current_value: toInputValue(snapshot?.current_value ?? account.current_value),
         notes: snapshot?.notes ?? "",
@@ -285,7 +282,6 @@ const ContactDetail = () => {
         id: snapshot?.id,
         snapshot_date: snapshot?.snapshot_date ?? today,
         boy_value: toInputValue(snapshot?.boy_value ?? storehouse.book_value),
-        ytd_value: toInputValue(snapshot?.ytd_value ?? storehouse.current_value),
         current_harvest: toInputValue(snapshot?.current_harvest),
         current_value: toInputValue(snapshot?.current_value ?? storehouse.current_value),
         notes: snapshot?.notes ?? "",
@@ -340,16 +336,15 @@ const ContactDetail = () => {
     if (!draft) return;
 
     const boyValue = parseMoney(draft.boy_value) ?? 0;
-    const ytdValue = parseMoney(draft.ytd_value);
     const currentValue = parseMoney(draft.current_value) ?? 0;
-    const calculatedHarvest = (ytdValue ?? currentValue) - boyValue;
+    const calculatedHarvest = currentValue - boyValue;
     const currentHarvest = parseMoney(draft.current_harvest) ?? calculatedHarvest;
 
     const payload = {
       contact_id: id!,
       snapshot_date: draft.snapshot_date,
       boy_value: boyValue,
-      ytd_value: ytdValue ?? currentValue,
+      ytd_value: currentValue,
       current_harvest: currentHarvest,
       current_value: currentValue,
       notes: draft.notes.trim() || null,
@@ -694,7 +689,7 @@ const ContactDetail = () => {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Annual Harvest Tracking</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      Quarterly statement uploads can prefill these values. You can review and override BOY, YTD, Harvest, and current values here.
+                      Quarterly statement uploads can prefill these values. You can review and override BOY, Harvest, and current values here.
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -706,8 +701,8 @@ const ContactDetail = () => {
                           const key = getHarvestKey("vineyard", account.id);
                           const draft = harvestDrafts[key];
                           const boy = parseMoney(draft?.boy_value ?? "") ?? account.book_value ?? 0;
-                          const ytd = parseMoney(draft?.ytd_value ?? "") ?? parseMoney(draft?.current_value ?? "") ?? account.current_value ?? 0;
-                          const harvest = parseMoney(draft?.current_harvest ?? "") ?? (ytd - boy);
+                          const current = parseMoney(draft?.current_value ?? "") ?? account.current_value ?? 0;
+                          const harvest = parseMoney(draft?.current_harvest ?? "") ?? (current - boy);
 
                           return (
                             <div key={account.id} className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
@@ -726,10 +721,9 @@ const ContactDetail = () => {
                                 </div>
                               </div>
 
-                              <div className="grid gap-3 md:grid-cols-4">
+                              <div className="grid gap-3 md:grid-cols-3">
                                 <Input type="date" value={draft?.snapshot_date ?? ""} onChange={(e) => updateHarvestDraft(key, "snapshot_date", e.target.value)} />
                                 <Input type="number" placeholder="BOY" value={draft?.boy_value ?? ""} onChange={(e) => updateHarvestDraft(key, "boy_value", e.target.value)} />
-                                <Input type="number" placeholder="YTD" value={draft?.ytd_value ?? ""} onChange={(e) => updateHarvestDraft(key, "ytd_value", e.target.value)} />
                                 <Input type="number" placeholder="Current Value" value={draft?.current_value ?? ""} onChange={(e) => updateHarvestDraft(key, "current_value", e.target.value)} />
                               </div>
 
@@ -751,8 +745,8 @@ const ContactDetail = () => {
                           const key = getHarvestKey("storehouse", storehouse.id);
                           const draft = harvestDrafts[key];
                           const boy = parseMoney(draft?.boy_value ?? "") ?? storehouse.book_value ?? 0;
-                          const ytd = parseMoney(draft?.ytd_value ?? "") ?? parseMoney(draft?.current_value ?? "") ?? storehouse.current_value ?? 0;
-                          const harvest = parseMoney(draft?.current_harvest ?? "") ?? (ytd - boy);
+                          const current = parseMoney(draft?.current_value ?? "") ?? storehouse.current_value ?? 0;
+                          const harvest = parseMoney(draft?.current_harvest ?? "") ?? (current - boy);
                           const label = storehouse.asset_type || storehouse.label || STOREHOUSE_NAMES[storehouse.storehouse_number - 1];
 
                           return (
@@ -771,10 +765,9 @@ const ContactDetail = () => {
                                 </div>
                               </div>
 
-                              <div className="grid gap-3 md:grid-cols-4">
+                              <div className="grid gap-3 md:grid-cols-3">
                                 <Input type="date" value={draft?.snapshot_date ?? ""} onChange={(e) => updateHarvestDraft(key, "snapshot_date", e.target.value)} />
                                 <Input type="number" placeholder="BOY" value={draft?.boy_value ?? ""} onChange={(e) => updateHarvestDraft(key, "boy_value", e.target.value)} />
-                                <Input type="number" placeholder="YTD" value={draft?.ytd_value ?? ""} onChange={(e) => updateHarvestDraft(key, "ytd_value", e.target.value)} />
                                 <Input type="number" placeholder="Current Value" value={draft?.current_value ?? ""} onChange={(e) => updateHarvestDraft(key, "current_value", e.target.value)} />
                               </div>
 
