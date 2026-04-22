@@ -2,6 +2,7 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, FolderSync, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,7 @@ type CharterRecord = {
   appendix_note: string;
   footer_status: string;
   footer_date_label: string;
+  full_markdown: string;
   custom_sections: CustomSectionGroups;
   draft_status?: CharterDraftStatus;
   ratified_at?: string | null;
@@ -277,6 +279,7 @@ export default function SovereigntyCharter() {
       appendix_note: "This appendix condenses the current territory into a printable schedule so the Charter, Stabilization Map, and Quarterly Review all reference the same canonical structure.",
       footer_status: contactRecord.governance_status === "sovereign" ? "Ratified / Sovereign phase" : "Draft / review in progress",
       footer_date_label: formatDate(contactRecord.quiet_period_start_date, "Ratification date to be confirmed"),
+      full_markdown: "",
       custom_sections: { pageOne: [], pageTwo: [] },
     };
   };
@@ -583,6 +586,7 @@ export default function SovereigntyCharter() {
           ...current,
           ...savedCharter,
           id: typeof savedCharter.id === "string" ? savedCharter.id : current.id,
+          full_markdown: typeof savedCharter.full_markdown === "string" ? savedCharter.full_markdown : current.full_markdown,
           custom_sections: normalizeCustomSections(savedCharter.custom_sections),
         } : current);
       }
@@ -722,6 +726,7 @@ export default function SovereigntyCharter() {
       appendix_note: charter.appendix_note,
       footer_status: charter.footer_status,
       footer_date_label: charter.footer_date_label,
+      full_markdown: charter.full_markdown,
       custom_sections: charter.custom_sections,
     };
 
