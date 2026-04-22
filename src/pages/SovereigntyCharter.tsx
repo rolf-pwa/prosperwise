@@ -820,6 +820,71 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function CustomContainerEditor({
+  title,
+  description,
+  emptyLabel,
+  sections,
+  onAdd,
+  onRemove,
+  onUpdate,
+}: {
+  title: string;
+  description: string;
+  emptyLabel: string;
+  sections: CustomContainer[];
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, key: keyof CustomContainer, value: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={onAdd}>
+          <Plus className="mr-2 h-4 w-4" /> Add container
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        {sections.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{emptyLabel}</div>
+        ) : (
+          sections.map((section, index) => (
+            <div key={section.id} className="rounded-md border border-border p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-foreground">Container {index + 1}</div>
+                <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(section.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Container Title">
+                  <Input value={section.title} onChange={(e) => onUpdate(section.id, "title", e.target.value)} />
+                </Field>
+                <Field label="Meta Line">
+                  <Input value={section.meta} onChange={(e) => onUpdate(section.id, "meta", e.target.value)} placeholder="Current $0 · Target $0" />
+                </Field>
+              </div>
+              <Field label="Container Guidance">
+                <Textarea
+                  value={section.body}
+                  onChange={(e) => onUpdate(section.id, "body", e.target.value)}
+                  rows={4}
+                  placeholder="One line per rule or guidance note"
+                />
+              </Field>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SectionCard({ title, body, items }: { title: string; body?: string; items?: string[] }) {
   return (
     <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 4mm" }}>
