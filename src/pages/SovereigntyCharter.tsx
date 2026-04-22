@@ -362,7 +362,7 @@ export default function SovereigntyCharter() {
     setStorehouseRules(resolvedRules);
     setWaterfallPriorities(resolvedWaterfalls);
 
-    const resolvedSources = ((sourceRes.data as CharterSourceRecord[] | null) || []).map((source) => ({
+    const resolvedSources = (((sourceRes.data as unknown) as CharterSourceRecord[] | null) || []).map((source) => ({
       id: source.id,
       sourceKind: source.source_kind,
       title: source.title,
@@ -705,6 +705,10 @@ export default function SovereigntyCharter() {
                 <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>
                   Cancel
                 </Button>
+                <Button size="sm" variant="outline" onClick={generateDraft} disabled={saving || drafting}>
+                  {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
+                  Generate draft
+                </Button>
                 <Button size="sm" onClick={save} disabled={saving}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Save
@@ -714,6 +718,14 @@ export default function SovereigntyCharter() {
               <>
                 <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                   <Pencil className="mr-2 h-4 w-4" /> Edit
+                </Button>
+                <Button size="sm" variant="outline" onClick={generateDraft} disabled={drafting}>
+                  {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  Refresh with AI
+                </Button>
+                <Button size="sm" onClick={ratifyCharter} disabled={ratifying || charter.draft_status === "ratified"}>
+                  {ratifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                  {charter.draft_status === "ratified" ? "Ratified" : "Ratify charter"}
                 </Button>
                 {sourceCharterUrl && (
                   <Button size="sm" variant="outline" asChild>
@@ -735,6 +747,29 @@ export default function SovereigntyCharter() {
         <div className="mx-auto max-w-[1100px] px-6 py-6 print:hidden">
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">AI drafting workflow</p>
+                    <p className="text-sm text-muted-foreground">Upload statements, paste Stabilization Session notes, or add Gemini transcript links before generating the first charter draft.</p>
+                  </div>
+                  <div className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+                    Status: {charter.draft_status || "draft"}
+                  </div>
+                </div>
+                {charter.generation_summary ? (
+                  <p className="mt-3 text-sm text-muted-foreground">{charter.generation_summary}</p>
+                ) : null}
+              </div>
+
+              <CharterSourceEditor
+                sources={charterSources}
+                onAdd={addSource}
+                onRemove={removeSource}
+                onUpdate={updateSource}
+                onFileChange={handleSourceFileChange}
+              />
+
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Document Title">
                   <Input value={charter.title} onChange={(e) => updateField("title", e.target.value)} />
@@ -825,6 +860,21 @@ export default function SovereigntyCharter() {
       )}
 
       <div className="mx-auto max-w-[210mm] px-6 py-6 print:p-0 print:max-w-none">
+        {(charter.generation_summary || charter.last_generated_at || charter.ratified_at) && (
+          <div className="mb-6 rounded-lg border border-border bg-card p-4 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Draft lifecycle</p>
+                <p className="text-sm text-muted-foreground">{charter.generation_summary || "This charter is ready for review and ratification."}</p>
+              </div>
+              <div className="space-y-1 text-right text-xs text-muted-foreground">
+                {charter.last_generated_at ? <div>Last AI draft: {formatDate(charter.last_generated_at, charter.last_generated_at)}</div> : null}
+                {charter.ratified_at ? <div>Ratified: {formatDate(charter.ratified_at, charter.ratified_at)}</div> : null}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className={pageWrap} style={pageStyle}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "10mm 12mm 9mm" }}>
             <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "54mm", height: "auto", display: "block", marginBottom: "4mm" }} />
