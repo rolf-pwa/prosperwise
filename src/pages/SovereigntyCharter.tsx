@@ -244,7 +244,7 @@ export default function SovereigntyCharter() {
       </div>
 
       <div className="mx-auto max-w-[210mm] px-6 py-6 print:p-0 print:max-w-none">
-        <div className={`${pageWrap}`} style={{ width: "210mm", minHeight: "297mm", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F" }}>
+        <div className={`${pageWrap}`} style={{ width: "210mm", minHeight: "297mm", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "10mm 12mm 9mm" }}>
             <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "54mm", height: "auto", display: "block", marginBottom: "4mm" }} />
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "4mm" }}>
@@ -305,7 +305,7 @@ export default function SovereigntyCharter() {
           </div>
         </div>
 
-        <div className={`${pageWrap} print-page-break`} style={{ width: "210mm", minHeight: "297mm", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
+        <div className={`${pageWrap} print-page-break`} style={{ width: "210mm", minHeight: "297mm", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
               Charter Architecture
@@ -371,7 +371,7 @@ export default function SovereigntyCharter() {
           </div>
         </div>
 
-        <div className={`${pageWrap} print-page-break`} style={{ width: "210mm", minHeight: "297mm", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
+        <div className={`${pageWrap} print-page-break`} style={{ width: "210mm", minHeight: "297mm", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
               Appendix A
