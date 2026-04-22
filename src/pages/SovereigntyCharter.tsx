@@ -288,7 +288,7 @@ export default function SovereigntyCharter() {
       resolvedStorehouses.reduce((sum, storehouse) => sum + (storehouse.current_value || 0), 0);
 
     const baseCharter = buildDefaultCharter(resolvedContact, resolvedFamily, totalStewardship);
-    const savedCharter = charterRes.data as Record<string, unknown> | null;
+    const savedCharter = charterRes.data as unknown as Record<string, unknown> | null;
 
     if (savedCharter) {
       setCharter({
@@ -383,8 +383,10 @@ export default function SovereigntyCharter() {
       return;
     }
 
-    if (!charter.id && data && typeof data === "object" && "id" in data) {
-      setCharter((current) => (current ? { ...current, id: String((data as { id: string }).id) } : current));
+    const insertedCharter = data as { id?: string } | null;
+
+    if (!charter.id && insertedCharter?.id) {
+      setCharter((current) => (current ? { ...current, id: insertedCharter.id } : current));
     }
 
     toast.success("Sovereignty Charter saved");
