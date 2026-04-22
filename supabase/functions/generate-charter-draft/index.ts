@@ -377,16 +377,10 @@ Do not invent facts, numbers, institutions, or family members not supported by t
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond(req, { ok: false, error: "Rate limits exceeded, please try again later.", diagnostics: { stage: "ai_gateway", status: 429 } });
       }
       if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond(req, { ok: false, error: "Payment required, please add funds to your Lovable AI workspace.", diagnostics: { stage: "ai_gateway", status: 402 } });
       }
       const errorText = await aiResponse.text();
       throw new Error(`AI gateway error: ${errorText}`);
@@ -452,14 +446,13 @@ Do not invent facts, numbers, institutions, or family members not supported by t
       .single();
     if (savedCharterError || !savedCharter) throw savedCharterError || new Error("Failed to reload charter");
 
-    return new Response(JSON.stringify({ charterId: savedCharterId, charter: savedCharter, sources: sourceInsertRows, summary: draftPayload.generation_summary }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return respond(req, { ok: true, charterId: savedCharterId, charter: savedCharter, sources: sourceInsertRows, summary: draftPayload.generation_summary });
   } catch (error) {
     console.error("generate-charter-draft error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return respond(req, {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      diagnostics: { stage: "unhandled" },
     });
   }
 });
