@@ -14,6 +14,79 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_harvest_snapshots: {
+        Row: {
+          boy_value: number
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          current_harvest: number
+          current_value: number
+          id: string
+          notes: string | null
+          reporting_year: number
+          snapshot_date: string
+          storehouse_id: string | null
+          updated_at: string
+          vineyard_account_id: string | null
+          ytd_value: number
+        }
+        Insert: {
+          boy_value?: number
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          current_harvest?: number
+          current_value?: number
+          id?: string
+          notes?: string | null
+          reporting_year?: number
+          snapshot_date?: string
+          storehouse_id?: string | null
+          updated_at?: string
+          vineyard_account_id?: string | null
+          ytd_value?: number
+        }
+        Update: {
+          boy_value?: number
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          current_harvest?: number
+          current_value?: number
+          id?: string
+          notes?: string | null
+          reporting_year?: number
+          snapshot_date?: string
+          storehouse_id?: string | null
+          updated_at?: string
+          vineyard_account_id?: string | null
+          ytd_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_harvest_snapshots_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_harvest_snapshots_storehouse_id_fkey"
+            columns: ["storehouse_id"]
+            isOneToOne: false
+            referencedRelation: "storehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_harvest_snapshots_vineyard_account_id_fkey"
+            columns: ["vineyard_account_id"]
+            isOneToOne: false
+            referencedRelation: "vineyard_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_pipeline: {
         Row: {
           amount: number
