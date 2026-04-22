@@ -621,6 +621,19 @@ export default function SovereigntyCharter() {
               <ArticleCard title="Fiduciary Alliance" body={charter.fiduciary_alliance} />
               <ArticleCard title="Secondary Quiet Period" body={charter.quiet_period} />
             </div>
+
+            {charter.custom_sections.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                {charter.custom_sections.map((section) => (
+                  <ContainerCard
+                    key={`page-one-${section.id}`}
+                    title={section.title}
+                    meta={section.meta}
+                    items={section.body.split("\n").map((line) => line.trim()).filter(Boolean)}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div style={{ background: "#A98C5A", color: "#fff", marginTop: "auto", padding: "3mm 12mm", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
