@@ -52,7 +52,6 @@ type ReviewHarvestSnapshot = {
   id: string;
   snapshot_date: string;
   boy_value: number;
-  ytd_value: number;
   current_harvest: number;
   current_value: number;
   vineyard_account_id: string | null;
@@ -138,7 +137,7 @@ export default function QuarterlySystemReview() {
       const [harvestRes, vineyardRes, storehouseRes] = await Promise.all([
         supabase
           .from("account_harvest_snapshots")
-          .select("id, snapshot_date, boy_value, ytd_value, current_harvest, current_value, vineyard_account_id, storehouse_id")
+          .select("id, snapshot_date, boy_value, current_harvest, current_value, vineyard_account_id, storehouse_id")
           .eq("contact_id", data.contact_id)
           .order("snapshot_date", { ascending: false }),
         supabase
@@ -299,11 +298,10 @@ export default function QuarterlySystemReview() {
   const harvestTotals = [...vineyardHarvestRows, ...storehouseHarvestRows].reduce((totals, row) => {
     if (!row.snapshot) return totals;
     totals.boy += Number(row.snapshot.boy_value) || 0;
-    totals.ytd += Number(row.snapshot.ytd_value) || 0;
     totals.harvest += Number(row.snapshot.current_harvest) || 0;
     totals.current += Number(row.snapshot.current_value) || 0;
     return totals;
-  }, { boy: 0, ytd: 0, harvest: 0, current: 0 });
+  }, { boy: 0, harvest: 0, current: 0 });
 
   return (
     <div className="min-h-screen bg-[#F8F6F2]">
@@ -482,10 +480,6 @@ export default function QuarterlySystemReview() {
                 <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.boy)}</p>
               </div>
               <div style={{ marginBottom: "3mm" }}>
-                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>YTD</strong>
-                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.ytd)}</p>
-              </div>
-              <div style={{ marginBottom: "3mm" }}>
                 <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Current Harvest</strong>
                 <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.harvest)}</p>
               </div>
@@ -503,7 +497,7 @@ export default function QuarterlySystemReview() {
                 {reviewDateLabel && <> &nbsp;·&nbsp; {reviewDateLabel}</>}
               </div>
               <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "24pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1 }}>
-                BOY · YTD · Current Harvest Detail
+                BOY · Current · Harvest Detail
               </div>
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
@@ -590,7 +584,6 @@ function HarvestTable({
               <th style={tableHeadCell}>Type</th>
               <th style={tableHeadCell}>Snapshot</th>
               <th style={tableHeadCell}>BOY</th>
-              <th style={tableHeadCell}>YTD</th>
               <th style={tableHeadCell}>Harvest</th>
               <th style={tableHeadCell}>Current</th>
             </tr>
@@ -602,7 +595,6 @@ function HarvestTable({
                 <td style={tableBodyCell}>{row.kindLabel}</td>
                 <td style={tableBodyCell}>{row.snapshot?.snapshot_date || "—"}</td>
                 <td style={tableBodyCell}>{formatCurrency(row.snapshot?.boy_value)}</td>
-                <td style={tableBodyCell}>{formatCurrency(row.snapshot?.ytd_value)}</td>
                 <td style={tableBodyCell}>{formatCurrency(row.snapshot?.current_harvest)}</td>
                 <td style={tableBodyCell}>{formatCurrency(row.snapshot?.current_value)}</td>
               </tr>
