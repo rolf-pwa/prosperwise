@@ -48,6 +48,18 @@ export async function getGoogleConnectionStatus() {
   return res.json();
 }
 
+export async function syncCharterDriveSources(contactId: string) {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${FUNCTIONS_URL}/drive-watch`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ contactId, mode: "charter-sync" }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to sync charter Drive folder");
+  return data;
+}
+
 export async function disconnectGoogle() {
   const headers = await getAuthHeaders();
   const res = await fetch(`${FUNCTIONS_URL}/google-auth?action=disconnect`, {
