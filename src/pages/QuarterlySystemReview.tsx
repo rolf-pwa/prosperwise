@@ -462,6 +462,61 @@ export default function QuarterlySystemReview() {
           </main>
         </div>
 
+        <div className="stab-doc print-page-break bg-white shadow-lg print:shadow-none" style={{ width: "297mm", minHeight: "210mm", display: "flex", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
+          <aside style={{ width: "72mm", backgroundColor: "#2A4034", color: "#fff", padding: "10mm 7mm", display: "flex", flexDirection: "column", gap: "6mm", flexShrink: 0 }}>
+            <div>
+              <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "48mm", height: "auto", display: "block", marginBottom: "3mm" }} />
+              <div style={{ fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase" }}>
+                Annual Harvest Review
+              </div>
+            </div>
+            <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "16pt", fontWeight: 300, lineHeight: 1.3 }}>
+              Track movement through the year. <em style={{ fontStyle: "italic", color: "rgba(255,255,255,.7)" }}>Not just the ending balance.</em>
+            </div>
+            <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
+            <div>
+              <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginBottom: "2mm" }}>Harvest Totals</div>
+              <div style={{ marginBottom: "3mm" }}>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>BOY</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.boy)}</p>
+              </div>
+              <div style={{ marginBottom: "3mm" }}>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>YTD</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.ytd)}</p>
+              </div>
+              <div style={{ marginBottom: "3mm" }}>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Current Harvest</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.harvest)}</p>
+              </div>
+              <div>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Current Value</strong>
+                <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.current)}</p>
+              </div>
+            </div>
+          </aside>
+
+          <main style={{ flex: 1, padding: "10mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
+            <div>
+              <div style={{ fontSize: "7.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "1.5mm" }}>
+                Quarterly System Review &nbsp;·&nbsp; Harvest Detail for <strong>{fullName}</strong>
+                {reviewDateLabel && <> &nbsp;·&nbsp; {reviewDateLabel}</>}
+              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "24pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1 }}>
+                BOY · YTD · Current Harvest Detail
+              </div>
+              <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
+            </div>
+
+            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", fontSize: "7.5pt", lineHeight: 1.6 }}>
+              This page summarizes the latest harvest snapshot for each Vineyard and Storehouse account included in the quarterly review.
+            </div>
+
+            <HarvestTable title="Vineyard Accounts" rows={vineyardHarvestRows} emptyLabel="No Vineyard accounts are available for harvest review." />
+            <HarvestTable title="Storehouses" rows={storehouseHarvestRows} emptyLabel="No Storehouse items are available for harvest review." />
+          </main>
+        </div>
+
         {review.logic_trace && !editing && (
           <div className="mt-6 rounded-lg border border-[#D3C5B7] bg-white p-4 text-xs text-[#6B7070] print:hidden">
             <div className="mb-1 font-semibold uppercase tracking-wider text-[#A98C5A]">Review Logic Trace (staff only)</div>
@@ -475,6 +530,7 @@ export default function QuarterlySystemReview() {
           @page { size: A4 landscape; margin: 0; }
           body { background: white !important; }
           .stab-doc { box-shadow: none !important; }
+          .print-page-break { break-before: page; margin-top: 0 !important; }
         }
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
       `}</style>
