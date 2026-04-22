@@ -288,7 +288,7 @@ export default function SovereigntyCharter() {
       resolvedStorehouses.reduce((sum, storehouse) => sum + (storehouse.current_value || 0), 0);
 
     const baseCharter = buildDefaultCharter(resolvedContact, resolvedFamily, totalStewardship);
-    const savedCharter = charterRes.data as Record<string, unknown> | null;
+    const savedCharter = charterRes.data as unknown as Record<string, unknown> | null;
 
     if (savedCharter) {
       setCharter({
@@ -383,8 +383,10 @@ export default function SovereigntyCharter() {
       return;
     }
 
-    if (!charter.id && data && typeof data === "object" && "id" in data) {
-      setCharter((current) => (current ? { ...current, id: String((data as { id: string }).id) } : current));
+    const insertedCharter = data as { id?: string } | null;
+
+    if (!charter.id && insertedCharter?.id) {
+      setCharter((current) => (current ? { ...current, id: insertedCharter.id } : current));
     }
 
     toast.success("Sovereignty Charter saved");
@@ -621,6 +623,19 @@ export default function SovereigntyCharter() {
               <ArticleCard title="Fiduciary Alliance" body={charter.fiduciary_alliance} />
               <ArticleCard title="Secondary Quiet Period" body={charter.quiet_period} />
             </div>
+
+            {charter.custom_sections.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                {charter.custom_sections.map((section) => (
+                  <ContainerCard
+                    key={`page-one-${section.id}`}
+                    title={section.title}
+                    meta={section.meta}
+                    items={section.body.split("\n").map((line) => line.trim()).filter(Boolean)}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div style={{ background: "#A98C5A", color: "#fff", marginTop: "auto", padding: "3mm 12mm", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
