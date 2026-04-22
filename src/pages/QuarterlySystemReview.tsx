@@ -419,8 +419,8 @@ export default function QuarterlySystemReview() {
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
 
-            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1mm" }}>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: "11pt", color: "#A98C5A", lineHeight: 1.3 }}>
+            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm" }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "9pt", fontWeight: 500, color: "#6F5B35", lineHeight: 1.55 }}>
                 {review.review_summary || "—"}
               </div>
               <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>{review.alignment_overview || "—"}</div>
@@ -502,7 +502,7 @@ export default function QuarterlySystemReview() {
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
 
-            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", fontSize: "7.5pt", lineHeight: 1.6 }}>
+            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", fontFamily: "'DM Sans', sans-serif", fontSize: "8pt", fontWeight: 500, color: "#5B5F5F", lineHeight: 1.65 }}>
               This page summarizes the latest harvest snapshot for each Vineyard and Storehouse account included in the quarterly review.
             </div>
 
