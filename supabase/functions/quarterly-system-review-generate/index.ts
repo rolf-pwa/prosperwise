@@ -340,6 +340,29 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("quarterly-system-review-generate error:", error);
+
+    const parsed = await req.clone().json().catch(() => null) as { reviewId?: string } | null;
+    const reviewId = parsed?.reviewId;
+
+    if (reviewId) {
+      try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+
+        await supabase
+          .from("quarterly_system_reviews")
+          .update({
+            generation_status: "failed",
+            generation_error: error instanceof Error ? error.message : "Unknown error",
+          })
+          .eq("id", reviewId);
+      } catch (persistError) {
+        console.error("quarterly-system-review-generate failed to persist error:", persistError);
+      }
+    }
+
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
