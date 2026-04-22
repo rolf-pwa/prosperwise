@@ -18,6 +18,7 @@ type ReviewStatus = "Missing" | "Needs Review" | "Needs Attention" | "Partial" |
 type QuarterlyReview = {
   id: string;
   contact_id: string;
+  updated_at?: string | null;
   client_first_name: string;
   client_last_name: string;
   review_date: string | null;
@@ -72,6 +73,13 @@ export default function QuarterlySystemReview() {
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
+  const isFreshGeneration = (updatedAt?: string | null) => {
+    if (!updatedAt) return false;
+    const updatedTime = new Date(updatedAt).getTime();
+    if (Number.isNaN(updatedTime)) return false;
+    return Date.now() - updatedTime < 45_000;
+  };
+
   const load = async () => {
     if (!id) return;
     const { data, error } = await supabase
@@ -96,11 +104,11 @@ export default function QuarterlySystemReview() {
 
   useEffect(() => {
     if (!review) return;
-    if (review.generation_status === "generating" || review.generation_status === "pending") {
+    if ((review.generation_status === "generating" || review.generation_status === "pending") && isFreshGeneration(review.updated_at)) {
       const interval = setInterval(load, 3000);
       return () => clearInterval(interval);
     }
-  }, [review?.generation_status]);
+  }, [review?.generation_status, review?.updated_at]);
 
   const reviewDateLabel = useMemo(() => {
     if (!review?.review_date) return "";
@@ -185,6 +193,8 @@ export default function QuarterlySystemReview() {
   }
 
   const isGenerating = review.generation_status === "generating" || review.generation_status === "pending";
+  const isGenerationStale = isGenerating && !isFreshGeneration(review.updated_at);
+  const isActivelyGenerating = isGenerating && !isGenerationStale;
   const gaps = [review.gap_1, review.gap_2, review.gap_3, review.gap_4, review.gap_5];
   const priorities = [review.priority_1, review.priority_2, review.priority_3, review.priority_4, review.priority_5];
 
@@ -214,12 +224,12 @@ export default function QuarterlySystemReview() {
               </>
             ) : (
               <>
-                <Button size="sm" variant="outline" onClick={regenerate} disabled={regenerating || isGenerating}>
-                  {regenerating || isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                <Button size="sm" variant="outline" onClick={regenerate} disabled={regenerating || isActivelyGenerating}>
+                  {regenerating || isActivelyGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                   Refresh
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={isGenerating}>Edit</Button>
-                <Button size="sm" onClick={() => window.print()} disabled={isGenerating}>
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={isActivelyGenerating}>Edit</Button>
+                <Button size="sm" onClick={() => window.print()} disabled={isActivelyGenerating}>
                   <Printer className="mr-2 h-4 w-4" /> Print / PDF
                 </Button>
               </>
@@ -231,9 +241,14 @@ export default function QuarterlySystemReview() {
             Generation failed: {review.generation_error || "Unknown error"}. Click Refresh to retry.
           </div>
         )}
-        {isGenerating && (
+        {isActivelyGenerating && (
           <div className="border-t border-amber-300 bg-amber-50 px-6 py-2 text-xs text-amber-800">
             Reviewing Charter, Vineyard, and Storehouse alignment. Auto-refreshing every 3 seconds…
+          </div>
+        )}
+        {isGenerationStale && (
+          <div className="border-t border-amber-300 bg-amber-50 px-6 py-2 text-xs text-amber-800">
+            Generation stalled before completing. Click Refresh to retry.
           </div>
         )}
       </div>
