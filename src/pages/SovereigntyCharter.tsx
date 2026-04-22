@@ -568,51 +568,25 @@ export default function SovereigntyCharter() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-lg border border-border bg-card p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Additional Containers</h3>
-                <p className="text-sm text-muted-foreground">Add custom containers beyond the current Storehouse records.</p>
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={addCustomContainer}>
-                <Plus className="mr-2 h-4 w-4" /> Add container
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {charter.custom_sections.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  No additional containers yet.
-                </div>
-              ) : (
-                charter.custom_sections.map((section, index) => (
-                  <div key={section.id} className="rounded-md border border-border p-4">
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div className="text-sm font-medium text-foreground">Container {index + 1}</div>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => removeCustomContainer(section.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Container Title">
-                        <Input value={section.title} onChange={(e) => updateCustomContainer(section.id, "title", e.target.value)} />
-                      </Field>
-                      <Field label="Meta Line">
-                        <Input value={section.meta} onChange={(e) => updateCustomContainer(section.id, "meta", e.target.value)} placeholder="Current $0 · Target $0" />
-                      </Field>
-                    </div>
-                    <Field label="Container Guidance">
-                      <Textarea
-                        value={section.body}
-                        onChange={(e) => updateCustomContainer(section.id, "body", e.target.value)}
-                        rows={4}
-                        placeholder="One line per rule or guidance note"
-                      />
-                    </Field>
-                  </div>
-                ))
-              )}
-            </div>
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <CustomContainerEditor
+              title="Page 1 Additional Containers"
+              description="These render as constitutional article cards on Page 1."
+              emptyLabel="No Page 1 containers yet."
+              sections={charter.custom_sections.pageOne}
+              onAdd={() => addCustomContainer("pageOne")}
+              onRemove={(id) => removeCustomContainer("pageOne", id)}
+              onUpdate={(id, key, value) => updateCustomContainer("pageOne", id, key, value)}
+            />
+            <CustomContainerEditor
+              title="Page 2 Additional Containers"
+              description="These render as architecture containers on Page 2."
+              emptyLabel="No Page 2 containers yet."
+              sections={charter.custom_sections.pageTwo}
+              onAdd={() => addCustomContainer("pageTwo")}
+              onRemove={(id) => removeCustomContainer("pageTwo", id)}
+              onUpdate={(id, key, value) => updateCustomContainer("pageTwo", id, key, value)}
+            />
           </div>
         </div>
       )}
@@ -664,9 +638,9 @@ export default function SovereigntyCharter() {
               <ArticleCard title="Secondary Quiet Period" body={charter.quiet_period} />
             </div>
 
-            {charter.custom_sections.length > 0 ? (
+            {charter.custom_sections.pageOne.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
-                {charter.custom_sections.map((section) => (
+                {charter.custom_sections.pageOne.map((section) => (
                   <PageOneContainerCard
                     key={`page-one-${section.id}`}
                     title={section.title}
@@ -739,7 +713,7 @@ export default function SovereigntyCharter() {
                 );
               })}
 
-              {charter.custom_sections.map((section) => (
+              {charter.custom_sections.pageTwo.map((section) => (
                 <ContainerCard
                   key={section.id}
                   title={section.title}
@@ -792,11 +766,17 @@ export default function SovereigntyCharter() {
                   value: formatCurrency(storehouse.current_value),
                   note: storehouse.risk_cap || storehouse.notes || "Governed reserve",
                 })),
-                ...charter.custom_sections.map((section) => ({
+                ...charter.custom_sections.pageOne.map((section) => ({
                   label: section.title,
-                  type: "Additional Container",
+                  type: "Page 1 Additional Container",
                   value: "—",
-                  note: section.meta || "Custom governance container",
+                  note: section.meta || "Custom page 1 governance container",
+                })),
+                ...charter.custom_sections.pageTwo.map((section) => ({
+                  label: section.title,
+                  type: "Page 2 Additional Container",
+                  value: "—",
+                  note: section.meta || "Custom page 2 governance container",
                 })),
               ]}
               emptyLabel="No Storehouses are currently linked."
