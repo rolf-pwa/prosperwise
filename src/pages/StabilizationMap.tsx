@@ -302,7 +302,7 @@ export default function StabilizationMap() {
 
             {/* Insight */}
             <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1mm" }}>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: "11pt", color: "#A98C5A", lineHeight: 1.3 }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontStyle: "italic", fontSize: "7.5pt", fontWeight: 400, color: "#3B3F3F", lineHeight: 1.55 }}>
                 {map.situation_summary || "—"}
               </div>
               <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>{map.urgency_flag || "—"}</div>
