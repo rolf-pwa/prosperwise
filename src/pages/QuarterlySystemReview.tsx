@@ -48,6 +48,31 @@ type QuarterlyReview = {
   logic_trace: string | null;
 };
 
+type ReviewHarvestSnapshot = {
+  id: string;
+  snapshot_date: string;
+  boy_value: number;
+  ytd_value: number;
+  current_harvest: number;
+  current_value: number;
+  vineyard_account_id: string | null;
+  storehouse_id: string | null;
+};
+
+type ReviewVineyardAccount = {
+  id: string;
+  account_name: string;
+  account_type: string;
+  current_value: number | null;
+};
+
+type ReviewStorehouse = {
+  id: string;
+  label: string;
+  storehouse_number: number;
+  current_value: number | null;
+};
+
 const STATUS_KIND: Record<string, StatusKind> = {
   Missing: "red",
   "Needs Review": "red",
@@ -72,6 +97,9 @@ export default function QuarterlySystemReview() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [harvestSnapshots, setHarvestSnapshots] = useState<ReviewHarvestSnapshot[]>([]);
+  const [vineyardAccounts, setVineyardAccounts] = useState<ReviewVineyardAccount[]>([]);
+  const [storehouses, setStorehouses] = useState<ReviewStorehouse[]>([]);
 
   const isFreshGeneration = (updatedAt?: string | null) => {
     if (!updatedAt) return false;
@@ -95,6 +123,39 @@ export default function QuarterlySystemReview() {
     }
 
     setReview(data);
+
+    if (data?.contact_id) {
+      const [harvestRes, vineyardRes, storehouseRes] = await Promise.all([
+        supabase
+          .from("account_harvest_snapshots")
+          .select("id, snapshot_date, boy_value, ytd_value, current_harvest, current_value, vineyard_account_id, storehouse_id")
+          .eq("contact_id", data.contact_id)
+          .order("snapshot_date", { ascending: false }),
+        supabase
+          .from("vineyard_accounts" as any)
+          .select("id, account_name, account_type, current_value")
+          .eq("contact_id", data.contact_id)
+          .order("created_at"),
+        supabase
+          .from("storehouses")
+          .select("id, label, storehouse_number, current_value")
+          .eq("contact_id", data.contact_id)
+          .order("storehouse_number"),
+      ]);
+
+      if (harvestRes.error) toast.error(harvestRes.error.message);
+      if (vineyardRes.error) toast.error(vineyardRes.error.message);
+      if (storehouseRes.error) toast.error(storehouseRes.error.message);
+
+      setHarvestSnapshots((harvestRes.data as ReviewHarvestSnapshot[] | null) || []);
+      setVineyardAccounts((vineyardRes.data as ReviewVineyardAccount[] | null) || []);
+      setStorehouses((storehouseRes.data as ReviewStorehouse[] | null) || []);
+    } else {
+      setHarvestSnapshots([]);
+      setVineyardAccounts([]);
+      setStorehouses([]);
+    }
+
     setLoading(false);
   };
 
@@ -197,6 +258,42 @@ export default function QuarterlySystemReview() {
   const isActivelyGenerating = isGenerating && !isGenerationStale;
   const gaps = [review.gap_1, review.gap_2, review.gap_3, review.gap_4, review.gap_5];
   const priorities = [review.priority_1, review.priority_2, review.priority_3, review.priority_4, review.priority_5];
+  const latestHarvestByKey = harvestSnapshots.reduce<Record<string, ReviewHarvestSnapshot>>((acc, snapshot) => {
+    const key = snapshot.vineyard_account_id
+      ? `vineyard:${snapshot.vineyard_account_id}`
+      : snapshot.storehouse_id
+        ? `storehouse:${snapshot.storehouse_id}`
+        : null;
+    if (!key) return acc;
+    const existing = acc[key];
+    if (!existing || new Date(snapshot.snapshot_date).getTime() > new Date(existing.snapshot_date).getTime()) {
+      acc[key] = snapshot;
+    }
+    return acc;
+  }, {});
+
+  const vineyardHarvestRows = vineyardAccounts.map((account) => ({
+    id: account.id,
+    label: account.account_name,
+    kindLabel: account.account_type,
+    snapshot: latestHarvestByKey[`vineyard:${account.id}`] ?? null,
+  }));
+
+  const storehouseHarvestRows = storehouses.map((storehouse) => ({
+    id: storehouse.id,
+    label: storehouse.label,
+    kindLabel: `Storehouse #${storehouse.storehouse_number}`,
+    snapshot: latestHarvestByKey[`storehouse:${storehouse.id}`] ?? null,
+  }));
+
+  const harvestTotals = [...vineyardHarvestRows, ...storehouseHarvestRows].reduce((totals, row) => {
+    if (!row.snapshot) return totals;
+    totals.boy += Number(row.snapshot.boy_value) || 0;
+    totals.ytd += Number(row.snapshot.ytd_value) || 0;
+    totals.harvest += Number(row.snapshot.current_harvest) || 0;
+    totals.current += Number(row.snapshot.current_value) || 0;
+    return totals;
+  }, { boy: 0, ytd: 0, harvest: 0, current: 0 });
 
   return (
     <div className="min-h-screen bg-[#F8F6F2]">
