@@ -1818,6 +1818,7 @@ export type Database = {
           fiduciary_alliance: string | null
           footer_date_label: string | null
           footer_status: string | null
+          full_markdown: string | null
           generation_summary: string | null
           governance_authority: string | null
           harvest_accounts_note: string | null
@@ -1847,6 +1848,7 @@ export type Database = {
           fiduciary_alliance?: string | null
           footer_date_label?: string | null
           footer_status?: string | null
+          full_markdown?: string | null
           generation_summary?: string | null
           governance_authority?: string | null
           harvest_accounts_note?: string | null
@@ -1876,6 +1878,7 @@ export type Database = {
           fiduciary_alliance?: string | null
           footer_date_label?: string | null
           footer_status?: string | null
+          full_markdown?: string | null
           generation_summary?: string | null
           governance_authority?: string | null
           harvest_accounts_note?: string | null
