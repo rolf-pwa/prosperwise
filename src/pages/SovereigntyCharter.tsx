@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, Pencil, Plus, Printer, Save, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
 type ContactRecord = {
@@ -73,6 +76,36 @@ type WaterfallPriority = {
   is_active: boolean;
 };
 
+type CustomContainer = {
+  id: string;
+  title: string;
+  meta: string;
+  body: string;
+};
+
+type CharterRecord = {
+  id?: string;
+  contact_id: string;
+  title: string;
+  subtitle: string;
+  intro_heading: string;
+  intro_callout: string;
+  intro_note: string;
+  mission_of_capital: string;
+  vision_20_year: string;
+  governance_authority: string;
+  conflict_resolution: string;
+  fiduciary_alliance: string;
+  quiet_period: string;
+  architecture_intro: string;
+  protected_assets_note: string;
+  harvest_accounts_note: string;
+  appendix_note: string;
+  footer_status: string;
+  footer_date_label: string;
+  custom_sections: CustomContainer[];
+};
+
 const formatCurrency = (value: number | null | undefined) =>
   value == null || Number.isNaN(value)
     ? "—"
@@ -103,67 +136,26 @@ const isProtectedAccount = (account: VineyardAccount) =>
 
 const pageWrap = "stab-doc bg-white shadow-lg print:shadow-none";
 
+const newCustomContainer = (): CustomContainer => ({
+  id: crypto.randomUUID(),
+  title: "Additional Container",
+  meta: "Current — · Target —",
+  body: "Describe the purpose, constraints, and operating rules for this container.",
+});
+
 export default function SovereigntyCharter() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [contact, setContact] = useState<ContactRecord | null>(null);
   const [family, setFamily] = useState<FamilyRecord | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
   const [storehouses, setStorehouses] = useState<Storehouse[]>([]);
   const [storehouseRules, setStorehouseRules] = useState<StorehouseRule[]>([]);
   const [waterfallPriorities, setWaterfallPriorities] = useState<WaterfallPriority[]>([]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!contactId) return;
-
-      setLoading(true);
-      const { data: contactData, error: contactError } = await supabase
-        .from("contacts")
-        .select("id, first_name, last_name, full_name, family_id, household_id, charter_url, quiet_period_start_date, governance_status, lawyer_name, accountant_name, executor_name, poa_name, email, phone")
-        .eq("id", contactId)
-        .maybeSingle();
-
-      if (contactError || !contactData) {
-        toast.error(contactError?.message || "Charter contact not found");
-        setLoading(false);
-        return;
-      }
-
-      setContact(contactData as ContactRecord);
-
-      const familyId = contactData.family_id;
-      const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes] = await Promise.all([
-        familyId
-          ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-        supabase.from("vineyard_accounts").select("id, account_name, account_number, account_type, current_value, book_value, notes").eq("contact_id", contactId).order("created_at"),
-        supabase.from("storehouses").select("id, label, storehouse_number, current_value, target_value, asset_type, notes, risk_cap").eq("contact_id", contactId).order("storehouse_number"),
-        familyId
-          ? supabase.from("storehouse_rules").select("id, storehouse_label, storehouse_number, rule_type, rule_description, rule_value").eq("family_id", familyId).order("storehouse_number")
-          : Promise.resolve({ data: [], error: null }),
-        familyId
-          ? supabase.from("waterfall_priorities").select("id, priority_order, priority_label, priority_description, target_amount, is_active").eq("family_id", familyId).order("priority_order")
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-
-      if (familyRes.error) toast.error(familyRes.error.message);
-      if (vineyardRes.error) toast.error(vineyardRes.error.message);
-      if (storehousesRes.error) toast.error(storehousesRes.error.message);
-      if (rulesRes.error) toast.error(rulesRes.error.message);
-      if (waterfallRes.error) toast.error(waterfallRes.error.message);
-
-      setFamily((familyRes.data as FamilyRecord | null) || null);
-      setVineyardAccounts((vineyardRes.data as VineyardAccount[] | null) || []);
-      setStorehouses((storehousesRes.data as Storehouse[] | null) || []);
-      setStorehouseRules((rulesRes.data as StorehouseRule[] | null) || []);
-      setWaterfallPriorities(((waterfallRes.data as WaterfallPriority[] | null) || []).filter((item) => item.is_active));
-      setLoading(false);
-    };
-
-    load();
-  }, [contactId]);
+  const [charter, setCharter] = useState<CharterRecord | null>(null);
 
   const fullName = useMemo(() => {
     if (!contact) return "";
@@ -172,15 +164,8 @@ export default function SovereigntyCharter() {
 
   const sourceCharterUrl = contact?.charter_url || family?.charter_document_url || null;
 
-  const protectedAccounts = useMemo(
-    () => vineyardAccounts.filter(isProtectedAccount),
-    [vineyardAccounts]
-  );
-
-  const harvestAccounts = useMemo(
-    () => vineyardAccounts.filter((account) => !isProtectedAccount(account)),
-    [vineyardAccounts]
-  );
+  const protectedAccounts = useMemo(() => vineyardAccounts.filter(isProtectedAccount), [vineyardAccounts]);
+  const harvestAccounts = useMemo(() => vineyardAccounts.filter((account) => !isProtectedAccount(account)), [vineyardAccounts]);
 
   const groupedRules = useMemo(() => {
     return storehouseRules.reduce<Record<string, StorehouseRule[]>>((acc, rule) => {
@@ -196,6 +181,217 @@ export default function SovereigntyCharter() {
     return vineyard + storehouseTotal;
   }, [storehouses, vineyardAccounts]);
 
+  const buildDefaultCharter = (
+    contactRecord: ContactRecord,
+    familyRecord: FamilyRecord | null,
+    totalStewardship: number
+  ): CharterRecord => {
+    const resolvedFullName = [contactRecord.first_name, contactRecord.last_name].filter(Boolean).join(" ");
+
+    return {
+      contact_id: contactRecord.id,
+      title: `${familyRecord?.name || resolvedFullName} Sovereignty Charter`,
+      subtitle: "A constitutional framework for financial governance",
+      intro_heading: "Constitutional Framework\nfor Financial Governance",
+      intro_callout: `The assets of ${resolvedFullName} are to be governed as a Vineyard designed to serve stability, legacy, and disciplined decision-making rather than short-term reaction.`,
+      intro_note: "This portrait format mirrors the Stabilization Map and Quarterly Review so the Charter reads like one unified governance system.",
+      mission_of_capital: `The current territory is stewarded toward durable household stability, tax-aware growth, and long-horizon legacy transfer. ${familyRecord?.annual_savings ? `The family is currently tracking approximately ${formatCurrency(familyRecord.annual_savings)} in annual savings capacity.` : "The strategy should define a target after-tax cash flow threshold and a reinvestment discipline."}`,
+      vision_20_year: `${familyRecord?.total_family_assets ? `Current tracked family assets are ${formatCurrency(familyRecord.total_family_assets)}.` : `Current tracked stewardship value is ${formatCurrency(totalStewardship)}.`} The long-range objective is to compound core Vineyard assets, protect key reserves, and preserve intergenerational optionality through a deliberate governance structure.`,
+      governance_authority: `${resolvedFullName} remains the sovereign decision-maker. ProsperWise serves as Personal CFO, coordinating structure, sequencing, and the architectural integrity of the Charter.`,
+      conflict_resolution: `${contactRecord.poa_name ? `Powers of Attorney currently noted: ${contactRecord.poa_name}.` : "Powers of Attorney should be named explicitly."} In incapacity events, this Charter operates as an interpretive guide for aligned decision-making.`,
+      fiduciary_alliance: `${contactRecord.lawyer_name || contactRecord.accountant_name ? `Current professionals include ${[contactRecord.lawyer_name, contactRecord.accountant_name].filter(Boolean).join(" and ")}.` : "Legal and tax professionals should be linked to this Charter."} All structural and tax actions remain subject to professional review.`,
+      quiet_period: contactRecord.quiet_period_start_date
+        ? `A quiet period anchor exists from ${formatDate(contactRecord.quiet_period_start_date)}. New capital events should pause for structured integration before deployment.`
+        : "Capital inflows above the family threshold should trigger a quiet period before new deployment decisions are finalized.",
+      architecture_intro: "The Vineyard serves as the master container for income-generating assets. Principal is protected by design; only designated harvest should move into storehouse allocation.",
+      protected_assets_note: "No protected accounts have been explicitly classified yet.",
+      harvest_accounts_note: "No eligible harvest accounts are currently defined.",
+      appendix_note: "This appendix condenses the current territory into a printable schedule so the Charter, Stabilization Map, and Quarterly Review all reference the same canonical structure.",
+      footer_status: contactRecord.governance_status === "sovereign" ? "Ratified / Sovereign phase" : "Draft / review in progress",
+      footer_date_label: formatDate(contactRecord.quiet_period_start_date, "Ratification date to be confirmed"),
+      custom_sections: [],
+    };
+  };
+
+  const normalizeCustomSections = (value: unknown): CustomContainer[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const record = item as Record<string, unknown>;
+        return {
+          id: typeof record.id === "string" && record.id ? record.id : crypto.randomUUID(),
+          title: typeof record.title === "string" ? record.title : "Additional Container",
+          meta: typeof record.meta === "string" ? record.meta : "",
+          body: typeof record.body === "string" ? record.body : "",
+        };
+      })
+      .filter(Boolean) as CustomContainer[];
+  };
+
+  const load = async () => {
+    if (!contactId) return;
+
+    setLoading(true);
+    const { data: contactData, error: contactError } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, full_name, family_id, household_id, charter_url, quiet_period_start_date, governance_status, lawyer_name, accountant_name, executor_name, poa_name, email, phone")
+      .eq("id", contactId)
+      .maybeSingle();
+
+    if (contactError || !contactData) {
+      toast.error(contactError?.message || "Charter contact not found");
+      setLoading(false);
+      return;
+    }
+
+    const resolvedContact = contactData as ContactRecord;
+    setContact(resolvedContact);
+
+    const familyId = resolvedContact.family_id;
+    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes] = await Promise.all([
+      familyId
+        ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      supabase.from("vineyard_accounts").select("id, account_name, account_number, account_type, current_value, book_value, notes").eq("contact_id", contactId).order("created_at"),
+      supabase.from("storehouses").select("id, label, storehouse_number, current_value, target_value, asset_type, notes, risk_cap").eq("contact_id", contactId).order("storehouse_number"),
+      familyId
+        ? supabase.from("storehouse_rules").select("id, storehouse_label, storehouse_number, rule_type, rule_description, rule_value").eq("family_id", familyId).order("storehouse_number")
+        : Promise.resolve({ data: [], error: null }),
+      familyId
+        ? supabase.from("waterfall_priorities").select("id, priority_order, priority_label, priority_description, target_amount, is_active").eq("family_id", familyId).order("priority_order")
+        : Promise.resolve({ data: [], error: null }),
+      supabase.from("sovereignty_charters" as any).select("*").eq("contact_id", contactId).maybeSingle(),
+    ]);
+
+    if (familyRes.error) toast.error(familyRes.error.message);
+    if (vineyardRes.error) toast.error(vineyardRes.error.message);
+    if (storehousesRes.error) toast.error(storehousesRes.error.message);
+    if (rulesRes.error) toast.error(rulesRes.error.message);
+    if (waterfallRes.error) toast.error(waterfallRes.error.message);
+    if (charterRes.error) toast.error(charterRes.error.message);
+
+    const resolvedFamily = (familyRes.data as FamilyRecord | null) || null;
+    const resolvedVineyard = (vineyardRes.data as VineyardAccount[] | null) || [];
+    const resolvedStorehouses = (storehousesRes.data as Storehouse[] | null) || [];
+    const resolvedRules = (rulesRes.data as StorehouseRule[] | null) || [];
+    const resolvedWaterfalls = ((waterfallRes.data as WaterfallPriority[] | null) || []).filter((item) => item.is_active);
+
+    setFamily(resolvedFamily);
+    setVineyardAccounts(resolvedVineyard);
+    setStorehouses(resolvedStorehouses);
+    setStorehouseRules(resolvedRules);
+    setWaterfallPriorities(resolvedWaterfalls);
+
+    const totalStewardship =
+      resolvedVineyard.reduce((sum, account) => sum + (account.current_value || 0), 0) +
+      resolvedStorehouses.reduce((sum, storehouse) => sum + (storehouse.current_value || 0), 0);
+
+    const baseCharter = buildDefaultCharter(resolvedContact, resolvedFamily, totalStewardship);
+    const savedCharter = charterRes.data as Record<string, unknown> | null;
+
+    if (savedCharter) {
+      setCharter({
+        ...baseCharter,
+        ...savedCharter,
+        id: typeof savedCharter.id === "string" ? savedCharter.id : undefined,
+        contact_id: resolvedContact.id,
+        custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+      });
+    } else {
+      setCharter(baseCharter);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, [contactId]);
+
+  const updateField = (key: keyof CharterRecord, value: string) => {
+    setCharter((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  const updateCustomContainer = (id: string, key: keyof CustomContainer, value: string) => {
+    setCharter((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        custom_sections: current.custom_sections.map((section) =>
+          section.id === id ? { ...section, [key]: value } : section
+        ),
+      };
+    });
+  };
+
+  const addCustomContainer = () => {
+    setCharter((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        custom_sections: [...current.custom_sections, newCustomContainer()],
+      };
+    });
+  };
+
+  const removeCustomContainer = (id: string) => {
+    setCharter((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        custom_sections: current.custom_sections.filter((section) => section.id !== id),
+      };
+    });
+  };
+
+  const save = async () => {
+    if (!charter || !contactId) return;
+    setSaving(true);
+
+    const payload = {
+      contact_id: contactId,
+      title: charter.title,
+      subtitle: charter.subtitle,
+      intro_heading: charter.intro_heading,
+      intro_callout: charter.intro_callout,
+      intro_note: charter.intro_note,
+      mission_of_capital: charter.mission_of_capital,
+      vision_20_year: charter.vision_20_year,
+      governance_authority: charter.governance_authority,
+      conflict_resolution: charter.conflict_resolution,
+      fiduciary_alliance: charter.fiduciary_alliance,
+      quiet_period: charter.quiet_period,
+      architecture_intro: charter.architecture_intro,
+      protected_assets_note: charter.protected_assets_note,
+      harvest_accounts_note: charter.harvest_accounts_note,
+      appendix_note: charter.appendix_note,
+      footer_status: charter.footer_status,
+      footer_date_label: charter.footer_date_label,
+      custom_sections: charter.custom_sections,
+    };
+
+    const query = charter.id
+      ? supabase.from("sovereignty_charters" as any).update(payload).eq("id", charter.id)
+      : supabase.from("sovereignty_charters" as any).insert(payload).select("id").single();
+
+    const { data, error } = await query;
+    setSaving(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    if (!charter.id && data && typeof data === "object" && "id" in data) {
+      setCharter((current) => (current ? { ...current, id: String((data as { id: string }).id) } : current));
+    }
+
+    toast.success("Sovereignty Charter saved");
+    setEditing(false);
+    load();
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -204,11 +400,11 @@ export default function SovereigntyCharter() {
     );
   }
 
-  if (!contact) {
+  if (!contact || !charter) {
     return (
       <div className="p-8">
         <p className="text-muted-foreground">Charter contact not found.</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate("/contacts")}> 
+        <Button variant="outline" className="mt-4" onClick={() => navigate("/contacts")}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Contacts
         </Button>
       </div>
@@ -229,32 +425,168 @@ export default function SovereigntyCharter() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {sourceCharterUrl && (
-              <Button size="sm" variant="outline" asChild>
-                <a href={sourceCharterUrl} target="_blank" rel="noreferrer noopener">
-                  <ExternalLink className="mr-2 h-4 w-4" /> Open source
-                </a>
-              </Button>
+            {editing ? (
+              <>
+                <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={save} disabled={saving}>
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                </Button>
+                {sourceCharterUrl && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={sourceCharterUrl} target="_blank" rel="noreferrer noopener">
+                      <ExternalLink className="mr-2 h-4 w-4" /> Open source
+                    </a>
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => window.print()}>
+                  <Printer className="mr-2 h-4 w-4" /> Print / PDF
+                </Button>
+              </>
             )}
-            <Button size="sm" onClick={() => window.print()}>
-              <Printer className="mr-2 h-4 w-4" /> Print / PDF
-            </Button>
           </div>
         </div>
       </div>
 
+      {editing && (
+        <div className="mx-auto max-w-[1100px] px-6 py-6 print:hidden">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Document Title">
+                  <Input value={charter.title} onChange={(e) => updateField("title", e.target.value)} />
+                </Field>
+                <Field label="Subtitle">
+                  <Input value={charter.subtitle} onChange={(e) => updateField("subtitle", e.target.value)} />
+                </Field>
+              </div>
+
+              <Field label="Intro Heading">
+                <Textarea value={charter.intro_heading} onChange={(e) => updateField("intro_heading", e.target.value)} rows={2} />
+              </Field>
+              <Field label="Intro Callout">
+                <Textarea value={charter.intro_callout} onChange={(e) => updateField("intro_callout", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Intro Note">
+                <Textarea value={charter.intro_note} onChange={(e) => updateField("intro_note", e.target.value)} rows={3} />
+              </Field>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Mission of Capital">
+                  <Textarea value={charter.mission_of_capital} onChange={(e) => updateField("mission_of_capital", e.target.value)} rows={5} />
+                </Field>
+                <Field label="20-Year Vision">
+                  <Textarea value={charter.vision_20_year} onChange={(e) => updateField("vision_20_year", e.target.value)} rows={5} />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Governance & Authority">
+                  <Textarea value={charter.governance_authority} onChange={(e) => updateField("governance_authority", e.target.value)} rows={5} />
+                </Field>
+                <Field label="Conflict Resolution & Representation">
+                  <Textarea value={charter.conflict_resolution} onChange={(e) => updateField("conflict_resolution", e.target.value)} rows={5} />
+                </Field>
+                <Field label="Fiduciary Alliance">
+                  <Textarea value={charter.fiduciary_alliance} onChange={(e) => updateField("fiduciary_alliance", e.target.value)} rows={5} />
+                </Field>
+                <Field label="Secondary Quiet Period">
+                  <Textarea value={charter.quiet_period} onChange={(e) => updateField("quiet_period", e.target.value)} rows={5} />
+                </Field>
+              </div>
+            </div>
+
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+              <Field label="Architecture Intro">
+                <Textarea value={charter.architecture_intro} onChange={(e) => updateField("architecture_intro", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Protected Assets Empty State">
+                <Textarea value={charter.protected_assets_note} onChange={(e) => updateField("protected_assets_note", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Harvest Accounts Empty State">
+                <Textarea value={charter.harvest_accounts_note} onChange={(e) => updateField("harvest_accounts_note", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Appendix Note">
+                <Textarea value={charter.appendix_note} onChange={(e) => updateField("appendix_note", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Footer Status">
+                <Input value={charter.footer_status} onChange={(e) => updateField("footer_status", e.target.value)} />
+              </Field>
+              <Field label="Footer Date Label">
+                <Input value={charter.footer_date_label} onChange={(e) => updateField("footer_date_label", e.target.value)} />
+              </Field>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Additional Containers</h3>
+                <p className="text-sm text-muted-foreground">Add custom containers beyond the current Storehouse records.</p>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={addCustomContainer}>
+                <Plus className="mr-2 h-4 w-4" /> Add container
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {charter.custom_sections.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  No additional containers yet.
+                </div>
+              ) : (
+                charter.custom_sections.map((section, index) => (
+                  <div key={section.id} className="rounded-md border border-border p-4">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div className="text-sm font-medium text-foreground">Container {index + 1}</div>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => removeCustomContainer(section.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Container Title">
+                        <Input value={section.title} onChange={(e) => updateCustomContainer(section.id, "title", e.target.value)} />
+                      </Field>
+                      <Field label="Meta Line">
+                        <Input value={section.meta} onChange={(e) => updateCustomContainer(section.id, "meta", e.target.value)} placeholder="Current $0 · Target $0" />
+                      </Field>
+                    </div>
+                    <Field label="Container Guidance">
+                      <Textarea
+                        value={section.body}
+                        onChange={(e) => updateCustomContainer(section.id, "body", e.target.value)}
+                        rows={4}
+                        placeholder="One line per rule or guidance note"
+                      />
+                    </Field>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto max-w-[210mm] px-6 py-6 print:p-0 print:max-w-none">
-        <div className={`${pageWrap}`} style={{ width: "210mm", minHeight: "297mm", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F" }}>
+        <div className={pageWrap} style={pageStyle}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "10mm 12mm 9mm" }}>
             <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "54mm", height: "auto", display: "block", marginBottom: "4mm" }} />
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "4mm" }}>
               Sovereignty Operating System
             </div>
             <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "24pt", fontWeight: 300, lineHeight: 1.08 }}>
-              {family?.name || fullName} Sovereignty Charter
+              {charter.title}
             </div>
             <div style={{ fontSize: "8pt", color: "rgba(255,255,255,.7)", marginTop: "2.5mm" }}>
-              A constitutional framework for financial governance
+              {charter.subtitle}
             </div>
           </div>
 
@@ -263,49 +595,43 @@ export default function SovereigntyCharter() {
               <div style={{ fontSize: "7.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "1.5mm" }}>
                 Sovereignty Charter &nbsp;·&nbsp; Prepared for <strong>{fullName}</strong>
               </div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "25pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1 }}>
-                Constitutional Framework<br />for Financial Governance
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "25pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1, whiteSpace: "pre-line" }}>
+                {charter.intro_heading}
               </div>
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
 
             <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm" }}>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.55 }}>
-                The assets of {fullName} are to be governed as a Vineyard designed to serve stability, legacy, and disciplined decision-making rather than short-term reaction.
+                {charter.intro_callout}
               </div>
               <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>
-                This portrait format mirrors the Stabilization Map and Quarterly Review so the Charter reads like one unified governance system.
+                {charter.intro_note}
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
-              <SectionCard
-                title="Mission of Capital"
-                body={`The current territory is stewarded toward durable household stability, tax-aware growth, and long-horizon legacy transfer. ${family?.annual_savings ? `The family is currently tracking approximately ${formatCurrency(family.annual_savings)} in annual savings capacity.` : "The strategy should define a target after-tax cash flow threshold and a reinvestment discipline."}`}
-              />
-              <SectionCard
-                title="20-Year Vision"
-                body={`${family?.total_family_assets ? `Current tracked family assets are ${formatCurrency(family.total_family_assets)}.` : `Current tracked stewardship value is ${formatCurrency(stewardshipValue)}.`} The long-range objective is to compound core Vineyard assets, protect key reserves, and preserve intergenerational optionality through a deliberate governance structure.`}
-              />
+              <SectionCard title="Mission of Capital" body={charter.mission_of_capital} />
+              <SectionCard title="20-Year Vision" body={charter.vision_20_year} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
-              <ArticleCard title="Governance & Authority" body={`${fullName} remains the sovereign decision-maker. ProsperWise serves as Personal CFO, coordinating structure, sequencing, and the architectural integrity of the Charter.`} />
-              <ArticleCard title="Conflict Resolution & Representation" body={`${contact.poa_name ? `Powers of Attorney currently noted: ${contact.poa_name}.` : "Powers of Attorney should be named explicitly."} In incapacity events, this Charter operates as an interpretive guide for aligned decision-making.`} />
-              <ArticleCard title="Fiduciary Alliance" body={`${contact.lawyer_name || contact.accountant_name ? `Current professionals include ${[contact.lawyer_name, contact.accountant_name].filter(Boolean).join(" and ")}.` : "Legal and tax professionals should be linked to this Charter."} All structural and tax actions remain subject to professional review.`} />
-              <ArticleCard title="Secondary Quiet Period" body={contact.quiet_period_start_date ? `A quiet period anchor exists from ${formatDate(contact.quiet_period_start_date)}. New capital events should pause for structured integration before deployment.` : "Capital inflows above the family threshold should trigger a quiet period before new deployment decisions are finalized."} />
+              <ArticleCard title="Governance & Authority" body={charter.governance_authority} />
+              <ArticleCard title="Conflict Resolution & Representation" body={charter.conflict_resolution} />
+              <ArticleCard title="Fiduciary Alliance" body={charter.fiduciary_alliance} />
+              <ArticleCard title="Secondary Quiet Period" body={charter.quiet_period} />
             </div>
           </div>
 
           <div style={{ background: "#A98C5A", color: "#fff", marginTop: "auto", padding: "3mm 12mm", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: "8.5pt", fontWeight: 500, maxWidth: "75%" }}>
-              Ratification status: {contact.governance_status === "sovereign" ? "Ratified / Sovereign phase" : "Draft / review in progress"}
+              Ratification status: {charter.footer_status}
             </div>
-            <div style={{ fontSize: "7.5pt", opacity: 0.9 }}>{formatDate(contact.quiet_period_start_date, "Ratification date to be confirmed")}</div>
+            <div style={{ fontSize: "7.5pt", opacity: 0.9 }}>{charter.footer_date_label}</div>
           </div>
         </div>
 
-        <div className={`${pageWrap} print-page-break`} style={{ width: "210mm", minHeight: "297mm", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
+        <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
               Charter Architecture
@@ -318,19 +644,19 @@ export default function SovereigntyCharter() {
           <div style={{ padding: "12mm", display: "flex", flexDirection: "column", gap: "6mm" }}>
             <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm" }}>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.55 }}>
-                The Vineyard serves as the master container for income-generating assets. Principal is protected by design; only designated harvest should move into storehouse allocation.
+                {charter.architecture_intro}
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
               <SectionCard
                 title="Protected Assets"
-                body={protectedAccounts.length ? undefined : "No protected accounts have been explicitly classified yet."}
+                body={protectedAccounts.length ? undefined : charter.protected_assets_note}
                 items={protectedAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${formatCurrency(account.current_value)}`)}
               />
               <SectionCard
                 title="Eligible Harvest Accounts"
-                body={harvestAccounts.length ? undefined : "No eligible harvest accounts are currently defined."}
+                body={harvestAccounts.length ? undefined : charter.harvest_accounts_note}
                 items={harvestAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${formatCurrency(account.current_value)}`)}
               />
             </div>
@@ -339,28 +665,28 @@ export default function SovereigntyCharter() {
               {storehouses.length > 0 ? storehouses.map((storehouse) => {
                 const rules = groupedRules[storehouse.label] || groupedRules[`Storehouse ${storehouse.storehouse_number}`] || [];
                 return (
-                  <div key={storehouse.id} style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 4mm" }}>
-                    <strong style={{ display: "block", fontSize: "8.5pt", fontWeight: 600, color: "#3B3F3F", marginBottom: "1mm" }}>
-                      {storehouse.label}
-                    </strong>
-                    <div style={{ fontSize: "7.5pt", color: "#6B7070", marginBottom: "2mm" }}>
-                      Current {formatCurrency(storehouse.current_value)} · Target {formatCurrency(storehouse.target_value)}
-                    </div>
-                    {storehouse.asset_type && <div style={{ fontSize: "7.5pt", color: "#3B3F3F", marginBottom: "1.5mm" }}>{storehouse.asset_type}</div>}
-                    {storehouse.risk_cap && <div style={{ fontSize: "7.5pt", color: "#3B3F3F", marginBottom: "1.5mm" }}>Risk cap: {storehouse.risk_cap}</div>}
-                    {(rules.length ? rules.map((rule) => rule.rule_description) : storehouse.notes ? [storehouse.notes] : ["Rules and operating guidance to be defined."]).map((item, index) => (
-                      <div key={index} style={{ display: "flex", gap: "2mm", marginTop: "1.2mm" }}>
-                        <div style={{ width: "4px", height: "4px", borderRadius: "999px", background: "#A98C5A", marginTop: "5px", flexShrink: 0 }} />
-                        <p style={{ fontSize: "7.5pt", lineHeight: 1.5 }}>{item}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <ContainerCard
+                    key={storehouse.id}
+                    title={storehouse.label}
+                    meta={`Current ${formatCurrency(storehouse.current_value)} · Target ${formatCurrency(storehouse.target_value)}`}
+                    subtitle={[storehouse.asset_type, storehouse.risk_cap ? `Risk cap: ${storehouse.risk_cap}` : null].filter(Boolean).join(" · ")}
+                    items={(rules.length ? rules.map((rule) => rule.rule_description) : storehouse.notes ? [storehouse.notes] : ["Rules and operating guidance to be defined."])}
+                  />
                 );
               }) : (
                 <div style={{ gridColumn: "1 / -1", background: "#F8F6F2", padding: "4mm", fontSize: "8pt", color: "#6B7070" }}>
                   No storehouses are currently configured for this contact.
                 </div>
               )}
+
+              {charter.custom_sections.map((section) => (
+                <ContainerCard
+                  key={section.id}
+                  title={section.title}
+                  meta={section.meta}
+                  items={section.body.split("\n").map((line) => line.trim()).filter(Boolean)}
+                />
+              ))}
             </div>
 
             <SectionCard
@@ -371,7 +697,7 @@ export default function SovereigntyCharter() {
           </div>
         </div>
 
-        <div className={`${pageWrap} print-page-break`} style={{ width: "210mm", minHeight: "297mm", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", color: "#3B3F3F", marginTop: "6mm" }}>
+        <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
               Appendix A
@@ -383,7 +709,7 @@ export default function SovereigntyCharter() {
 
           <div style={{ padding: "12mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
             <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.65 }}>
-              This appendix condenses the current territory into a printable schedule so the Charter, Stabilization Map, and Quarterly Review all reference the same canonical structure.
+              {charter.appendix_note}
             </div>
 
             <ScheduleTable
@@ -399,12 +725,20 @@ export default function SovereigntyCharter() {
 
             <ScheduleTable
               title="Storehouses"
-              rows={storehouses.map((storehouse) => ({
-                label: storehouse.label,
-                type: storehouse.asset_type || `Storehouse #${storehouse.storehouse_number}`,
-                value: formatCurrency(storehouse.current_value),
-                note: storehouse.risk_cap || storehouse.notes || "Governed reserve",
-              }))}
+              rows={[
+                ...storehouses.map((storehouse) => ({
+                  label: storehouse.label,
+                  type: storehouse.asset_type || `Storehouse #${storehouse.storehouse_number}`,
+                  value: formatCurrency(storehouse.current_value),
+                  note: storehouse.risk_cap || storehouse.notes || "Governed reserve",
+                })),
+                ...charter.custom_sections.map((section) => ({
+                  label: section.title,
+                  type: "Additional Container",
+                  value: "—",
+                  note: section.meta || "Custom governance container",
+                })),
+              ]}
               emptyLabel="No Storehouses are currently linked."
             />
 
@@ -424,6 +758,24 @@ export default function SovereigntyCharter() {
           }
         `}</style>
       </div>
+    </div>
+  );
+}
+
+const pageStyle: React.CSSProperties = {
+  width: "210mm",
+  minHeight: "297mm",
+  display: "flex",
+  flexDirection: "column",
+  fontFamily: "'DM Sans', sans-serif",
+  color: "#3B3F3F",
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium text-foreground">{label}</Label>
+      {children}
     </div>
   );
 }
@@ -452,6 +804,32 @@ function ArticleCard({ title, body }: { title: string; body: string }) {
     <div style={{ border: "1px solid #D3C5B7", padding: "4mm", background: "#fff" }}>
       <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "13pt", fontWeight: 500, color: "#3B3F3F", marginBottom: "1.5mm" }}>{title}</div>
       <p style={{ fontSize: "7.5pt", lineHeight: 1.6, color: "#3B3F3F" }}>{body}</p>
+    </div>
+  );
+}
+
+function ContainerCard({
+  title,
+  meta,
+  subtitle,
+  items,
+}: {
+  title: string;
+  meta?: string;
+  subtitle?: string;
+  items: string[];
+}) {
+  return (
+    <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 4mm" }}>
+      <strong style={{ display: "block", fontSize: "8.5pt", fontWeight: 600, color: "#3B3F3F", marginBottom: "1mm" }}>{title}</strong>
+      {meta ? <div style={{ fontSize: "7.5pt", color: "#6B7070", marginBottom: "1.5mm" }}>{meta}</div> : null}
+      {subtitle ? <div style={{ fontSize: "7.5pt", color: "#3B3F3F", marginBottom: "1.5mm" }}>{subtitle}</div> : null}
+      {items.map((item, index) => (
+        <div key={index} style={{ display: "flex", gap: "2mm", marginTop: "1.2mm" }}>
+          <div style={{ width: "4px", height: "4px", borderRadius: "999px", background: "#A98C5A", marginTop: "5px", flexShrink: 0 }} />
+          <p style={{ fontSize: "7.5pt", lineHeight: 1.5 }}>{item}</p>
+        </div>
+      ))}
     </div>
   );
 }
