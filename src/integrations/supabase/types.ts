@@ -1704,6 +1704,81 @@ export type Database = {
           },
         ]
       }
+      sovereignty_charter_sources: {
+        Row: {
+          charter_id: string | null
+          contact_id: string
+          content_text: string | null
+          created_at: string
+          created_by: string
+          extracted_text: string | null
+          file_name: string | null
+          id: string
+          input_mode: string
+          mime_type: string | null
+          sort_order: number
+          source_kind: string
+          source_url: string | null
+          storage_bucket: string | null
+          storage_path: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          charter_id?: string | null
+          contact_id: string
+          content_text?: string | null
+          created_at?: string
+          created_by: string
+          extracted_text?: string | null
+          file_name?: string | null
+          id?: string
+          input_mode?: string
+          mime_type?: string | null
+          sort_order?: number
+          source_kind: string
+          source_url?: string | null
+          storage_bucket?: string | null
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          charter_id?: string | null
+          contact_id?: string
+          content_text?: string | null
+          created_at?: string
+          created_by?: string
+          extracted_text?: string | null
+          file_name?: string | null
+          id?: string
+          input_mode?: string
+          mime_type?: string | null
+          sort_order?: number
+          source_kind?: string
+          source_url?: string | null
+          storage_bucket?: string | null
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sovereignty_charter_sources_charter_id_fkey"
+            columns: ["charter_id"]
+            isOneToOne: false
+            referencedRelation: "sovereignty_charters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sovereignty_charter_sources_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sovereignty_charters: {
         Row: {
           appendix_note: string | null
@@ -1712,18 +1787,23 @@ export type Database = {
           contact_id: string
           created_at: string
           custom_sections: Json
+          draft_status: string
           fiduciary_alliance: string | null
           footer_date_label: string | null
           footer_status: string | null
+          generation_summary: string | null
           governance_authority: string | null
           harvest_accounts_note: string | null
           id: string
           intro_callout: string | null
           intro_heading: string | null
           intro_note: string | null
+          last_generated_at: string | null
           mission_of_capital: string | null
           protected_assets_note: string | null
           quiet_period: string | null
+          ratified_at: string | null
+          ratified_by: string | null
           subtitle: string | null
           title: string | null
           updated_at: string
@@ -1736,18 +1816,23 @@ export type Database = {
           contact_id: string
           created_at?: string
           custom_sections?: Json
+          draft_status?: string
           fiduciary_alliance?: string | null
           footer_date_label?: string | null
           footer_status?: string | null
+          generation_summary?: string | null
           governance_authority?: string | null
           harvest_accounts_note?: string | null
           id?: string
           intro_callout?: string | null
           intro_heading?: string | null
           intro_note?: string | null
+          last_generated_at?: string | null
           mission_of_capital?: string | null
           protected_assets_note?: string | null
           quiet_period?: string | null
+          ratified_at?: string | null
+          ratified_by?: string | null
           subtitle?: string | null
           title?: string | null
           updated_at?: string
@@ -1760,18 +1845,23 @@ export type Database = {
           contact_id?: string
           created_at?: string
           custom_sections?: Json
+          draft_status?: string
           fiduciary_alliance?: string | null
           footer_date_label?: string | null
           footer_status?: string | null
+          generation_summary?: string | null
           governance_authority?: string | null
           harvest_accounts_note?: string | null
           id?: string
           intro_callout?: string | null
           intro_heading?: string | null
           intro_note?: string | null
+          last_generated_at?: string | null
           mission_of_capital?: string | null
           protected_assets_note?: string | null
           quiet_period?: string | null
+          ratified_at?: string | null
+          ratified_by?: string | null
           subtitle?: string | null
           title?: string | null
           updated_at?: string
