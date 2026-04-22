@@ -94,22 +94,35 @@ function extractProjectGid(asanaUrl: string | null): string | null {
 // ---------------------------------------------------------------------------
 // Recursively list all PDF files in a folder and subfolders
 // ---------------------------------------------------------------------------
-async function listPdfsRecursively(
+async function listDriveFilesRecursively(
   accessToken: string,
   folderId: string,
   afterTime: string,
-): Promise<Array<{ id: string; name: string; createdTime: string; webViewLink?: string }>> {
-  const pdfs: Array<{ id: string; name: string; createdTime: string; webViewLink?: string }> = [];
+  options?: { pdfsOnly?: boolean },
+): Promise<Array<{ id: string; name: string; createdTime: string; modifiedTime?: string; mimeType?: string; webViewLink?: string }>> {
+  const files: Array<{ id: string; name: string; createdTime: string; modifiedTime?: string; mimeType?: string; webViewLink?: string }> = [];
+  const pdfsOnly = options?.pdfsOnly ?? false;
+  const fileFilters = [
+    `'${folderId}' in parents`,
+    `modifiedTime > '${afterTime}'`,
+    `trashed=false`,
+  ];
 
-  const pdfQuery = `'${folderId}' in parents and mimeType='application/pdf' and name contains 'signed' and createdTime > '${afterTime}' and trashed=false`;
-  const pdfUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(pdfQuery)}&fields=files(id,name,createdTime,webViewLink)&orderBy=createdTime`;
+  if (pdfsOnly) {
+    fileFilters.push(`mimeType='application/pdf'`, `name contains 'signed'`);
+  } else {
+    fileFilters.push(`mimeType!='application/vnd.google-apps.folder'`);
+  }
 
-  const pdfRes = await fetch(pdfUrl, {
+  const fileQuery = fileFilters.join(' and ');
+  const fileUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(fileQuery)}&fields=files(id,name,createdTime,modifiedTime,mimeType,webViewLink)&orderBy=modifiedTime`;
+
+  const fileRes = await fetch(fileUrl, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  const pdfData = await pdfRes.json();
-  if (pdfData.files) {
-    pdfs.push(...pdfData.files);
+  const fileData = await fileRes.json();
+  if (fileData.files) {
+    files.push(...fileData.files);
   }
 
   const folderQuery = `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
@@ -121,12 +134,12 @@ async function listPdfsRecursively(
   const folderData = await folderRes.json();
   if (folderData.files) {
     for (const subfolder of folderData.files) {
-      const subPdfs = await listPdfsRecursively(accessToken, subfolder.id, afterTime);
-      pdfs.push(...subPdfs);
+      const nestedFiles = await listDriveFilesRecursively(accessToken, subfolder.id, afterTime, options);
+      files.push(...nestedFiles);
     }
   }
 
-  return pdfs;
+  return files;
 }
 
 // ---------------------------------------------------------------------------

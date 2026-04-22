@@ -4,6 +4,7 @@ import {
   getGoogleAuthUrl,
   exchangeGoogleCode,
   disconnectGoogle,
+  syncCharterDriveSources,
   listCalendarEvents,
   createCalendarEvent,
   listGmailMessages,
@@ -40,6 +41,17 @@ export function useDisconnectGoogle() {
   return useMutation({
     mutationFn: disconnectGoogle,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["google-status"] }),
+  });
+}
+
+export function useSyncCharterDriveSources() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (contactId: string) => syncCharterDriveSources(contactId),
+    onSuccess: (_, contactId) => {
+      qc.invalidateQueries({ queryKey: ["google-status"] });
+      qc.invalidateQueries({ queryKey: ["charter-drive-sync", contactId] });
+    },
   });
 }
 
