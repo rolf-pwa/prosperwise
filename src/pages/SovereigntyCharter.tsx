@@ -83,6 +83,11 @@ type CustomContainer = {
   body: string;
 };
 
+type CustomSectionGroups = {
+  pageOne: CustomContainer[];
+  pageTwo: CustomContainer[];
+};
+
 type CharterRecord = {
   id?: string;
   contact_id: string;
@@ -103,7 +108,7 @@ type CharterRecord = {
   appendix_note: string;
   footer_status: string;
   footer_date_label: string;
-  custom_sections: CustomContainer[];
+  custom_sections: CustomSectionGroups;
 };
 
 const formatCurrency = (value: number | null | undefined) =>
@@ -216,11 +221,11 @@ export default function SovereigntyCharter() {
       appendix_note: "This appendix condenses the current territory into a printable schedule so the Charter, Stabilization Map, and Quarterly Review all reference the same canonical structure.",
       footer_status: contactRecord.governance_status === "sovereign" ? "Ratified / Sovereign phase" : "Draft / review in progress",
       footer_date_label: formatDate(contactRecord.quiet_period_start_date, "Ratification date to be confirmed"),
-      custom_sections: [],
+      custom_sections: { pageOne: [], pageTwo: [] },
     };
   };
 
-  const normalizeCustomSections = (value: unknown): CustomContainer[] => {
+  const normalizeContainerList = (value: unknown): CustomContainer[] => {
     if (!Array.isArray(value)) return [];
     return value
       .map((item) => {
@@ -234,6 +239,25 @@ export default function SovereigntyCharter() {
         };
       })
       .filter(Boolean) as CustomContainer[];
+  };
+
+  const normalizeCustomSections = (value: unknown): CustomSectionGroups => {
+    if (Array.isArray(value)) {
+      return {
+        pageOne: normalizeContainerList(value),
+        pageTwo: [],
+      };
+    }
+
+    if (!value || typeof value !== "object") {
+      return { pageOne: [], pageTwo: [] };
+    }
+
+    const record = value as Record<string, unknown>;
+    return {
+      pageOne: normalizeContainerList(record.pageOne),
+      pageTwo: normalizeContainerList(record.pageTwo),
+    };
   };
 
   const load = async () => {
@@ -320,34 +344,43 @@ export default function SovereigntyCharter() {
     setCharter((current) => (current ? { ...current, [key]: value } : current));
   };
 
-  const updateCustomContainer = (id: string, key: keyof CustomContainer, value: string) => {
+  const updateCustomContainer = (page: keyof CustomSectionGroups, id: string, key: keyof CustomContainer, value: string) => {
     setCharter((current) => {
       if (!current) return current;
       return {
         ...current,
-        custom_sections: current.custom_sections.map((section) =>
-          section.id === id ? { ...section, [key]: value } : section
-        ),
+        custom_sections: {
+          ...current.custom_sections,
+          [page]: current.custom_sections[page].map((section) =>
+            section.id === id ? { ...section, [key]: value } : section
+          ),
+        },
       };
     });
   };
 
-  const addCustomContainer = () => {
+  const addCustomContainer = (page: keyof CustomSectionGroups) => {
     setCharter((current) => {
       if (!current) return current;
       return {
         ...current,
-        custom_sections: [...current.custom_sections, newCustomContainer()],
+        custom_sections: {
+          ...current.custom_sections,
+          [page]: [...current.custom_sections[page], newCustomContainer()],
+        },
       };
     });
   };
 
-  const removeCustomContainer = (id: string) => {
+  const removeCustomContainer = (page: keyof CustomSectionGroups, id: string) => {
     setCharter((current) => {
       if (!current) return current;
       return {
         ...current,
-        custom_sections: current.custom_sections.filter((section) => section.id !== id),
+        custom_sections: {
+          ...current.custom_sections,
+          [page]: current.custom_sections[page].filter((section) => section.id !== id),
+        },
       };
     });
   };
