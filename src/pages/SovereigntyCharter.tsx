@@ -136,6 +136,13 @@ const isProtectedAccount = (account: VineyardAccount) =>
 
 const pageWrap = "stab-doc bg-white shadow-lg print:shadow-none";
 
+const STOREHOUSE_CONFIG = [
+  { num: 1, name: "The Keep", subtitle: "Liquidity Reserve" },
+  { num: 2, name: "The Armoury", subtitle: "Strategic Reserve" },
+  { num: 3, name: "The Granary", subtitle: "Philanthropic Trust" },
+  { num: 4, name: "The Vault", subtitle: "Legacy Trust" },
+];
+
 const newCustomContainer = (): CustomContainer => ({
   id: crypto.randomUUID(),
   title: "Additional Container",
@@ -663,36 +670,41 @@ export default function SovereigntyCharter() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
-              <SectionCard
-                title="Protected Assets"
-                body={protectedAccounts.length ? undefined : charter.protected_assets_note}
-                items={protectedAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${formatCurrency(account.current_value)}`)}
-              />
-              <SectionCard
-                title="Eligible Harvest Accounts"
-                body={harvestAccounts.length ? undefined : charter.harvest_accounts_note}
-                items={harvestAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${formatCurrency(account.current_value)}`)}
-              />
-            </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
-              {storehouses.length > 0 ? storehouses.map((storehouse) => {
-                const rules = groupedRules[storehouse.label] || groupedRules[`Storehouse ${storehouse.storehouse_number}`] || [];
+              <ContainerCard
+                title="The Vineyard"
+                subtitle="Protected Principal & Harvest Accounts"
+                meta={`Tracked value ${formatCurrency(vineyardAccounts.reduce((sum, account) => sum + (account.current_value || 0), 0))}`}
+                items={vineyardAccounts.length
+                  ? vineyardAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${formatCurrency(account.current_value)} · ${isProtectedAccount(account) ? "Protected" : "Eligible Harvest"}`)
+                  : [charter.protected_assets_note, charter.harvest_accounts_note]}
+              />
+
+              {STOREHOUSE_CONFIG.map(({ num, name, subtitle }) => {
+                const containerAccounts = storehouses.filter((storehouse) => storehouse.storehouse_number === num);
+                const containerValue = containerAccounts.reduce((sum, storehouse) => sum + (storehouse.current_value || 0), 0);
+
                 return (
                   <ContainerCard
-                    key={storehouse.id}
-                    title={storehouse.label}
-                    meta={`Current ${formatCurrency(storehouse.current_value)} · Target ${formatCurrency(storehouse.target_value)}`}
-                    subtitle={[storehouse.asset_type, storehouse.risk_cap ? `Risk cap: ${storehouse.risk_cap}` : null].filter(Boolean).join(" · ")}
-                    items={(rules.length ? rules.map((rule) => rule.rule_description) : storehouse.notes ? [storehouse.notes] : ["Rules and operating guidance to be defined."])}
+                    key={name}
+                    title={name}
+                    subtitle={subtitle}
+                    meta={`Tracked value ${formatCurrency(containerValue)}`}
+                    items={containerAccounts.length
+                      ? containerAccounts.flatMap((storehouse) => {
+                          const rules = groupedRules[storehouse.label] || groupedRules[`Storehouse ${storehouse.storehouse_number}`] || [];
+                          const detail = `${storehouse.label} · ${formatCurrency(storehouse.current_value)}${storehouse.target_value != null ? ` · Target ${formatCurrency(storehouse.target_value)}` : ""}`;
+                          const notes = rules.length
+                            ? rules.map((rule) => rule.rule_description)
+                            : [storehouse.asset_type, storehouse.risk_cap ? `Risk cap: ${storehouse.risk_cap}` : null, storehouse.notes]
+                                .filter(Boolean) as string[];
+
+                          return [detail, ...notes];
+                        })
+                      : ["No accounts currently designated to this container."]}
                   />
                 );
-              }) : (
-                <div style={{ gridColumn: "1 / -1", background: "#F8F6F2", padding: "4mm", fontSize: "8pt", color: "#6B7070" }}>
-                  No storehouses are currently configured for this contact.
-                </div>
-              )}
+              })}
 
               {charter.custom_sections.map((section) => (
                 <ContainerCard
