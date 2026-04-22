@@ -46,6 +46,16 @@ const BodySchema = z.object({
 
 type SourceInput = z.infer<typeof SourceSchema>;
 
+type ApiResponse = {
+  ok: boolean;
+  error?: string;
+  diagnostics?: Record<string, unknown>;
+  charterId?: string;
+  charter?: unknown;
+  sources?: unknown[];
+  summary?: string;
+};
+
 const SOVEREIGN_ARCHITECT_SYSTEM_PROMPT = `ROLE
 
 You are the "Sovereign Architect." Your role is to draft the $3,999 Sovereignty Charter—a formal family constitution. You utilize the BMgt and CLU perspective to create a document of partner-level quality intended to drive referrals from Legal and Tax professionals.
@@ -115,6 +125,13 @@ function getCorsHeaders(req: Request) {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   };
+}
+
+function respond(req: Request, payload: ApiResponse) {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+  });
 }
 
 function formatCurrency(value: number | null | undefined) {
