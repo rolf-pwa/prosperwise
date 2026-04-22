@@ -543,6 +543,10 @@ const colItem: React.CSSProperties = { display: "flex", alignItems: "flex-start"
 const colText: React.CSSProperties = { fontSize: "8.5pt", color: "#3B3F3F", lineHeight: 1.4 };
 const dot: React.CSSProperties = { width: "6px", height: "6px", borderRadius: "50%", background: "#A98C5A", flexShrink: 0, marginTop: "2pt" };
 const sq: React.CSSProperties = { width: "6px", height: "6px", background: "#A98C5A", flexShrink: 0, marginTop: "2pt" };
+const tableHeadCellWide: React.CSSProperties = { padding: "2.5mm 2mm", width: "30%", borderBottom: "1px solid #D3C5B7", fontWeight: 600 };
+const tableHeadCell: React.CSSProperties = { padding: "2.5mm 2mm", borderBottom: "1px solid #D3C5B7", fontWeight: 600 };
+const tableBodyCellWide: React.CSSProperties = { padding: "2.5mm 2mm", width: "30%", verticalAlign: "top", color: "#3B3F3F" };
+const tableBodyCell: React.CSSProperties = { padding: "2.5mm 2mm", verticalAlign: "top", color: "#3B3F3F" };
 
 function StatusCard({ label, status, detail }: { label: string; status: string; detail: string }) {
   const kind = STATUS_KIND[status] || "amber";
