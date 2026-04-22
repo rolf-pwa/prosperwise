@@ -24,6 +24,13 @@ import prosperwiseLogo from "@/assets/prosperwise-logo.png";
 interface PortalData {
   portal_token?: string;
   contact: any;
+  charter?: {
+    id: string;
+    title: string | null;
+    draft_status: string | null;
+    ratified_at: string | null;
+    last_generated_at: string | null;
+  } | null;
   vineyard_accounts: any[];
   storehouses: any[];
   holding_tank?: any[];
@@ -517,7 +524,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
+  const { contact, charter, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
   const portalToken = token || data.portal_token || "";
   const hierarchyLevel = hierarchy?.level || "individual";
 
@@ -1128,7 +1135,7 @@ const Portal = () => {
           )}
 
           {/* Charter */}
-          <PortalCharter charterUrl={contact.charter_url} />
+          <PortalCharter charterUrl={charter?.draft_status === "ratified" ? (contact.charter_url || family?.charter_document_url) : null} />
 
           {/* Dynamic Quick Links */}
           {isSelf && <PortalDynamicLinks contact={contact} />}

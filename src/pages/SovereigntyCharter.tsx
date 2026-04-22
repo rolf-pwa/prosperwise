@@ -1168,6 +1168,120 @@ function CustomContainerEditor({
   );
 }
 
+function CharterSourceEditor({
+  sources,
+  onAdd,
+  onRemove,
+  onUpdate,
+  onFileChange,
+}: {
+  sources: CharterSourceDraft[];
+  onAdd: (kind?: CharterSourceKind, mode?: CharterSourceInputMode) => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, patch: Partial<CharterSourceDraft>) => void;
+  onFileChange: (id: string) => (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Charter resources</h3>
+          <p className="text-sm text-muted-foreground">Mix uploads, pasted notes, and links. The AI uses these alongside the existing account structure.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => onAdd("statement", "upload")}>
+            <Upload className="mr-2 h-4 w-4" /> Statement
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onAdd("stabilization_session", "text")}>
+            <FileText className="mr-2 h-4 w-4" /> Session notes
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onAdd("link", "url")}>
+            <ExternalLink className="mr-2 h-4 w-4" /> Link
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {sources.map((source, index) => (
+          <div key={source.id} className="rounded-md border border-border p-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Resource {index + 1}</p>
+                <p className="text-xs text-muted-foreground">{source.sourceKind.replaceAll("_", " ")}</p>
+              </div>
+              <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(source.id)} disabled={sources.length === 1}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr_0.9fr]">
+              <Field label="Title">
+                <Input value={source.title} onChange={(e) => onUpdate(source.id, { title: e.target.value })} />
+              </Field>
+              <Field label="Resource type">
+                <select
+                  value={source.sourceKind}
+                  onChange={(e) => onUpdate(source.id, { sourceKind: e.target.value as CharterSourceKind })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="statement">Account statement</option>
+                  <option value="stabilization_session">Stabilization Session</option>
+                  <option value="meeting_transcript">Meeting transcript</option>
+                  <option value="link">Reference link</option>
+                  <option value="note">Advisor note</option>
+                </select>
+              </Field>
+              <Field label="Input mode">
+                <select
+                  value={source.inputMode}
+                  onChange={(e) => onUpdate(source.id, {
+                    inputMode: e.target.value as CharterSourceInputMode,
+                    contentText: e.target.value === "text" ? source.contentText : "",
+                    sourceUrl: e.target.value === "url" ? source.sourceUrl : "",
+                    file: e.target.value === "upload" ? source.file : null,
+                    storedPath: e.target.value === "upload" ? source.storedPath : null,
+                  })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="upload">Upload file</option>
+                  <option value="text">Paste text</option>
+                  <option value="url">Link</option>
+                </select>
+              </Field>
+            </div>
+
+            <div className="mt-4">
+              {source.inputMode === "upload" ? (
+                <Field label="Source file">
+                  <div className="rounded-md border border-dashed border-border p-4">
+                    <Input type="file" onChange={onFileChange(source.id)} accept=".pdf,.txt,.md,.doc,.docx" />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {source.fileName ? `Selected: ${source.fileName}` : source.storedPath ? "Previously uploaded file ready for reuse." : "Upload account statements or supporting files up to 20MB."}
+                    </p>
+                  </div>
+                </Field>
+              ) : source.inputMode === "url" ? (
+                <Field label="Reference URL">
+                  <Input value={source.sourceUrl} onChange={(e) => onUpdate(source.id, { sourceUrl: e.target.value })} placeholder="https://" />
+                </Field>
+              ) : (
+                <Field label="Resource text">
+                  <Textarea
+                    value={source.contentText}
+                    onChange={(e) => onUpdate(source.id, { contentText: e.target.value })}
+                    rows={6}
+                    placeholder="Paste the Stabilization Session summary, Gemini meeting transcript, or advisor notes here."
+                  />
+                </Field>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionCard({ title, body, items }: { title: string; body?: string; items?: string[] }) {
   return (
     <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 4mm" }}>
