@@ -617,6 +617,44 @@ export default function SovereigntyCharter() {
     }
   };
 
+  const syncCharterFolder = async () => {
+    if (!contactId) return;
+    try {
+      const data = await syncDriveSources.mutateAsync(contactId);
+      if (Array.isArray(data?.sources)) {
+        setCharterSources((data.sources as CharterSourceRecord[]).map((source) => ({
+          id: source.id,
+          sourceKind: source.source_kind,
+          title: source.title,
+          inputMode: source.input_mode,
+          contentText: source.content_text || source.extracted_text || "",
+          sourceUrl: source.source_url || "",
+          file: null,
+          storedPath: source.storage_path,
+          fileName: source.file_name,
+          mimeType: source.mime_type,
+          importOrigin: source.import_origin,
+          externalFileId: source.external_file_id,
+          externalModifiedAt: source.external_modified_at,
+          externalFolderId: source.external_folder_id,
+          syncError: source.sync_error,
+        })));
+      }
+
+      setCharterSyncStatus({
+        lastCheckedAt: data?.charterLastCheckedAt || new Date().toISOString(),
+        lastSyncedAt: data?.charterLastSyncedAt || (data?.importedCount > 0 ? new Date().toISOString() : charterSyncStatus.lastSyncedAt),
+        folderId: data?.folderId || charterSyncStatus.folderId || null,
+        status: data?.status || "idle",
+      });
+
+      toast.success(data?.message || "Charter Drive folder synced");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sync charter folder");
+    }
+  };
+
   const ratifyCharter = async () => {
     if (!charter?.id || !contactId) {
       toast.error("Save or generate the charter before ratifying it");
