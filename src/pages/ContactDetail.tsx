@@ -31,6 +31,7 @@ import { AssetContainer, type MoveTarget } from "@/components/AssetContainer";
 import { ProfessionalLinker } from "@/components/ProfessionalLinker";
 import { StabilizationMapButton } from "@/components/StabilizationMapButton";
 import { QuarterlySystemReviewButton } from "@/components/QuarterlySystemReviewButton";
+import { SovereigntyCharterButton } from "@/components/SovereigntyCharterButton";
 import { 
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
@@ -475,6 +476,7 @@ const ContactDetail = () => {
               contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
               onMerged={fetchData}
             />
+            <SovereigntyCharterButton contactId={id!} />
             <StabilizationMapButton contactId={id!} />
             <QuarterlySystemReviewButton contactId={id!} />
             <Button
