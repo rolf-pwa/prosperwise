@@ -1338,6 +1338,111 @@ export type Database = {
         }
         Relationships: []
       }
+      quarterly_system_reviews: {
+        Row: {
+          alignment_overview: string
+          charter_detail: string
+          charter_status: string
+          client_first_name: string
+          client_last_name: string
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          cross_system_detail: string
+          cross_system_status: string
+          footer_note: string
+          gap_1: string
+          gap_2: string
+          gap_3: string
+          gap_4: string
+          gap_5: string
+          generation_error: string | null
+          generation_status: string
+          id: string
+          logic_trace: string | null
+          priority_1: string
+          priority_2: string
+          priority_3: string
+          priority_4: string
+          priority_5: string
+          review_date: string | null
+          review_summary: string
+          storehouse_detail: string
+          storehouse_status: string
+          updated_at: string
+          vineyard_detail: string
+          vineyard_status: string
+        }
+        Insert: {
+          alignment_overview?: string
+          charter_detail?: string
+          charter_status?: string
+          client_first_name?: string
+          client_last_name?: string
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          cross_system_detail?: string
+          cross_system_status?: string
+          footer_note?: string
+          gap_1?: string
+          gap_2?: string
+          gap_3?: string
+          gap_4?: string
+          gap_5?: string
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          logic_trace?: string | null
+          priority_1?: string
+          priority_2?: string
+          priority_3?: string
+          priority_4?: string
+          priority_5?: string
+          review_date?: string | null
+          review_summary?: string
+          storehouse_detail?: string
+          storehouse_status?: string
+          updated_at?: string
+          vineyard_detail?: string
+          vineyard_status?: string
+        }
+        Update: {
+          alignment_overview?: string
+          charter_detail?: string
+          charter_status?: string
+          client_first_name?: string
+          client_last_name?: string
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          cross_system_detail?: string
+          cross_system_status?: string
+          footer_note?: string
+          gap_1?: string
+          gap_2?: string
+          gap_3?: string
+          gap_4?: string
+          gap_5?: string
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          logic_trace?: string | null
+          priority_1?: string
+          priority_2?: string
+          priority_3?: string
+          priority_4?: string
+          priority_5?: string
+          review_date?: string | null
+          review_summary?: string
+          storehouse_detail?: string
+          storehouse_status?: string
+          updated_at?: string
+          vineyard_detail?: string
+          vineyard_status?: string
+        }
+        Relationships: []
+      }
       review_queue: {
         Row: {
           action_description: string

@@ -29,6 +29,7 @@ import { HoldingTank } from "@/components/HoldingTank";
 import { AssetContainer, type MoveTarget } from "@/components/AssetContainer";
 import { ProfessionalLinker } from "@/components/ProfessionalLinker";
 import { StabilizationMapButton } from "@/components/StabilizationMapButton";
+import { QuarterlySystemReviewButton } from "@/components/QuarterlySystemReviewButton";
 import { 
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
@@ -308,6 +309,7 @@ const ContactDetail = () => {
               onMerged={fetchData}
             />
             <StabilizationMapButton contactId={id!} />
+            <QuarterlySystemReviewButton contactId={id!} />
             <Button
               variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}
