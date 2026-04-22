@@ -23,7 +23,7 @@ const SourceSchema = z.object({
   mimeType: z.string().trim().max(255).optional(),
   importOrigin: z.string().trim().max(50).optional(),
   externalFileId: z.string().trim().max(255).optional(),
-  externalModifiedAt: z.string().datetime().optional(),
+  externalModifiedAt: z.string().datetime({ offset: true }).optional(),
   externalFolderId: z.string().trim().max(255).optional(),
   syncError: z.string().trim().max(2000).optional(),
 }).superRefine((value, ctx) => {
@@ -45,6 +45,16 @@ const BodySchema = z.object({
 });
 
 type SourceInput = z.infer<typeof SourceSchema>;
+
+type ApiResponse = {
+  ok: boolean;
+  error?: string;
+  diagnostics?: Record<string, unknown>;
+  charterId?: string;
+  charter?: unknown;
+  sources?: unknown[];
+  summary?: string;
+};
 
 const SOVEREIGN_ARCHITECT_SYSTEM_PROMPT = `ROLE
 
@@ -115,6 +125,13 @@ function getCorsHeaders(req: Request) {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   };
+}
+
+function respond(req: Request, payload: ApiResponse) {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+  });
 }
 
 function formatCurrency(value: number | null | undefined) {
@@ -194,19 +211,19 @@ serve(async (req) => {
   try {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
-      return new Response(JSON.stringify({ error: parsed.error.flatten().formErrors[0] || "Invalid request" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const flattened = parsed.error.flatten();
+      const firstFieldError = Object.values(flattened.fieldErrors).flat()[0];
+      return respond(req, {
+        ok: false,
+        error: flattened.formErrors[0] || firstFieldError || "Invalid request",
+        diagnostics: { stage: "validation", fieldErrors: flattened.fieldErrors },
       });
     }
 
     const authHeader = req.headers.get("Authorization") || "";
     const jwt = authHeader.replace(/^Bearer\s+/i, "");
     if (!jwt) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(req, { ok: false, error: "Unauthorized", diagnostics: { stage: "auth_missing_jwt" } });
     }
 
     const authClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -215,10 +232,7 @@ serve(async (req) => {
     const { data: authData, error: authError } = await authClient.auth.getUser();
     const user = authData?.user;
     if (authError || !user || !user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(req, { ok: false, error: "Unauthorized", diagnostics: { stage: "auth_user_validation" } });
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -236,10 +250,7 @@ serve(async (req) => {
     ]);
 
     if (contactError || !contact) {
-      return new Response(JSON.stringify({ error: "Contact not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(req, { ok: false, error: "Contact not found", diagnostics: { stage: "contact_lookup" } });
     }
     if (charterError) throw charterError;
 
@@ -366,16 +377,10 @@ Do not invent facts, numbers, institutions, or family members not supported by t
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond(req, { ok: false, error: "Rate limits exceeded, please try again later.", diagnostics: { stage: "ai_gateway", status: 429 } });
       }
       if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return respond(req, { ok: false, error: "Payment required, please add funds to your Lovable AI workspace.", diagnostics: { stage: "ai_gateway", status: 402 } });
       }
       const errorText = await aiResponse.text();
       throw new Error(`AI gateway error: ${errorText}`);
@@ -441,14 +446,13 @@ Do not invent facts, numbers, institutions, or family members not supported by t
       .single();
     if (savedCharterError || !savedCharter) throw savedCharterError || new Error("Failed to reload charter");
 
-    return new Response(JSON.stringify({ charterId: savedCharterId, charter: savedCharter, sources: sourceInsertRows, summary: draftPayload.generation_summary }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return respond(req, { ok: true, charterId: savedCharterId, charter: savedCharter, sources: sourceInsertRows, summary: draftPayload.generation_summary });
   } catch (error) {
     console.error("generate-charter-draft error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return respond(req, {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      diagnostics: { stage: "unhandled" },
     });
   }
 });

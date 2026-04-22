@@ -103,6 +103,10 @@ export async function draftSovereigntyCharter(payload: DraftCharterPayload) {
     throw new Error(error.message || "Failed to generate charter draft");
   }
 
+  if (data?.ok === false) {
+    throw new Error(data.error || "Failed to generate charter draft");
+  }
+
   if (data?.error) {
     throw new Error(data.error);
   }
