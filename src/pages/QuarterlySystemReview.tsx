@@ -89,6 +89,16 @@ const STATUS_COLOR: Record<StatusKind, string> = {
 
 const STATUS_OPTIONS: ReviewStatus[] = ["Missing", "Needs Review", "Needs Attention", "Partial", "Aligned"];
 
+const formatCurrency = (value: number | null | undefined) =>
+  value == null || Number.isNaN(value)
+    ? "—"
+    : new Intl.NumberFormat("en-CA", {
+        style: "currency",
+        currency: "CAD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value);
+
 export default function QuarterlySystemReview() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -148,7 +158,7 @@ export default function QuarterlySystemReview() {
       if (storehouseRes.error) toast.error(storehouseRes.error.message);
 
       setHarvestSnapshots((harvestRes.data as ReviewHarvestSnapshot[] | null) || []);
-      setVineyardAccounts((vineyardRes.data as ReviewVineyardAccount[] | null) || []);
+      setVineyardAccounts(((vineyardRes.data as unknown) as ReviewVineyardAccount[] | null) || []);
       setStorehouses((storehouseRes.data as ReviewStorehouse[] | null) || []);
     } else {
       setHarvestSnapshots([]);
