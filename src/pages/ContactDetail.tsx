@@ -452,7 +452,7 @@ const ContactDetail = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PortalMagicLinkButton contactId={id!} />
             <Button
               variant="outline"
@@ -476,9 +476,6 @@ const ContactDetail = () => {
               contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
               onMerged={fetchData}
             />
-            <SovereigntyCharterButton contactId={id!} />
-            <StabilizationMapButton contactId={id!} />
-            <QuarterlySystemReviewButton contactId={id!} />
             <Button
               variant="outline"
               onClick={() => navigate(`/contacts/${id}/edit`)}
@@ -578,38 +575,16 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Resources */}
-            <div className="grid grid-cols-4 gap-2">
-              {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
-                if (internal && url) {
-                  return (
-                    <Link
-                      key={label}
-                      to={url}
-                      className="flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors hover:bg-muted/50"
-                    >
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{label}</span>
-                    </Link>
-                  );
-                }
-                return (
-                  <a
-                    key={label}
-                    href={url || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm transition-colors ${
-                      url ? "hover:bg-muted/50" : "cursor-not-allowed opacity-50"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{label}</span>
-                    {url && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
-                  </a>
-                );
-              })}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">AI Workbench</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                <SovereigntyCharterButton contactId={id!} />
+                <StabilizationMapButton contactId={id!} />
+                <QuarterlySystemReviewButton contactId={id!} />
+              </CardContent>
+            </Card>
 
             {/* Main Tabs */}
             <Tabs defaultValue="comms" className="w-full">
@@ -1048,6 +1023,47 @@ const ContactDetail = () => {
                 <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
               </Link>
             )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">App Links</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
+                    if (internal && url) {
+                      return (
+                        <Link
+                          key={label}
+                          to={url}
+                          className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                        >
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                          <span className="flex-1">{label}</span>
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        </Link>
+                      );
+                    }
+
+                    return (
+                      <a
+                        key={label}
+                        href={url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                          url ? "bg-muted/50 hover:bg-muted" : "cursor-not-allowed bg-muted/20 text-muted-foreground opacity-60"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1">{label}</span>
+                        {url && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
+                      </a>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
             {/* Household Members */}
             <Card>
               <CardHeader>
