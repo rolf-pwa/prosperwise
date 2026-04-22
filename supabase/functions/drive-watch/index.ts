@@ -9,6 +9,20 @@ const ASANA_BASE_URL = "https://app.asana.com/api/1.0";
 const CHARTER_SUBFOLDER_NAME = "Sovereignty Charter Sources";
 const CHARTER_BUCKET = "charter-source-uploads";
 const CHARTER_TEXT_LIMIT = 20000;
+const ALLOWED_ORIGINS = [
+  "https://prosperwise.lovable.app",
+  "https://app.prosperwise.ca",
+  "https://id-preview--339dfc8f-3e82-4b05-8a36-a9f66fc58449.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
+}
 
 async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
   const { data, error } = await supabaseAdmin
@@ -445,11 +459,16 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const accessToken = await getValidGoogleToken(supabaseAdmin);
     if (!accessToken) {
-      return new Response(JSON.stringify({ error: "No valid Google token available" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "No valid Google token available" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     let body: any = {};
@@ -465,7 +484,7 @@ serve(async (req) => {
       const authHeader = req.headers.get("Authorization") || "";
       const jwt = authHeader.replace(/^Bearer\s+/i, "");
       if (!jwt) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const authClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: `Bearer ${jwt}` } },
@@ -473,24 +492,24 @@ serve(async (req) => {
       const { data: authData, error: authError } = await authClient.auth.getUser();
       const user = authData?.user;
       if (authError || !user || !user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (!body?.contactId) {
-        return new Response(JSON.stringify({ error: "contactId is required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "contactId is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const result = await processCharterFolderSync(supabaseAdmin, accessToken, body.contactId);
-      return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const asanaToken = Deno.env.get("ASANA_ACCESS_TOKEN");
     if (!asanaToken) {
-      return new Response(JSON.stringify({ error: "ASANA_ACCESS_TOKEN not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "ASANA_ACCESS_TOKEN not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const result = await processSignedDocsWatch(supabaseAdmin, accessToken, asanaToken);
-    return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("[DriveWatch] Fatal error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
