@@ -8,6 +8,13 @@ export default function QuarterlySystemReviewResolver() {
   const { contactId } = useParams<{ contactId?: string }>();
   const navigate = useNavigate();
 
+  const isFreshGeneration = (updatedAt?: string | null) => {
+    if (!updatedAt) return false;
+    const updatedTime = new Date(updatedAt).getTime();
+    if (Number.isNaN(updatedTime)) return false;
+    return Date.now() - updatedTime < 45_000;
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -17,13 +24,20 @@ export default function QuarterlySystemReviewResolver() {
 
         const { data: existing } = await supabase
           .from("quarterly_system_reviews")
-          .select("id")
+          .select("id, generation_status, updated_at")
           .eq("contact_id", contactId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        if (!cancelled && existing?.id) {
+        const hasFreshInFlightReview = existing?.id && ["generating", "pending"].includes(existing.generation_status) && isFreshGeneration(existing.updated_at);
+
+        if (!cancelled && existing?.id && !["generating", "pending", "failed"].includes(existing.generation_status)) {
+          navigate(`/quarterly-system-review/${existing.id}`, { replace: true });
+          return;
+        }
+
+        if (!cancelled && hasFreshInFlightReview) {
           navigate(`/quarterly-system-review/${existing.id}`, { replace: true });
           return;
         }
@@ -37,7 +51,7 @@ export default function QuarterlySystemReviewResolver() {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ contactId }),
+          body: JSON.stringify(existing?.id ? { reviewId: existing.id } : { contactId }),
         });
         const data = await res.json();
         if (!res.ok || !data.reviewId) throw new Error(data.error || "Failed to create quarterly review");
