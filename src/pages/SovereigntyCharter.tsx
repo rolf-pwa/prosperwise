@@ -19,6 +19,7 @@ type ContactRecord = {
   full_name: string;
   family_id: string | null;
   household_id: string | null;
+  google_drive_url: string | null;
   charter_url: string | null;
   quiet_period_start_date: string | null;
   governance_status: string;
@@ -129,6 +130,11 @@ type CharterSourceDraft = {
   storedPath: string | null;
   fileName: string | null;
   mimeType: string | null;
+  importOrigin?: string;
+  externalFileId?: string | null;
+  externalModifiedAt?: string | null;
+  externalFolderId?: string | null;
+  syncError?: string | null;
 };
 
 const formatCurrency = (value: number | null | undefined) =>
