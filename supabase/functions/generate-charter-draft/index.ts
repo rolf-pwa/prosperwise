@@ -23,7 +23,7 @@ const SourceSchema = z.object({
   mimeType: z.string().trim().max(255).optional(),
   importOrigin: z.string().trim().max(50).optional(),
   externalFileId: z.string().trim().max(255).optional(),
-  externalModifiedAt: z.string().datetime().optional(),
+  externalModifiedAt: z.string().datetime({ offset: true }).optional(),
   externalFolderId: z.string().trim().max(255).optional(),
   syncError: z.string().trim().max(2000).optional(),
 }).superRefine((value, ctx) => {
@@ -211,19 +211,19 @@ serve(async (req) => {
   try {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
-      return new Response(JSON.stringify({ error: parsed.error.flatten().formErrors[0] || "Invalid request" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const flattened = parsed.error.flatten();
+      const firstFieldError = Object.values(flattened.fieldErrors).flat()[0];
+      return respond(req, {
+        ok: false,
+        error: flattened.formErrors[0] || firstFieldError || "Invalid request",
+        diagnostics: { stage: "validation", fieldErrors: flattened.fieldErrors },
       });
     }
 
     const authHeader = req.headers.get("Authorization") || "";
     const jwt = authHeader.replace(/^Bearer\s+/i, "");
     if (!jwt) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(req, { ok: false, error: "Unauthorized", diagnostics: { stage: "auth_missing_jwt" } });
     }
 
     const authClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -232,10 +232,7 @@ serve(async (req) => {
     const { data: authData, error: authError } = await authClient.auth.getUser();
     const user = authData?.user;
     if (authError || !user || !user.email?.toLowerCase().endsWith("@prosperwise.ca")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(req, { ok: false, error: "Unauthorized", diagnostics: { stage: "auth_user_validation" } });
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -253,10 +250,7 @@ serve(async (req) => {
     ]);
 
     if (contactError || !contact) {
-      return new Response(JSON.stringify({ error: "Contact not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond(req, { ok: false, error: "Contact not found", diagnostics: { stage: "contact_lookup" } });
     }
     if (charterError) throw charterError;
 
