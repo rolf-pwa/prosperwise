@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Trash2, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,9 +200,12 @@ const newSourceDraft = (kind: CharterSourceKind = "note", mode: CharterSourceInp
 export default function SovereigntyCharter() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [ratifying, setRatifying] = useState(false);
   const [contact, setContact] = useState<ContactRecord | null>(null);
   const [family, setFamily] = useState<FamilyRecord | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
@@ -210,6 +213,7 @@ export default function SovereigntyCharter() {
   const [storehouseRules, setStorehouseRules] = useState<StorehouseRule[]>([]);
   const [waterfallPriorities, setWaterfallPriorities] = useState<WaterfallPriority[]>([]);
   const [charter, setCharter] = useState<CharterRecord | null>(null);
+  const [charterSources, setCharterSources] = useState<CharterSourceDraft[]>([newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
 
   const fullName = useMemo(() => {
     if (!contact) return "";
@@ -322,7 +326,7 @@ export default function SovereigntyCharter() {
     setContact(resolvedContact);
 
     const familyId = resolvedContact.family_id;
-    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes] = await Promise.all([
+    const [familyRes, vineyardRes, storehousesRes, rulesRes, waterfallRes, charterRes, sourceRes] = await Promise.all([
       familyId
         ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -335,6 +339,7 @@ export default function SovereigntyCharter() {
         ? supabase.from("waterfall_priorities").select("id, priority_order, priority_label, priority_description, target_amount, is_active").eq("family_id", familyId).order("priority_order")
         : Promise.resolve({ data: [], error: null }),
       supabase.from("sovereignty_charters" as any).select("*").eq("contact_id", contactId).maybeSingle(),
+      supabase.from("sovereignty_charter_sources" as any).select("*").eq("contact_id", contactId).order("sort_order"),
     ]);
 
     if (familyRes.error) toast.error(familyRes.error.message);
@@ -343,6 +348,7 @@ export default function SovereigntyCharter() {
     if (rulesRes.error) toast.error(rulesRes.error.message);
     if (waterfallRes.error) toast.error(waterfallRes.error.message);
     if (charterRes.error) toast.error(charterRes.error.message);
+    if (sourceRes.error) toast.error(sourceRes.error.message);
 
     const resolvedFamily = (familyRes.data as FamilyRecord | null) || null;
     const resolvedVineyard = (vineyardRes.data as VineyardAccount[] | null) || [];
@@ -355,6 +361,20 @@ export default function SovereigntyCharter() {
     setStorehouses(resolvedStorehouses);
     setStorehouseRules(resolvedRules);
     setWaterfallPriorities(resolvedWaterfalls);
+
+    const resolvedSources = ((sourceRes.data as CharterSourceRecord[] | null) || []).map((source) => ({
+      id: source.id,
+      sourceKind: source.source_kind,
+      title: source.title,
+      inputMode: source.input_mode,
+      contentText: source.content_text || source.extracted_text || "",
+      sourceUrl: source.source_url || "",
+      file: null,
+      storedPath: source.storage_path,
+      fileName: source.file_name,
+      mimeType: source.mime_type,
+    }));
+    setCharterSources(resolvedSources.length ? resolvedSources : [newSourceDraft("statement", "upload"), newSourceDraft("meeting_transcript", "text")]);
 
     const totalStewardship =
       resolvedVineyard.reduce((sum, account) => sum + (account.current_value || 0), 0) +
@@ -425,6 +445,177 @@ export default function SovereigntyCharter() {
         },
       };
     });
+  };
+
+  const updateSource = (id: string, patch: Partial<CharterSourceDraft>) => {
+    setCharterSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
+  };
+
+  const addSource = (kind: CharterSourceKind = "note", mode: CharterSourceInputMode = kind === "link" ? "url" : "text") => {
+    setCharterSources((current) => [...current, newSourceDraft(kind, mode)]);
+  };
+
+  const removeSource = (id: string) => {
+    setCharterSources((current) => (current.length > 1 ? current.filter((source) => source.id !== id) : current));
+  };
+
+  const handleSourceFileChange = (id: string) => async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    updateSource(id, {
+      file,
+      storedPath: null,
+      fileName: file?.name || null,
+      mimeType: file?.type || null,
+    });
+  };
+
+  const buildDraftPayload = async () => {
+    if (!contactId) throw new Error("Contact not found");
+
+    const preparedSources = await Promise.all(
+      charterSources.map(async (source) => {
+        const title = sanitizeSourceTitle(source.title);
+        const inputMode = source.inputMode;
+
+        if (inputMode === "text") {
+          const contentText = sanitizeSourceText(source.contentText);
+          if (!contentText) throw new Error(`Add text for ${title}`);
+          return {
+            sourceKind: source.sourceKind,
+            title,
+            inputMode,
+            contentText,
+          };
+        }
+
+        if (inputMode === "url") {
+          const sourceUrl = sanitizeSourceUrl(source.sourceUrl);
+          if (!sourceUrl || !isValidSourceUrl(sourceUrl)) {
+            throw new Error(`Enter a valid HTTPS link for ${title}`);
+          }
+          return {
+            sourceKind: source.sourceKind,
+            title,
+            inputMode,
+            sourceUrl,
+          };
+        }
+
+        let storagePath = source.storedPath;
+        let fileName = source.fileName;
+        let mimeType = source.mimeType;
+
+        if (source.file) {
+          storagePath = await uploadCharterSourceFile(contactId, source.file);
+          fileName = source.file.name;
+          mimeType = source.file.type || source.mimeType || undefined;
+          updateSource(source.id, { storedPath: storagePath, fileName, mimeType });
+        }
+
+        if (!storagePath) throw new Error(`Upload a file for ${title}`);
+
+        return {
+          sourceKind: source.sourceKind,
+          title,
+          inputMode,
+          storagePath,
+          fileName,
+          mimeType,
+        };
+      })
+    );
+
+    return {
+      contactId,
+      charterId: charter?.id,
+      sources: preparedSources,
+    };
+  };
+
+  const generateDraft = async () => {
+    if (!contactId) return;
+    setDrafting(true);
+    try {
+      const payload = await buildDraftPayload();
+      const data = await draftSovereigntyCharter(payload);
+
+      if (data?.charter) {
+        const savedCharter = data.charter as Record<string, unknown>;
+        setCharter((current) => current ? {
+          ...current,
+          ...savedCharter,
+          id: typeof savedCharter.id === "string" ? savedCharter.id : current.id,
+          custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+        } : current);
+      }
+
+      if (Array.isArray(data?.sources)) {
+        setCharterSources((data.sources as CharterSourceRecord[]).map((source) => ({
+          id: source.id,
+          sourceKind: source.source_kind,
+          title: source.title,
+          inputMode: source.input_mode,
+          contentText: source.content_text || source.extracted_text || "",
+          sourceUrl: source.source_url || "",
+          file: null,
+          storedPath: source.storage_path,
+          fileName: source.file_name,
+          mimeType: source.mime_type,
+        })));
+      }
+
+      toast.success(data?.summary || "Initial charter draft generated");
+      setEditing(false);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to generate charter draft");
+    } finally {
+      setDrafting(false);
+    }
+  };
+
+  const ratifyCharter = async () => {
+    if (!charter?.id || !contactId) {
+      toast.error("Save or generate the charter before ratifying it");
+      return;
+    }
+
+    setRatifying(true);
+    const ratifiedAt = new Date().toISOString();
+    const footerDateLabel = formatDate(ratifiedAt);
+    const footerStatus = "Ratified / Sovereign phase";
+
+    const { error: charterError } = await supabase
+      .from("sovereignty_charters" as any)
+      .update({
+        draft_status: "ratified",
+        ratified_at: ratifiedAt,
+        ratified_by: user?.id || null,
+        footer_status: footerStatus,
+        footer_date_label: footerDateLabel,
+      })
+      .eq("id", charter.id);
+
+    if (charterError) {
+      setRatifying(false);
+      toast.error(charterError.message);
+      return;
+    }
+
+    const { error: contactError } = await supabase
+      .from("contacts")
+      .update({ charter_url: `/sovereignty-charter/contact/${contactId}` })
+      .eq("id", contactId);
+
+    setRatifying(false);
+
+    if (contactError) {
+      toast.error(contactError.message);
+      return;
+    }
+
+    toast.success("Charter ratified and linked to the portal");
+    await load();
   };
 
   const save = async () => {
