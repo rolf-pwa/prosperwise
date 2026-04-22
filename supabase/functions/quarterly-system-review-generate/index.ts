@@ -32,6 +32,17 @@ type VineyardAccount = {
   current_value: number | null;
 };
 
+type HarvestSnapshot = {
+  id: string;
+  vineyard_account_id: string | null;
+  storehouse_id: string | null;
+  snapshot_date: string;
+  boy_value: number | null;
+  ytd_value: number | null;
+  current_harvest: number | null;
+  current_value: number | null;
+};
+
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("Origin") || "";
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -51,6 +62,25 @@ function sumValues(rows: Array<{ current_value: number | null }>) {
 
 function uniqueDefined(values: Array<string | undefined>) {
   return Array.from(new Set(values.filter(Boolean) as string[]));
+}
+
+function latestSnapshotsByKey(snapshots: HarvestSnapshot[]) {
+  return snapshots.reduce<Record<string, HarvestSnapshot>>((acc, snapshot) => {
+    const key = snapshot.vineyard_account_id
+      ? `vineyard:${snapshot.vineyard_account_id}`
+      : snapshot.storehouse_id
+        ? `storehouse:${snapshot.storehouse_id}`
+        : null;
+
+    if (!key) return acc;
+
+    const existing = acc[key];
+    if (!existing || new Date(snapshot.snapshot_date).getTime() > new Date(existing.snapshot_date).getTime()) {
+      acc[key] = snapshot;
+    }
+
+    return acc;
+  }, {});
 }
 
 serve(async (req) => {
@@ -174,7 +204,7 @@ serve(async (req) => {
       if (reviewUpdateError) throw reviewUpdateError;
     }
 
-    const [vineyardRes, storehouseRes] = await Promise.all([
+    const [vineyardRes, storehouseRes, harvestRes] = await Promise.all([
       supabase
         .from("vineyard_accounts")
         .select("id, account_name, account_type, current_value")
@@ -185,15 +215,41 @@ serve(async (req) => {
         .select("id, label, asset_type, current_value, target_value, charter_alignment, storehouse_number")
         .eq("contact_id", contactId)
         .order("storehouse_number"),
+      supabase
+        .from("account_harvest_snapshots")
+        .select("id, vineyard_account_id, storehouse_id, snapshot_date, boy_value, ytd_value, current_harvest, current_value")
+        .eq("contact_id", contactId)
+        .order("snapshot_date", { ascending: false }),
     ]);
 
     if (vineyardRes.error) throw vineyardRes.error;
     if (storehouseRes.error) throw storehouseRes.error;
+    if (harvestRes.error) throw harvestRes.error;
 
     const vineyardAccounts = (vineyardRes.data || []) as VineyardAccount[];
     const storehouses = (storehouseRes.data || []) as Storehouse[];
+    const harvestSnapshots = (harvestRes.data || []) as HarvestSnapshot[];
+    const latestSnapshots = latestSnapshotsByKey(harvestSnapshots);
     const vineyardTotal = sumValues(vineyardAccounts);
     const storehouseTotal = sumValues(storehouses);
+
+    const vineyardHarvestSnapshots = vineyardAccounts
+      .map((account) => latestSnapshots[`vineyard:${account.id}`])
+      .filter(Boolean) as HarvestSnapshot[];
+
+    const storehouseHarvestSnapshots = storehouses
+      .map((storehouse) => latestSnapshots[`storehouse:${storehouse.id}`])
+      .filter(Boolean) as HarvestSnapshot[];
+
+    const totalVineyardBOY = vineyardHarvestSnapshots.reduce((sum, item) => sum + (Number(item.boy_value) || 0), 0);
+    const totalVineyardYTD = vineyardHarvestSnapshots.reduce((sum, item) => sum + (Number(item.ytd_value) || Number(item.current_value) || 0), 0);
+    const totalVineyardHarvest = vineyardHarvestSnapshots.reduce((sum, item) => sum + (Number(item.current_harvest) || 0), 0);
+    const totalStorehouseBOY = storehouseHarvestSnapshots.reduce((sum, item) => sum + (Number(item.boy_value) || 0), 0);
+    const totalStorehouseYTD = storehouseHarvestSnapshots.reduce((sum, item) => sum + (Number(item.ytd_value) || Number(item.current_value) || 0), 0);
+    const totalStorehouseHarvest = storehouseHarvestSnapshots.reduce((sum, item) => sum + (Number(item.current_harvest) || 0), 0);
+    const missingVineyardHarvestCount = vineyardAccounts.length - vineyardHarvestSnapshots.length;
+    const missingStorehouseHarvestCount = storehouses.length - storehouseHarvestSnapshots.length;
+    const negativeHarvestCount = [...vineyardHarvestSnapshots, ...storehouseHarvestSnapshots].filter((item) => (Number(item.current_harvest) || 0) < 0).length;
 
     const alignedStorehouses = storehouses.filter((item) => item.charter_alignment === "aligned");
     const pendingStorehouses = storehouses.filter((item) => item.charter_alignment === "pending_review");
@@ -214,6 +270,8 @@ serve(async (req) => {
       ? "Missing"
       : vineyardTotal <= 0
         ? "Needs Review"
+        : missingVineyardHarvestCount > 0
+          ? "Partial"
         : contact.charter_url
           ? "Aligned"
           : "Partial";
@@ -222,6 +280,8 @@ serve(async (req) => {
       ? "Missing"
       : misalignedStorehouses.length > 0 || underfundedStorehouses.length > 0
         ? "Needs Attention"
+        : missingStorehouseHarvestCount > 0
+          ? "Partial"
         : missingStorehouseNumbers.length > 0 || pendingStorehouses.length > 0
           ? "Partial"
           : "Aligned";
@@ -234,6 +294,9 @@ serve(async (req) => {
       misalignedStorehouses.length > 0 ? `${misalignedStorehouses.length} Storehouse item(s) are marked misaligned with the Charter.` : undefined,
       pendingStorehouses.length > 0 ? `${pendingStorehouses.length} Storehouse item(s) still need Charter review.` : undefined,
       underfundedStorehouses.length > 0 ? `${underfundedStorehouses.length} Storehouse target(s) are below required funding levels.` : undefined,
+      missingVineyardHarvestCount > 0 ? `${missingVineyardHarvestCount} Vineyard account(s) are missing BOY/YTD harvest tracking.` : undefined,
+      missingStorehouseHarvestCount > 0 ? `${missingStorehouseHarvestCount} Storehouse item(s) are missing BOY/YTD harvest tracking.` : undefined,
+      negativeHarvestCount > 0 ? `${negativeHarvestCount} tracked account(s) show a negative current harvest and need review.` : undefined,
       vineyardAccounts.length > 0 && storehouses.length === 0 ? "Vineyard assets exist without a matching Storehouse reserve framework." : undefined,
       contact.governance_status === "stabilization" ? "Contact is still in Stabilization Phase, so full sovereign governance is not yet complete." : undefined,
     ]);
@@ -246,6 +309,8 @@ serve(async (req) => {
       misalignedStorehouses.length > 0 ? "Resolve Storehouse items marked misaligned and ratify their intended role." : undefined,
       pendingStorehouses.length > 0 ? "Approve Storehouse items still sitting in pending review." : undefined,
       underfundedStorehouses.length > 0 ? "Fund the under-target Storehouses according to their target floors." : undefined,
+      missingVineyardHarvestCount > 0 || missingStorehouseHarvestCount > 0 ? "Complete BOY and YTD harvest tracking for every matched account before the next quarterly review." : undefined,
+      negativeHarvestCount > 0 ? "Review accounts with negative current harvest and confirm whether losses or cash flows explain the variance." : undefined,
       vineyardAccounts.length > 0 && storehouseTotal === 0 ? "Pair core Vineyard assets with reserve and protection lanes before the next 90-day cycle." : undefined,
       contact.governance_status === "stabilization" ? "Complete the move from Stabilization into ratified governance so the system can be enforced." : undefined,
       contact.charter_url && storehouses.length > 0 && vineyardAccounts.length > 0 ? "Reconfirm the next 90-day allocation plan with the Charter, Vineyard, and Storehouse structure side by side." : undefined,
@@ -261,7 +326,7 @@ serve(async (req) => {
     const gapCount = preliminaryGaps.filter((item) => !item.startsWith("No additional material gap")).length;
     const crossSystemStatus = gapCount === 0 ? "Aligned" : gapCount <= 2 ? "Partial" : "Needs Attention";
 
-    const reviewSummary = `${contact.first_name || "Client"}'s quarterly review compares ${vineyardAccounts.length} Vineyard account(s) totaling ${formatMoney(vineyardTotal)} against ${storehouses.length} Storehouse item(s) totaling ${formatMoney(storehouseTotal)}${contact.charter_url ? " with a Charter on file" : " without a Charter on file"}.`;
+    const reviewSummary = `${contact.first_name || "Client"}'s quarterly review compares ${vineyardAccounts.length} Vineyard account(s) totaling ${formatMoney(vineyardTotal)} against ${storehouses.length} Storehouse item(s) totaling ${formatMoney(storehouseTotal)}${contact.charter_url ? " with a Charter on file" : " without a Charter on file"}, alongside current annual harvest tracking of ${formatMoney(totalVineyardHarvest + totalStorehouseHarvest)}.`;
     const alignmentOverview = crossSystemStatus === "Aligned"
       ? "The Charter, Vineyard, and Storehouse structure are currently operating in step with each other."
       : crossSystemStatus === "Partial"
@@ -278,23 +343,24 @@ serve(async (req) => {
 
     const vineyardDetail = vineyardAccounts.length === 0
       ? "No Vineyard accounts are recorded, so the core asset layer cannot be reviewed this quarter."
-      : `${vineyardAccounts.length} Vineyard account(s) are recorded with an aggregate value of ${formatMoney(vineyardTotal)} across ${uniqueDefined(vineyardAccounts.map((item) => item.account_type)).join(", ") || "the current account mix"}.`;
+      : `${vineyardAccounts.length} Vineyard account(s) are recorded with an aggregate value of ${formatMoney(vineyardTotal)} across ${uniqueDefined(vineyardAccounts.map((item) => item.account_type)).join(", ") || "the current account mix"}. Harvest tracking covers ${vineyardHarvestSnapshots.length}/${vineyardAccounts.length} account(s): BOY ${formatMoney(totalVineyardBOY)}, YTD ${formatMoney(totalVineyardYTD)}, current harvest ${formatMoney(totalVineyardHarvest)}.`;
 
     const storehouseDetail = storehouses.length === 0
       ? "No Storehouse structure exists yet, so reserves, protection pools, and liquidity lanes are not currently mapped."
-      : `${storehouses.length} Storehouse item(s) are present; ${alignedStorehouses.length} aligned, ${pendingStorehouses.length} pending review, ${misalignedStorehouses.length} misaligned, and ${fundedStorehouses.length} fully funded to target.`;
+      : `${storehouses.length} Storehouse item(s) are present; ${alignedStorehouses.length} aligned, ${pendingStorehouses.length} pending review, ${misalignedStorehouses.length} misaligned, and ${fundedStorehouses.length} fully funded to target. Harvest tracking covers ${storehouseHarvestSnapshots.length}/${storehouses.length} item(s): BOY ${formatMoney(totalStorehouseBOY)}, YTD ${formatMoney(totalStorehouseYTD)}, current harvest ${formatMoney(totalStorehouseHarvest)}.`;
 
     const crossSystemDetail = crossSystemStatus === "Aligned"
       ? "The Charter, core assets, and reserve lanes are all present and show no material conflicts in this review cycle."
       : crossSystemStatus === "Partial"
         ? "The system is mostly in place, but at least one lane still needs review, funding, or formal Charter linkage."
-        : "Written intent, invested assets, and reserve structure are not yet moving together tightly enough for sovereign operation.";
+        : "Written intent, invested assets, reserve structure, and annual harvest tracking are not yet moving together tightly enough for sovereign operation.";
 
     const logicTrace = [
       `Charter status was set to ${charterStatus} because Charter on file = ${contact.charter_url ? "yes" : "no"}.`,
       `Vineyard review counted ${vineyardAccounts.length} account(s) totaling ${formatMoney(vineyardTotal)}.`,
       `Storehouse review counted ${storehouses.length} item(s), with ${misalignedStorehouses.length} misaligned, ${pendingStorehouses.length} pending, and ${underfundedStorehouses.length} under target.`,
-      `Cross-system status was set to ${crossSystemStatus} based on ${gapCount} material gap(s) across Charter, Vineyard, and Storehouse layers.`,
+      `Harvest tracking covered ${vineyardHarvestSnapshots.length}/${vineyardAccounts.length} Vineyard account(s) and ${storehouseHarvestSnapshots.length}/${storehouses.length} Storehouse item(s), with total current harvest ${formatMoney(totalVineyardHarvest + totalStorehouseHarvest)}.`,
+      `Cross-system status was set to ${crossSystemStatus} based on ${gapCount} material gap(s) across Charter, Vineyard, Storehouse, and harvest tracking layers.`,
     ].join(" ");
 
     const update = {
