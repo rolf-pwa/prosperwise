@@ -15,7 +15,7 @@ export function PortalCharter({ charterUrl }: Props) {
             Sovereignty Charter
           </h3>
           <p className="text-xs text-muted-foreground mt-1.5 max-w-xs">
-            Your charter document has not been linked yet. Your Personal CFO will upload it once it has been ratified.
+            Your charter document has not been linked yet. Your Personal CFO can add a Google Drive link now and switch it to the permanent document source later.
           </p>
         </CardContent>
       </Card>
