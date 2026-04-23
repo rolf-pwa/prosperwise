@@ -7,8 +7,20 @@ import { Send, Loader2, ShieldCheck, Lock, ArrowUpRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+const SESSION_START_KEY = "georgia_embed_started_v1";
+
+function getOrCreateSessionKey(storageKey: string) {
+  const existing = sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const generated = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  sessionStorage.setItem(storageKey, generated);
+  return generated;
+}
 
 type Message = { role: "user" | "assistant"; content: string; cta?: { label: string; href: string } };
 
@@ -84,6 +96,25 @@ export default function DiscoveryEmbed() {
       container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     }
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    const started = sessionStorage.getItem(SESSION_START_KEY);
+    if (started) return;
+
+    const sessionKey = getOrCreateSessionKey(SESSION_START_KEY);
+    void supabase.from("georgia_session_starts").insert({
+      session_key: sessionKey,
+      source: "discovery_embed",
+      landing_path: window.location.pathname,
+      referrer: document.referrer || null,
+      user_agent: navigator.userAgent || null,
+    }).then(({ error }) => {
+      if (error) {
+        sessionStorage.removeItem(SESSION_START_KEY);
+        console.error("Failed to track Georgia embed session start", error);
+      }
+    });
+  }, []);
 
 
   async function sendToGeorgia(msgs: Message[], isGreeting = false) {
