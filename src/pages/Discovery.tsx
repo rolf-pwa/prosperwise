@@ -145,7 +145,7 @@ export default function Discovery() {
       if (!res.ok) throw new Error(data.error || "Submission failed");
 
       const requestedGuide = Boolean(data.requestedGuide && data.guideUrl);
-      setCompletionCta(requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : null);
+      setCompletionCta(null);
       setPhase("complete");
       setMessages((prev) => [
         ...prev,
