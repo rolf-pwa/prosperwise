@@ -145,7 +145,7 @@ export default function Discovery() {
       if (!res.ok) throw new Error(data.error || "Submission failed");
 
       const requestedGuide = Boolean(data.requestedGuide && data.guideUrl);
-      setCompletionCta(null);
+      setCompletionCta(requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : null);
       setPhase("complete");
       setMessages((prev) => [
         ...prev,
@@ -438,15 +438,15 @@ export default function Discovery() {
                 <p className="mt-2 text-sm" style={{ color: "#6B7070" }}>
                   {completionCta ? "Your guide is ready below. You can review it now and return whenever you're ready for the next conversation." : "Rolf Issler will reach out within 1–2 business days."}
                 </p>
-                {completionCta && (
+                {!completionCta && (
                   <a
-                    href={completionCta.href}
+                    href="https://www.prosperwise.ca/stabilization"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mx-auto mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
                     style={{ backgroundColor: "#2A4034", color: "#F8F6F2" }}
                   >
-                    {completionCta.label}
+                    Book Stabilisation Session — $249
                     <ArrowUpRight className="h-4 w-4" />
                   </a>
                 )}
