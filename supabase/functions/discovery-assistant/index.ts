@@ -237,6 +237,10 @@ const TOOLS = [
             vision_summary: { type: "STRING", description: "Their 3-year sovereignty vision summary" },
             vineyard_summary: { type: "STRING", description: "Summary of vineyard audit findings" },
             discovery_notes: { type: "STRING", description: "Full conversation summary" },
+            requested_guide: {
+              type: "BOOLEAN",
+              description: "True only when the visitor asked to receive the complimentary guide instead of booking a session",
+            },
           },
           required: ["transition_type", "discovery_notes"],
         },
@@ -325,7 +329,13 @@ serve(async (req) => {
       }
 
       const normalizedNotes = `${discoveryData.discovery_notes || ""}`.toLowerCase();
-      const requestedGuide = normalizedNotes.includes("first 90 days") || normalizedNotes.includes("guide") || normalizedNotes.includes("quiet period");
+      const requestedGuide = Boolean(
+        discoveryData.requested_guide === true ||
+        discoveryData.requested_guide === "true" ||
+        normalizedNotes.includes("first 90 days") ||
+        normalizedNotes.includes("guide") ||
+        normalizedNotes.includes("quiet period")
+      );
 
       return new Response(JSON.stringify({ success: true, leadId: data.id, requestedGuide, guideUrl: requestedGuide ? GUIDE_URL : null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

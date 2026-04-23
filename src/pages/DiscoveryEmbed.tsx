@@ -434,6 +434,18 @@ export default function DiscoveryEmbed() {
                 <p className="mt-1 text-[10px]" style={{ color: C.muted }}>
                   {completionCta ? "Your resource is ready. Open it whenever you like." : "Book your session with Rolf — choose a time that works for you."}
                 </p>
+                {completionCta && (
+                  <a
+                    href={completionCta.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-xs font-semibold tracking-wide transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: C.green, color: C.vellum, border: `1px solid ${C.border}` }}
+                  >
+                    {completionCta.label}
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                )}
                 {!completionCta && (
                   <a
                     href="https://www.prosperwise.ca/stabilization"
