@@ -288,10 +288,17 @@ export default function QuarterlySystemReview() {
     snapshot: latestHarvestByKey[`vineyard:${account.id}`] ?? null,
   }));
 
+  const storehouseTypeLabels: Record<number, string> = {
+    1: "Liquidity Reserve",
+    2: "Strategic Reserve",
+    3: "Philanthropic Trust",
+    4: "Legacy Trust",
+  };
+
   const storehouseHarvestRows = storehouses.map((storehouse) => ({
     id: storehouse.id,
     label: storehouse.label,
-    kindLabel: `Storehouse #${storehouse.storehouse_number}`,
+    kindLabel: storehouseTypeLabels[storehouse.storehouse_number] || `Storehouse #${storehouse.storehouse_number}`,
     snapshot: latestHarvestByKey[`storehouse:${storehouse.id}`] ?? null,
   }));
 
@@ -413,8 +420,7 @@ export default function QuarterlySystemReview() {
                 {reviewDateLabel && <> &nbsp;·&nbsp; {reviewDateLabel}</>}
               </div>
               <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "26pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1, letterSpacing: "-0.005em" }}>
-                Charter · Vineyard · Storehouse Alignment<br />
-                Quarterly System Review
+                Charter · Vineyard · Storehouse Alignment
               </div>
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
@@ -493,11 +499,11 @@ export default function QuarterlySystemReview() {
           <main style={{ flex: 1, padding: "10mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
             <div>
               <div style={{ fontSize: "7.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "1.5mm" }}>
-                Quarterly System Review &nbsp;·&nbsp; Harvest Detail for <strong>{fullName}</strong>
+                Quarterly System Review &nbsp;·&nbsp; Vineyard Harvest - Storehouse Detail for <strong>{fullName}</strong>
                 {reviewDateLabel && <> &nbsp;·&nbsp; {reviewDateLabel}</>}
               </div>
               <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "24pt", fontWeight: 300, color: "#3B3F3F", lineHeight: 1.1 }}>
-                BOY · Current · Harvest Detail
+                Vineyard Harvest - Storehouse Detail
               </div>
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
