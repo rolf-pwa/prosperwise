@@ -469,6 +469,18 @@ export default function Discovery() {
                 <p className="mt-2 text-sm" style={{ color: "#6B7070" }}>
                   {completionCta ? "Your guide is ready below. You can review it now and return whenever you're ready for the next conversation." : "Rolf Issler will reach out within 1–2 business days."}
                 </p>
+                {completionCta && (
+                  <a
+                    href={completionCta.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mx-auto mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "#2A4034", color: "#F8F6F2" }}
+                  >
+                    {completionCta.label}
+                    <ArrowUpRight className="h-4 w-4" />
+                  </a>
+                )}
                 {!completionCta && (
                   <a
                     href="https://www.prosperwise.ca/stabilization"
