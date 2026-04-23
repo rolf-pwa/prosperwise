@@ -46,9 +46,15 @@ function isAuthorized(req: Request) {
   const authHeader = req.headers.get("Authorization") || "";
   const apikeyHeader = req.headers.get("apikey") || "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-  return authHeader === `Bearer ${anonKey}` || authHeader === `Bearer ${serviceKey}` || apikeyHeader === anonKey || apikeyHeader === serviceKey;
+  return authHeader === `Bearer ${anonKey}`
+    || authHeader === `Bearer ${publishableKey}`
+    || authHeader === `Bearer ${serviceKey}`
+    || apikeyHeader === anonKey
+    || apikeyHeader === publishableKey
+    || apikeyHeader === serviceKey;
 }
 
 function sheetRange(title: string, range: string) {
