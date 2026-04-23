@@ -774,6 +774,48 @@ export type Database = {
           },
         ]
       }
+      georgia_analytics_sync_configs: {
+        Row: {
+          created_at: string
+          destination_type: string
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_run_status: string | null
+          last_synced_at: string | null
+          spreadsheet_id: string
+          updated_at: string
+          worksheet_summary_name: string
+          worksheet_traffic_name: string
+        }
+        Insert: {
+          created_at?: string
+          destination_type?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_run_status?: string | null
+          last_synced_at?: string | null
+          spreadsheet_id: string
+          updated_at?: string
+          worksheet_summary_name?: string
+          worksheet_traffic_name?: string
+        }
+        Update: {
+          created_at?: string
+          destination_type?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_run_status?: string | null
+          last_synced_at?: string | null
+          spreadsheet_id?: string
+          updated_at?: string
+          worksheet_summary_name?: string
+          worksheet_traffic_name?: string
+        }
+        Relationships: []
+      }
       georgia_session_starts: {
         Row: {
           created_at: string
