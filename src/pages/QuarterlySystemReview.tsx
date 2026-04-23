@@ -426,11 +426,13 @@ export default function QuarterlySystemReview() {
               <hr style={{ width: "18mm", height: "3px", background: "#A98C5A", border: "none", marginTop: "2.5mm" }} />
             </div>
 
-            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm" }}>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.55 }}>
-                {review.review_summary || "—"}
-              </div>
-              <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>{review.alignment_overview || "—"}</div>
+            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm", minHeight: "18mm" }}>
+              {!!review.review_summary && (
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.55 }}>
+                  {review.review_summary}
+                </div>
+              )}
+              {!!review.alignment_overview && <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>{review.alignment_overview}</div>}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6mm" }}>
@@ -438,8 +440,8 @@ export default function QuarterlySystemReview() {
                 <div style={colLabel}>Alignment Gaps</div>
                 {gaps.map((gap, index) => (
                   <div key={index} style={colItem}>
-                    <div style={dot} />
-                    <p style={colText}>{gap || "—"}</p>
+                    {gap ? <div style={dot} /> : null}
+                    <p style={colText}>{gap || ""}</p>
                   </div>
                 ))}
               </div>
@@ -447,8 +449,8 @@ export default function QuarterlySystemReview() {
                 <div style={colLabel}>Priorities for the Next 90 Days</div>
                 {priorities.map((priority, index) => (
                   <div key={index} style={colItem}>
-                    <div style={sq} />
-                    <p style={colText}>{priority || "—"}</p>
+                    {priority ? <div style={sq} /> : null}
+                    <p style={colText}>{priority || ""}</p>
                   </div>
                 ))}
               </div>
@@ -462,7 +464,7 @@ export default function QuarterlySystemReview() {
             </div>
 
             <div style={{ background: "#A98C5A", color: "#fff", margin: "auto -10mm 0 -10mm", padding: "3mm 10mm", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: "8.5pt", fontWeight: 500, maxWidth: "60%" }}>{review.footer_note}</div>
+              <div style={{ fontSize: "8.5pt", fontWeight: 500, maxWidth: "60%" }}>{review.footer_note || ""}</div>
             </div>
           </main>
         </div>
@@ -559,7 +561,7 @@ function StatusCard({ label, status, detail }: { label: string; status: string; 
           {status}
         </span>
       </strong>
-      <p style={{ fontSize: "7.5pt", color: "#3B3F3F", lineHeight: 1.5 }}>{detail || "—"}</p>
+      <p style={{ fontSize: "7.5pt", color: "#3B3F3F", lineHeight: 1.5 }}>{detail || ""}</p>
     </div>
   );
 }
