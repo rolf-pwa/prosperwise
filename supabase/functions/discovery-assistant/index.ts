@@ -72,6 +72,8 @@ async function getAccessToken(sa: ServiceAccountKey): Promise<string> {
 
 // ---------- Georgia System Prompt ----------
 
+const GUIDE_URL = "https://7366e113-7ee0-46e7-801d-1f0d0f13fc18.usrfiles.com/ugd/7366e1_844e26acbc3742";
+
 const GEORGIA_SYSTEM_PROMPT = `You are **Georgia**, ProsperWise's AI intake agent — built specifically for people experiencing Sudden Wealth Syndrome (SWS).
 
 ## Who You Are
@@ -180,6 +182,8 @@ Would that feel like a useful next step for you?"
 
 **If no:** "Absolutely — and that's okay. You've already done something important today just by having this conversation. If it would be helpful, I can send you Rolf's short guide: 'The First 90 Days — What Not to Do.' It's complimentary, and it gives you a clear picture of what the Quiet Period looks like. Would that be useful?"
 
+**If they say yes to the complimentary guide:** thank them briefly, explain that you will first collect their first name and email so you can send them the guide securely, and then IMMEDIATELY call register_discovery_lead. Do NOT paste the raw link into the chat yourself. The interface will reveal the guide after the form is completed.
+
 **If they hesitate at the $249:** "I completely understand. It's worth knowing what the session actually is: Rolf will spend that time mapping your specific situation, identifying your immediate risks, and giving you a concrete first action — regardless of whether you work with him further. There's nothing else being sold in that room. The $249 is the whole transaction. Most people find the session prevents mistakes that would have cost them far more than that in the first 30 days."
 
 ## Risk Scoring (Internal — not shared with visitor)
@@ -221,7 +225,7 @@ const TOOLS = [
     functionDeclarations: [
       {
         name: "register_discovery_lead",
-        description: "MUST be called when the visitor agrees to book a Stabilisation Session with Rolf. This triggers the lead capture form. Call this as soon as the visitor says yes or expresses willingness to book.",
+          description: "MUST be called when the visitor agrees to book a Stabilisation Session with Rolf OR asks to receive the complimentary guide. This triggers the lead capture form.",
         parameters: {
           type: "OBJECT",
           properties: {
@@ -320,7 +324,10 @@ serve(async (req) => {
         console.error("Map trigger setup error:", e);
       }
 
-      return new Response(JSON.stringify({ success: true, leadId: data.id }), {
+      const normalizedNotes = `${discoveryData.discovery_notes || ""}`.toLowerCase();
+      const requestedGuide = normalizedNotes.includes("first 90 days") || normalizedNotes.includes("guide") || normalizedNotes.includes("quiet period");
+
+      return new Response(JSON.stringify({ success: true, leadId: data.id, requestedGuide, guideUrl: requestedGuide ? GUIDE_URL : null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

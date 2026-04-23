@@ -4,14 +4,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { Send, Loader2, ShieldCheck, Lock } from "lucide-react";
+import { Send, Loader2, ShieldCheck, Lock, ArrowUpRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; cta?: { label: string; href: string } };
 
 interface FunctionCall {
   name: string;
@@ -54,6 +54,7 @@ export default function Discovery() {
   const [discoveryData, setDiscoveryData] = useState<Record<string, any>>(saved?.discoveryData || {});
   const [leadForm, setLeadForm] = useState({ first_name: "", phone: "", email: "" });
   const [pipedaConsent, setPipedaConsent] = useState(false);
+  const [completionCta, setCompletionCta] = useState<{ label: string; href: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -143,13 +144,17 @@ export default function Discovery() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Submission failed");
 
+      const requestedGuide = Boolean(data.requestedGuide && data.guideUrl);
+      setCompletionCta(requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : null);
       setPhase("complete");
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Thank you. Your information has been received. Rolf Issler will be in touch within 1–2 business days to schedule your Transition Session. In the meantime, take a breath — you have taken an important first step toward sovereignty.",
+          content: requestedGuide
+            ? "Thank you. I have your details now. Your complimentary guide is ready below whenever you'd like to open it."
+            : "Thank you. Your information has been received. Rolf Issler will be in touch within 1–2 business days to schedule your Transition Session. In the meantime, take a breath — you have taken an important first step toward sovereignty.",
+          cta: requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : undefined,
         },
       ]);
     } catch (err) {
@@ -252,6 +257,18 @@ export default function Discovery() {
                       }}
                     >
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      {msg.cta && (
+                        <a
+                          href={msg.cta.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="not-prose mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: "#2A4034", color: "#F8F6F2" }}
+                        >
+                          {msg.cta.label}
+                          <ArrowUpRight className="h-4 w-4" />
+                        </a>
+                      )}
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -416,11 +433,23 @@ export default function Discovery() {
                   <ShieldCheck className="h-7 w-7" style={{ color: "#2A4034" }} />
                 </div>
                 <p className="font-serif text-lg font-semibold" style={{ color: "#2A4034" }}>
-                  Transition Session Requested
+                  {completionCta ? "Complimentary Guide Ready" : "Transition Session Requested"}
                 </p>
                 <p className="mt-2 text-sm" style={{ color: "#6B7070" }}>
-                  Rolf Issler will reach out within 1–2 business days.
+                  {completionCta ? "Your guide is ready below. You can review it now and return whenever you're ready for the next conversation." : "Rolf Issler will reach out within 1–2 business days."}
                 </p>
+                {completionCta && (
+                  <a
+                    href={completionCta.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mx-auto mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "#2A4034", color: "#F8F6F2" }}
+                  >
+                    {completionCta.label}
+                    <ArrowUpRight className="h-4 w-4" />
+                  </a>
+                )}
                 <div
                   className="mx-auto mt-4 inline-block rounded-full px-4 py-1"
                   style={{ backgroundColor: "rgba(169,140,90,0.12)", border: "1px solid rgba(169,140,90,0.3)" }}
