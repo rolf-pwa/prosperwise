@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Send, Loader2, ShieldCheck, Lock } from "lucide-react";
+import { Send, Loader2, ShieldCheck, Lock, ArrowUpRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; cta?: { label: string; href: string } };
 
 interface FunctionCall {
   name: string;
@@ -68,6 +68,7 @@ export default function DiscoveryEmbed() {
   const [discoveryData, setDiscoveryData] = useState<Record<string, any>>(saved?.discoveryData || {});
   const [leadForm, setLeadForm] = useState({ first_name: "", phone: "", email: "" });
   const [pipedaConsent, setPipedaConsent] = useState(false);
+  const [completionCta, setCompletionCta] = useState<{ label: string; href: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -157,13 +158,17 @@ export default function DiscoveryEmbed() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Submission failed");
 
+      const requestedGuide = Boolean(data.requestedGuide && data.guideUrl);
+      setCompletionCta(requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : null);
       setPhase("complete");
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Thank you. Your information has been received. You can book your Stabilisation Session with Rolf directly using the link below — choose a time that works for you.",
+          content: requestedGuide
+            ? "Thank you. I have your details now. Your complimentary guide is ready below whenever you'd like to open it."
+            : "Thank you. Your information has been received. You can book your Stabilisation Session with Rolf directly using the link below — choose a time that works for you.",
+          cta: requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : undefined,
         },
       ]);
     } catch (err) {
@@ -260,6 +265,18 @@ export default function DiscoveryEmbed() {
                     <div className="prose prose-sm max-w-none prose-p:my-2 prose-p:leading-relaxed"
                       style={{ color: C.charcoal }}>
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      {msg.cta && (
+                        <a
+                          href={msg.cta.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="not-prose mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-[11px] font-semibold tracking-wide transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: C.green, color: C.vellum, border: `1px solid ${C.border}` }}
+                        >
+                          {msg.cta.label}
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </a>
+                      )}
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -380,18 +397,21 @@ export default function DiscoveryEmbed() {
                 >
                   <ShieldCheck className="h-4.5 w-4.5" style={{ color: C.bronze }} />
                 </div>
-                <p className="text-xs font-semibold font-serif" style={{ color: C.green }}>Stabilisation Session</p>
+                <p className="text-xs font-semibold font-serif" style={{ color: C.green }}>
+                  {completionCta ? "Complimentary Guide" : "Stabilisation Session"}
+                </p>
                 <p className="mt-1 text-[10px]" style={{ color: C.muted }}>
-                  Book your session with Rolf — choose a time that works for you.
+                  {completionCta ? "Your resource is ready. Open it whenever you like." : "Book your session with Rolf — choose a time that works for you."}
                 </p>
                 <a
-                  href="https://www.prosperwise.ca/stabilization"
+                  href={completionCta?.href || "https://www.prosperwise.ca/stabilization"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-xs font-semibold tracking-wide transition-opacity hover:opacity-90"
                   style={{ backgroundColor: C.green, color: C.vellum, border: `1px solid ${C.border}` }}
                 >
-                  Book Stabilisation Session — $249
+                  {completionCta?.label || "Book Stabilisation Session — $249"}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
                 </a>
                 <p className="mt-3 text-[9px] uppercase tracking-wider" style={{ color: C.bronze }}>
                   Fee-Only · Canada · PIPEDA
