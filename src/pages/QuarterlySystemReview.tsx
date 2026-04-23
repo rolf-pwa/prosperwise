@@ -267,6 +267,7 @@ export default function QuarterlySystemReview() {
   const isActivelyGenerating = isGenerating && !isGenerationStale;
   const gaps = [review.gap_1, review.gap_2, review.gap_3, review.gap_4, review.gap_5];
   const priorities = [review.priority_1, review.priority_2, review.priority_3, review.priority_4, review.priority_5];
+  const reviewYear = review.review_date ? new Date(review.review_date).getFullYear() : new Date().getFullYear();
   const latestHarvestByKey = harvestSnapshots.reduce<Record<string, ReviewHarvestSnapshot>>((acc, snapshot) => {
     const key = snapshot.vineyard_account_id
       ? `vineyard:${snapshot.vineyard_account_id}`
@@ -471,7 +472,7 @@ export default function QuarterlySystemReview() {
             <div>
               <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "48mm", height: "auto", display: "block", marginBottom: "3mm" }} />
               <div style={{ fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase" }}>
-                Annual Harvest Review
+                {reviewYear} Estate Totals
               </div>
             </div>
             <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
@@ -482,7 +483,7 @@ export default function QuarterlySystemReview() {
             <div>
               <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginBottom: "2mm" }}>Harvest Totals</div>
               <div style={{ marginBottom: "3mm" }}>
-                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>BOY</strong>
+                <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Beginning Value</strong>
                 <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.boy)}</p>
               </div>
               <div style={{ marginBottom: "3mm" }}>
