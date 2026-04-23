@@ -378,7 +378,7 @@ export default function QuarterlySystemReview() {
             <div>
               <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "48mm", height: "auto", display: "block", marginBottom: "3mm" }} />
               <div style={{ fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase" }}>
-                Sovereignty Operating System
+                Sovereignty Operating System™
               </div>
             </div>
             <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
@@ -474,7 +474,7 @@ export default function QuarterlySystemReview() {
             <div>
               <img src={pwLogoWhite} alt="ProsperWise" style={{ width: "48mm", height: "auto", display: "block", marginBottom: "3mm" }} />
               <div style={{ fontSize: "9pt", fontWeight: 300, color: "rgba(255,255,255,.5)", letterSpacing: ".08em", textTransform: "uppercase" }}>
-                {reviewYear} Estate Totals
+                Sovereignty Operating System™
               </div>
             </div>
             <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
@@ -483,7 +483,7 @@ export default function QuarterlySystemReview() {
             </div>
             <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.18)" }} />
             <div>
-              <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginBottom: "2mm" }}>Harvest Totals</div>
+              <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(255,255,255,.4)", marginBottom: "2mm" }}>{reviewYear} Estate Totals</div>
               <div style={{ marginBottom: "3mm" }}>
                 <strong style={{ fontSize: "8.5pt", fontWeight: 600 }}>Beginning Value</strong>
                 <p style={{ fontSize: "8pt", color: "rgba(255,255,255,.75)", marginTop: "1pt" }}>{formatCurrency(harvestTotals.boy)}</p>
