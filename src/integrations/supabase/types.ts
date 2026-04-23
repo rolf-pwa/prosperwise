@@ -774,6 +774,39 @@ export type Database = {
           },
         ]
       }
+      georgia_session_starts: {
+        Row: {
+          created_at: string
+          id: string
+          landing_path: string | null
+          referrer: string | null
+          session_key: string
+          source: string
+          started_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landing_path?: string | null
+          referrer?: string | null
+          session_key: string
+          source?: string
+          started_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landing_path?: string | null
+          referrer?: string | null
+          session_key?: string
+          source?: string
+          started_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       google_tokens: {
         Row: {
           access_token: string
