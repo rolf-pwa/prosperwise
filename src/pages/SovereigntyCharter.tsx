@@ -891,7 +891,33 @@ export default function SovereigntyCharter() {
     }
   };
 
-  const ratifyCharter = async () => {
+  const cancelESignRequest = async () => {
+    if (!charter?.id) return;
+    if (!confirm("Cancel this e-signature request? The PDF already in Google Drive will not be deleted — remove it manually if needed. You can then re-send for signature.")) return;
+    setCancellingESign(true);
+    try {
+      const { error } = await supabase
+        .from("sovereignty_charters" as any)
+        .update({
+          esign_status: "not_sent",
+          esign_doc_id: null,
+          esign_doc_url: null,
+          esign_initiated_by: null,
+          esign_last_checked_at: null,
+          esign_error: null,
+        })
+        .eq("id", charter.id);
+      if (error) throw error;
+      toast.success("E-signature request cancelled");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel e-signature request");
+    } finally {
+      setCancellingESign(false);
+    }
+  };
+
+
     if (!charter?.id || !contactId) {
       toast.error("Save or generate the charter before ratifying it");
       return;
