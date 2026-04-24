@@ -1484,6 +1484,88 @@ export default function SovereigntyCharter() {
           </div>
         </div>
 
+        {(charter.long_term_strategy || charter.monitoring_cadence || charter.withdrawal_safeguards || charter.roles_responsibilities || charter.professional_coordination || charter.executor_primary || charter.executor_alternate || charter.succession_terms || charter.ratification_signatories.length > 0) ? (
+          <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
+            <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
+              <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
+                Strategic Stewardship
+              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "23pt", fontWeight: 300, lineHeight: 1.08 }}>
+                Long-Term Strategy, Roles & Succession
+              </div>
+            </div>
+
+            <div style={{ padding: "12mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
+              {charter.long_term_strategy ? (
+                <ArticleCard title="Long-Term Strategy" body={charter.long_term_strategy} />
+              ) : null}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
+                {charter.monitoring_cadence ? (
+                  <SectionCard title="Monitoring Cadence" body={charter.monitoring_cadence} />
+                ) : null}
+                {charter.withdrawal_safeguards ? (
+                  <SectionCard title="Withdrawal Safeguards" body={charter.withdrawal_safeguards} />
+                ) : null}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
+                {charter.roles_responsibilities ? (
+                  <ArticleCard title="Roles & Responsibilities" body={charter.roles_responsibilities} />
+                ) : null}
+                {charter.professional_coordination ? (
+                  <ArticleCard title="Professional Coordination" body={charter.professional_coordination} />
+                ) : null}
+              </div>
+
+              {(charter.executor_primary || charter.executor_alternate || charter.succession_terms) ? (
+                <div>
+                  <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Succession Plan</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                    {charter.executor_primary ? (
+                      <MetricCard label="Primary Executor" value={charter.executor_primary} />
+                    ) : null}
+                    {charter.executor_alternate ? (
+                      <MetricCard label="Alternate Executor" value={charter.executor_alternate} />
+                    ) : null}
+                  </div>
+                  {charter.succession_terms ? (
+                    <div style={{ marginTop: "4mm" }}>
+                      <ArticleCard title="Succession Terms" body={charter.succession_terms} />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {charter.ratification_signatories.length > 0 ? (
+                <div>
+                  <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Ratification Signatories</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr style={{ background: "#F8F6F2" }}>
+                        <th style={{ fontSize: "7pt", fontWeight: 600, color: "#6B7070", textTransform: "uppercase", letterSpacing: ".08em", padding: "2.4mm 2mm", borderBottom: "1px solid #D9CDBF", textAlign: "left", width: "40%" }}>Name</th>
+                        <th style={{ fontSize: "7pt", fontWeight: 600, color: "#6B7070", textTransform: "uppercase", letterSpacing: ".08em", padding: "2.4mm 2mm", borderBottom: "1px solid #D9CDBF", textAlign: "left", width: "35%" }}>Role</th>
+                        <th style={{ fontSize: "7pt", fontWeight: 600, color: "#6B7070", textTransform: "uppercase", letterSpacing: ".08em", padding: "2.4mm 2mm", borderBottom: "1px solid #D9CDBF", textAlign: "left", width: "25%" }}>Signed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {charter.ratification_signatories.map((signatory, idx) => (
+                        <tr key={`sig-${idx}`}>
+                          <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>{signatory.name || "—"}</td>
+                          <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>{signatory.role || "—"}</td>
+                          <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>
+                            {signatory.signed_at ? formatDate(signatory.signed_at, signatory.signed_at) : "Pending"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
             <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
