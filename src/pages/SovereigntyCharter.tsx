@@ -13,8 +13,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGoogleStatus, useSyncCharterDriveSources } from "@/hooks/useGoogle";
 import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 
 type ContactRecord = {
   id: string;
