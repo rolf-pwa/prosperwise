@@ -783,6 +783,67 @@ export default function SovereigntyCharter() {
     }
   };
 
+  const sendCharterForESign = async () => {
+    if (!charter?.id) {
+      toast.error("Save the charter before sending for e-signature");
+      return;
+    }
+    if (!googleStatus.data?.connected) {
+      toast.error("Connect your Google account first (Settings → Google)");
+      return;
+    }
+    setSendingForESign(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/charter-esign-create`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ charter_id: charter.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create signing document");
+      toast.success("Google Doc created. Open it and use Tools → eSignature to send.", { duration: 8000 });
+      if (data.document_url) window.open(data.document_url, "_blank", "noopener,noreferrer");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send for e-signature");
+    } finally {
+      setSendingForESign(false);
+    }
+  };
+
+  const refreshESignStatus = async () => {
+    if (!charter?.id) return;
+    setRefreshingESign(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/charter-esign-poll`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ charter_id: charter.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to check signature status");
+      const result = data.results?.[0];
+      if (result?.status === "ratified") toast.success("Signatures complete — charter ratified");
+      else if (result?.status === "pending") toast.info("Still awaiting signatures");
+      else if (result?.status === "error") toast.error(result.note || "Status check error");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to refresh status");
+    } finally {
+      setRefreshingESign(false);
+    }
+  };
+
   const ratifyCharter = async () => {
     if (!charter?.id || !contactId) {
       toast.error("Save or generate the charter before ratifying it");
