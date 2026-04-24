@@ -265,6 +265,8 @@ export default function SovereigntyCharter() {
   const [saving, setSaving] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [ratifying, setRatifying] = useState(false);
+  const [sendingForESign, setSendingForESign] = useState(false);
+  const [refreshingESign, setRefreshingESign] = useState(false);
   const [contact, setContact] = useState<ContactRecord | null>(null);
   const [family, setFamily] = useState<FamilyRecord | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
