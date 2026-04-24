@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, FolderSync, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, ExternalLink, FileText, FolderSync, Loader2, Pencil, Plus, Printer, Save, ScrollText, Sparkles, Trash2, Upload, WandSparkles, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
@@ -269,6 +269,7 @@ export default function SovereigntyCharter() {
   const [ratifying, setRatifying] = useState(false);
   const [sendingForESign, setSendingForESign] = useState(false);
   const [refreshingESign, setRefreshingESign] = useState(false);
+  const [cancellingESign, setCancellingESign] = useState(false);
   const [contact, setContact] = useState<ContactRecord | null>(null);
   const [family, setFamily] = useState<FamilyRecord | null>(null);
   const [vineyardAccounts, setVineyardAccounts] = useState<VineyardAccount[]>([]);
@@ -890,6 +891,32 @@ export default function SovereigntyCharter() {
     }
   };
 
+  const cancelESignRequest = async () => {
+    if (!charter?.id) return;
+    if (!confirm("Cancel this e-signature request? The PDF already in Google Drive will not be deleted — remove it manually if needed. You can then re-send for signature.")) return;
+    setCancellingESign(true);
+    try {
+      const { error } = await supabase
+        .from("sovereignty_charters" as any)
+        .update({
+          esign_status: "not_sent",
+          esign_doc_id: null,
+          esign_doc_url: null,
+          esign_initiated_by: null,
+          esign_last_checked_at: null,
+          esign_error: null,
+        })
+        .eq("id", charter.id);
+      if (error) throw error;
+      toast.success("E-signature request cancelled");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel e-signature request");
+    } finally {
+      setCancellingESign(false);
+    }
+  };
+
   const ratifyCharter = async () => {
     if (!charter?.id || !contactId) {
       toast.error("Save or generate the charter before ratifying it");
@@ -1094,6 +1121,10 @@ export default function SovereigntyCharter() {
                     <Button size="sm" variant="outline" onClick={refreshESignStatus} disabled={refreshingESign}>
                       {refreshingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Check status
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={cancelESignRequest} disabled={cancellingESign}>
+                      {cancellingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                      Cancel request
                     </Button>
                   </>
                 ) : (
