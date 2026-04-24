@@ -1,0 +1,119 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
+
+export type AutoSaveStatus = {
+  saving: boolean;
+  isDirty: boolean;
+  lastSavedAt: Date | null;
+};
+
+type UseAutoSaveOptions<T> = {
+  /** The current value being edited. */
+  data: T | null;
+  /** Whether the editor is currently active (auto-save only runs when true). */
+  enabled: boolean;
+  /** Persists the data. Return true on success, false to keep dirty state. */
+  onSave: (data: T) => Promise<boolean>;
+  /** Debounce delay in ms (default 1500). */
+  delay?: number;
+};
+
+/**
+ * Debounced auto-save with dirty tracking, beforeunload guard, and a
+ * `markDirty` helper to call from your field setters.
+ */
+export function useAutoSave<T>({ data, enabled, onSave, delay = 1500 }: UseAutoSaveOptions<T>) {
+  const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataRef = useRef<T | null>(data);
+  const onSaveRef = useRef(onSave);
+
+  useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
+
+  const flush = useCallback(async (): Promise<boolean> => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const current = dataRef.current;
+    if (!current) return false;
+    setSaving(true);
+    try {
+      const ok = await onSaveRef.current(current);
+      if (ok) {
+        setLastSavedAt(new Date());
+        setIsDirty(false);
+      }
+      return ok;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+  }, []);
+
+  const reset = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsDirty(false);
+    setLastSavedAt(null);
+  }, []);
+
+  // Debounced auto-save while editing and dirty
+  useEffect(() => {
+    if (!enabled || !isDirty) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      void flush();
+    }, delay);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [data, enabled, isDirty, delay, flush]);
+
+  // Warn on unload if dirty
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  return { saving, isDirty, lastSavedAt, flush, markDirty, reset };
+}
+
+/** Compact status pill: "Saving… / Unsaved changes / Saved 3:21 PM" */
+export function AutoSaveIndicator({ status }: { status: AutoSaveStatus }) {
+  const { saving, isDirty, lastSavedAt } = status;
+  let label: React.ReactNode;
+  if (saving) {
+    label = (
+      <>
+        <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+      </>
+    );
+  } else if (isDirty) {
+    label = "Unsaved changes";
+  } else if (lastSavedAt) {
+    label = `Saved ${format(lastSavedAt, "h:mm:ss a")}`;
+  } else {
+    label = "Auto-save on";
+  }
+  return (
+    <span className="mr-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+      {label}
+    </span>
+  );
+}
