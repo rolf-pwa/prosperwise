@@ -1643,6 +1643,61 @@ export default function SovereigntyCharter() {
           </div>
         ) : null}
 
+        {charterSources.filter((s) => (s.contentText || "").trim() || s.sourceUrl || s.fileName).length > 0 ? (
+          <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
+            <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
+              <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
+                Appendix B
+              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "23pt", fontWeight: 300, lineHeight: 1.08 }}>
+                Source Documents
+              </div>
+            </div>
+
+            <div style={{ padding: "12mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
+              <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.65 }}>
+                The following materials were provided by the Sovereign and used as the canonical source for this Charter. They are reproduced here verbatim for traceability and audit.
+              </div>
+
+              {charterSources
+                .filter((s) => (s.contentText || "").trim() || s.sourceUrl || s.fileName)
+                .map((source, index) => {
+                  const kindLabel = source.sourceKind.replace(/_/g, " ");
+                  const modeLabel = source.inputMode === "upload" ? "Uploaded file" : source.inputMode === "url" ? "Linked source" : "Pasted text";
+                  return (
+                    <div
+                      key={source.id || `source-${index}`}
+                      style={{ border: "1px solid #D3C5B7", background: "#fff", display: "flex", flexDirection: "column" }}
+                    >
+                      <div style={{ background: "#F8F6F2", borderBottom: "1px solid #D3C5B7", padding: "3mm 4mm", display: "flex", flexDirection: "column", gap: "0.8mm" }}>
+                        <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a" }}>
+                          Source {index + 1} · {kindLabel} · {modeLabel}
+                        </div>
+                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "13pt", fontWeight: 500, color: "#3B3F3F" }}>
+                          {source.title || "Untitled source"}
+                        </div>
+                        {(source.fileName || source.sourceUrl) ? (
+                          <div style={{ fontSize: "7pt", color: "#6B7070", wordBreak: "break-all" }}>
+                            {source.fileName ? <span>{source.fileName}</span> : null}
+                            {source.fileName && source.sourceUrl ? <span> · </span> : null}
+                            {source.sourceUrl ? <span>{source.sourceUrl}</span> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div style={{ padding: "4mm 5mm", fontSize: "7.5pt", lineHeight: 1.6, color: "#3B3F3F", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {(source.contentText || "").trim()
+                          ? source.contentText
+                          : source.sourceUrl
+                            ? "Linked source — content stored externally. See URL above."
+                            : "Uploaded file — content stored in secure source bucket. See file name above."}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        ) : null}
+
         <style>{`
           @media print {
             @page { size: A4 portrait; margin: 0; }
