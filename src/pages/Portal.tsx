@@ -533,7 +533,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, charter, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
+  const { contact, charter, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [], quarterly_reviews = [] } = data;
   const portalToken = token || data.portal_token || "";
   const hierarchyLevel = hierarchy?.level || "individual";
 
