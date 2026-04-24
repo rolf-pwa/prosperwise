@@ -785,6 +785,44 @@ export default function SovereigntyCharter() {
     }
   };
 
+  const renderCharterToPdfBase64 = async (): Promise<string> => {
+    const root = document.getElementById("charter-printable-root");
+    if (!root) throw new Error("Charter content not ready. Try again in a moment.");
+    // Render each .stab-doc page to a separate PDF page so layout is preserved.
+    const pages = Array.from(root.querySelectorAll<HTMLElement>(".stab-doc"));
+    if (pages.length === 0) throw new Error("No charter pages found to export.");
+
+    // A4 portrait
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await html2canvas(pages[i], {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const ratio = canvas.width / canvas.height;
+      let renderW = pageW;
+      let renderH = pageW / ratio;
+      if (renderH > pageH) {
+        renderH = pageH;
+        renderW = pageH * ratio;
+      }
+      const x = (pageW - renderW) / 2;
+      const y = 0;
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, "JPEG", x, y, renderW, renderH);
+    }
+
+    // Output as base64 (without data URI prefix)
+    const dataUri = pdf.output("datauristring");
+    const idx = dataUri.indexOf("base64,");
+    return idx >= 0 ? dataUri.slice(idx + "base64,".length) : dataUri;
+  };
+
   const sendCharterForESign = async () => {
     if (!charter?.id) {
       toast.error("Save the charter before sending for e-signature");
@@ -796,6 +834,9 @@ export default function SovereigntyCharter() {
     }
     setSendingForESign(true);
     try {
+      toast.info("Generating PDF…");
+      const pdf_base64 = await renderCharterToPdfBase64();
+
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/charter-esign-create`, {
         method: "POST",
@@ -804,12 +845,15 @@ export default function SovereigntyCharter() {
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ charter_id: charter.id }),
+        body: JSON.stringify({ charter_id: charter.id, pdf_base64 }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create signing document");
-      toast.success("Google Doc created. Open it and use Tools → eSignature to send.", { duration: 8000 });
-      if (data.document_url) window.open(data.document_url, "_blank", "noopener,noreferrer");
+      if (!res.ok) throw new Error(data.error || "Failed to upload signing PDF");
+      toast.success(
+        "PDF uploaded to the Resources folder. Send it via Adobe Sign in Drive — once the signed copy (containing 'Completed-Adobe Sign') lands back in the same folder, the charter will auto-ratify.",
+        { duration: 10000 },
+      );
+      if (data.file_url) window.open(data.file_url, "_blank", "noopener,noreferrer");
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to send for e-signature");
