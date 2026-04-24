@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, ClipboardCheck, Loader2, Printer, RefreshCw, Save } from "lucide-react";
@@ -108,7 +108,11 @@ export default function QuarterlySystemReview() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reviewRef = useRef<QuarterlyReview | null>(null);
   const [harvestSnapshots, setHarvestSnapshots] = useState<ReviewHarvestSnapshot[]>([]);
   const [vineyardAccounts, setVineyardAccounts] = useState<ReviewVineyardAccount[]>([]);
   const [storehouses, setStorehouses] = useState<ReviewStorehouse[]>([]);
@@ -204,22 +208,70 @@ export default function QuarterlySystemReview() {
 
   const updateField = (key: keyof QuarterlyReview, value: string) => {
     setReview((current) => (current ? { ...current, [key]: value } : current));
+    setIsDirty(true);
   };
 
-  const save = async () => {
-    if (!review) return;
+  const persist = async (silent = false): Promise<boolean> => {
+    const current = reviewRef.current;
+    if (!current) return false;
     setSaving(true);
-    const { id: _, contact_id: __, generation_error: ___, ...rest } = review;
+    const { id: _, contact_id: __, generation_error: ___, ...rest } = current;
     const { error } = await supabase
       .from("quarterly_system_reviews")
       .update({ ...rest, generation_status: "manually_edited" })
-      .eq("id", review.id);
+      .eq("id", current.id);
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Quarterly Review saved");
-    setEditing(false);
-    load();
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+    setLastSavedAt(new Date());
+    setIsDirty(false);
+    if (!silent) toast.success("Quarterly Review saved");
+    return true;
   };
+
+  const save = async () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    const ok = await persist(false);
+    if (ok) {
+      setEditing(false);
+      load();
+    }
+  };
+
+  // Keep ref in sync for the auto-save closure
+  useEffect(() => {
+    reviewRef.current = review;
+  }, [review]);
+
+  // Debounced auto-save while editing
+  useEffect(() => {
+    if (!editing || !isDirty) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      void persist(true);
+    }, 1500);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review, editing, isDirty]);
+
+  // Flush on unload / navigation if dirty
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   const regenerate = async () => {
     if (!review) return;
