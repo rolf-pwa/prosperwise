@@ -1534,7 +1534,7 @@ export default function SovereigntyCharter() {
               rows={vineyardAccounts.map((account) => ({
                 label: account.account_name,
                 type: account.account_type,
-                value: formatCurrency(account.current_value),
+                value: formatCurrency(account.book_value),
                 note: isProtectedAccount(account) ? "Protected" : "Eligible Harvest",
               }))}
               emptyLabel="No Vineyard accounts are currently linked."
@@ -1546,7 +1546,7 @@ export default function SovereigntyCharter() {
                 ...storehouses.map((storehouse) => ({
                   label: storehouse.label,
                   type: storehouse.asset_type || `Storehouse #${storehouse.storehouse_number}`,
-                  value: formatCurrency(storehouse.current_value),
+                  value: formatCurrency(storehouse.book_value),
                   note: storehouse.risk_cap || storehouse.notes || "Governed reserve",
                 })),
                 ...charter.custom_sections.pageOne.map((section) => ({
