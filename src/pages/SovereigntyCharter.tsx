@@ -1122,6 +1122,10 @@ export default function SovereigntyCharter() {
                       {refreshingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Check status
                     </Button>
+                    <Button size="sm" variant="outline" onClick={cancelESignRequest} disabled={cancellingESign}>
+                      {cancellingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                      Cancel request
+                    </Button>
                   </>
                 ) : (
                   <Button size="sm" onClick={sendCharterForESign} disabled={sendingForESign || !googleStatus.data?.connected}>
