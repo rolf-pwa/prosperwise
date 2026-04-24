@@ -24,6 +24,9 @@ type QuarterlyReview = {
   review_date: string | null;
   review_summary: string;
   alignment_overview: string;
+  purpose_statement: string;
+  primary_goal: string;
+  long_term_vision: string;
   charter_status: ReviewStatus | string;
   charter_detail: string;
   vineyard_status: ReviewStatus | string;
@@ -427,12 +430,38 @@ export default function QuarterlySystemReview() {
             </div>
 
             <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm", minHeight: "18mm" }}>
-              {!!review.review_summary && (
+              {!!review.purpose_statement && (
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "11pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.5 }}>
+                  {review.purpose_statement}
+                </div>
+              )}
+              {!review.purpose_statement && !!review.review_summary && (
                 <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.55 }}>
                   {review.review_summary}
                 </div>
               )}
-              {!!review.alignment_overview && <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>{review.alignment_overview}</div>}
+              {!review.purpose_statement && !!review.alignment_overview && (
+                <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>{review.alignment_overview}</div>
+              )}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3mm" }}>
+              <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", borderTop: "3px solid #A98C5A", padding: "3mm 4mm" }}>
+                <div style={{ fontSize: "6.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#A98C5A", marginBottom: "1.5mm", fontWeight: 600 }}>
+                  Primary Goal
+                </div>
+                <p style={{ fontSize: "8pt", color: "#3B3F3F", lineHeight: 1.5 }}>
+                  {review.primary_goal || ""}
+                </p>
+              </div>
+              <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", borderTop: "3px solid #A98C5A", padding: "3mm 4mm" }}>
+                <div style={{ fontSize: "6.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#A98C5A", marginBottom: "1.5mm", fontWeight: 600 }}>
+                  Long-Term Vision
+                </div>
+                <p style={{ fontSize: "8pt", color: "#3B3F3F", lineHeight: 1.5 }}>
+                  {review.long_term_vision || ""}
+                </p>
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6mm" }}>
@@ -649,6 +678,11 @@ function EditorForm({ review, onChange }: { review: QuarterlyReview; onChange: (
       </div>
       {F("review_summary", "Review Summary", true)}
       {F("alignment_overview", "Alignment Overview", true)}
+      {F("purpose_statement", "Purpose Statement (Charter intro callout)", true)}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {F("primary_goal", "Primary Goal", true)}
+        {F("long_term_vision", "Long-Term Vision", true)}
+      </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-[#A98C5A]">Alignment Gaps</div>
