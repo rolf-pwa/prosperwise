@@ -29,13 +29,15 @@ type UseAutoSaveOptions<T> = {
  * Debounced auto-save with dirty tracking, beforeunload guard, and a
  * `markDirty` helper to call from your field setters.
  */
-export function useAutoSave<T>({ data, enabled, onSave, delay = 1500 }: UseAutoSaveOptions<T>) {
+export function useAutoSave<T>({ data, enabled, onSave, delay = 1500, autoDetectDirty = false }: UseAutoSaveOptions<T>) {
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dataRef = useRef<T | null>(data);
   const onSaveRef = useRef(onSave);
+  const baselineRef = useRef<string | null>(null);
+  const wasEnabledRef = useRef(false);
 
   useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
@@ -53,8 +55,19 @@ export function useAutoSave<T>({ data, enabled, onSave, delay = 1500 }: UseAutoS
       if (ok) {
         setLastSavedAt(new Date());
         setIsDirty(false);
+        if (autoDetectDirty) {
+          baselineRef.current = JSON.stringify(current);
+        }
       }
       return ok;
+    } finally {
+      setSaving(false);
+    }
+  }, [autoDetectDirty]);
+
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+  }, []);
     } finally {
       setSaving(false);
     }
