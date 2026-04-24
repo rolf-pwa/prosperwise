@@ -57,6 +57,7 @@ type Storehouse = {
   label: string;
   storehouse_number: number;
   current_value: number | null;
+  book_value: number | null;
   target_value: number | null;
   asset_type: string | null;
   notes: string | null;
