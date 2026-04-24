@@ -1400,24 +1400,33 @@ export default function SovereigntyCharter() {
               </div>
             ) : null}
 
-            {(charter.harvest_yield_protocol || charter.harvest_spending_categories || charter.harvest_review_date) ? (
+            {(charter.harvest_yield_protocol || charter.harvest_spending_categories) ? (
               <div>
                 <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Harvest Protocol</div>
-                {charter.harvest_review_date ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
-                    <MetricCard label="Next Harvest Review" value={formatDate(charter.harvest_review_date, charter.harvest_review_date)} />
-                  </div>
-                ) : null}
-                {(charter.harvest_yield_protocol || charter.harvest_spending_categories) ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginTop: charter.harvest_review_date ? "4mm" : 0 }}>
-                    {charter.harvest_yield_protocol ? (
-                      <ArticleCard title="Yield Protocol" body={charter.harvest_yield_protocol} />
-                    ) : null}
-                    {charter.harvest_spending_categories ? (
-                      <ArticleCard title="Spending Categories" body={charter.harvest_spending_categories} />
-                    ) : null}
-                  </div>
-                ) : null}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                  {charter.harvest_yield_protocol ? (
+                    <ArticleCard title="Yield Protocol" body={charter.harvest_yield_protocol} />
+                  ) : null}
+                  {charter.harvest_spending_categories ? (
+                    <ArticleCard title="Spending Categories" body={charter.harvest_spending_categories} />
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {charter.custom_sections.pageTwo.length > 0 ? (
+              <div>
+                <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Strategic Narratives</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                  {charter.custom_sections.pageTwo.map((section) => (
+                    <PageOneContainerCard
+                      key={`page-two-${section.id}`}
+                      title={section.title}
+                      meta={section.meta}
+                      body={section.body}
+                    />
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>
