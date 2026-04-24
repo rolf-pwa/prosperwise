@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useGoogleStatus, useSyncCharterDriveSources } from "@/hooks/useGoogle";
+import { useAutoSave, AutoSaveIndicator } from "@/hooks/useAutoSave";
 import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
