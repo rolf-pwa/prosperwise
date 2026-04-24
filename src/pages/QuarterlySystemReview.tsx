@@ -446,7 +446,7 @@ export default function QuarterlySystemReview() {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3mm" }}>
-              <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", borderTop: "3px solid #A98C5A", padding: "3mm 4mm" }}>
+              <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", padding: "3mm 4mm" }}>
                 <div style={{ fontSize: "6.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#A98C5A", marginBottom: "1.5mm", fontWeight: 600 }}>
                   Primary Goal
                 </div>
@@ -454,7 +454,7 @@ export default function QuarterlySystemReview() {
                   {review.primary_goal || ""}
                 </p>
               </div>
-              <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", borderTop: "3px solid #A98C5A", padding: "3mm 4mm" }}>
+              <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", padding: "3mm 4mm" }}>
                 <div style={{ fontSize: "6.5pt", letterSpacing: ".1em", textTransform: "uppercase", color: "#A98C5A", marginBottom: "1.5mm", fontWeight: 600 }}>
                   Long-Term Vision
                 </div>
@@ -463,6 +463,8 @@ export default function QuarterlySystemReview() {
                 </p>
               </div>
             </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #D3C5B7", margin: "0" }} />
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3mm" }}>
               <StatusCard label="Sovereignty Charter" status={review.charter_status} detail={review.charter_detail} />
