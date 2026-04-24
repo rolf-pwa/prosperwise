@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useGoogleStatus, useSyncCharterDriveSources } from "@/hooks/useGoogle";
+import { useAutoSave, AutoSaveIndicator } from "@/hooks/useAutoSave";
 import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
@@ -262,7 +263,6 @@ export default function SovereigntyCharter() {
   const syncDriveSources = useSyncCharterDriveSources();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [ratifying, setRatifying] = useState(false);
   const [sendingForESign, setSendingForESign] = useState(false);
@@ -917,83 +917,91 @@ export default function SovereigntyCharter() {
     await load();
   };
 
-  const save = async () => {
-    if (!charter || !contactId) return;
-    setSaving(true);
+  const persistCharter = async (current: CharterRecord): Promise<boolean> => {
+    if (!contactId) return false;
 
     const payload = {
       contact_id: contactId,
-      title: charter.title,
-      subtitle: charter.subtitle,
-      intro_heading: charter.intro_heading,
-      intro_callout: charter.intro_callout,
-      intro_note: charter.intro_note,
-      mission_of_capital: charter.mission_of_capital,
-      vision_20_year: charter.vision_20_year,
-      governance_authority: charter.governance_authority,
-      conflict_resolution: charter.conflict_resolution,
-      fiduciary_alliance: charter.fiduciary_alliance,
-      quiet_period: charter.quiet_period,
-      architecture_intro: charter.architecture_intro,
-      protected_assets_note: charter.protected_assets_note,
-      harvest_accounts_note: charter.harvest_accounts_note,
-      appendix_note: charter.appendix_note,
-      footer_status: charter.footer_status,
-      footer_date_label: charter.footer_date_label,
-      full_markdown: charter.full_markdown,
-      custom_sections: charter.custom_sections,
-      // ── Phase 2 structured fields ─────────────────────────────────────
-      transition_summary: charter.transition_summary,
-      primary_goal: charter.primary_goal,
-      long_term_strategy: charter.long_term_strategy,
-      monitoring_cadence: charter.monitoring_cadence,
-      withdrawal_safeguards: charter.withdrawal_safeguards,
-      roles_responsibilities: charter.roles_responsibilities,
-      professional_coordination: charter.professional_coordination,
-      secondary_quiet_period_rule: charter.secondary_quiet_period_rule,
-      growth_primary_label: charter.growth_primary_label,
-      growth_primary_value: charter.growth_primary_value,
-      growth_primary_detail: charter.growth_primary_detail,
-      growth_secondary_label: charter.growth_secondary_label,
-      growth_secondary_value: charter.growth_secondary_value,
-      growth_secondary_detail: charter.growth_secondary_detail,
-      storehouse_liquidity_value: charter.storehouse_liquidity_value,
-      storehouse_liquidity_detail: charter.storehouse_liquidity_detail,
-      storehouse_strategic_value: charter.storehouse_strategic_value,
-      storehouse_strategic_detail: charter.storehouse_strategic_detail,
-      storehouse_philanthropic_detail: charter.storehouse_philanthropic_detail,
-      storehouse_legacy_detail: charter.storehouse_legacy_detail,
-      harvest_target_income: charter.harvest_target_income,
-      harvest_yield_protocol: charter.harvest_yield_protocol,
-      harvest_spending_categories: charter.harvest_spending_categories,
-      harvest_review_date: charter.harvest_review_date,
-      executor_primary: charter.executor_primary,
-      executor_alternate: charter.executor_alternate,
-      succession_terms: charter.succession_terms,
-      ratification_signatories: charter.ratification_signatories,
+      title: current.title,
+      subtitle: current.subtitle,
+      intro_heading: current.intro_heading,
+      intro_callout: current.intro_callout,
+      intro_note: current.intro_note,
+      mission_of_capital: current.mission_of_capital,
+      vision_20_year: current.vision_20_year,
+      governance_authority: current.governance_authority,
+      conflict_resolution: current.conflict_resolution,
+      fiduciary_alliance: current.fiduciary_alliance,
+      quiet_period: current.quiet_period,
+      architecture_intro: current.architecture_intro,
+      protected_assets_note: current.protected_assets_note,
+      harvest_accounts_note: current.harvest_accounts_note,
+      appendix_note: current.appendix_note,
+      footer_status: current.footer_status,
+      footer_date_label: current.footer_date_label,
+      full_markdown: current.full_markdown,
+      custom_sections: current.custom_sections,
+      transition_summary: current.transition_summary,
+      primary_goal: current.primary_goal,
+      long_term_strategy: current.long_term_strategy,
+      monitoring_cadence: current.monitoring_cadence,
+      withdrawal_safeguards: current.withdrawal_safeguards,
+      roles_responsibilities: current.roles_responsibilities,
+      professional_coordination: current.professional_coordination,
+      secondary_quiet_period_rule: current.secondary_quiet_period_rule,
+      growth_primary_label: current.growth_primary_label,
+      growth_primary_value: current.growth_primary_value,
+      growth_primary_detail: current.growth_primary_detail,
+      growth_secondary_label: current.growth_secondary_label,
+      growth_secondary_value: current.growth_secondary_value,
+      growth_secondary_detail: current.growth_secondary_detail,
+      storehouse_liquidity_value: current.storehouse_liquidity_value,
+      storehouse_liquidity_detail: current.storehouse_liquidity_detail,
+      storehouse_strategic_value: current.storehouse_strategic_value,
+      storehouse_strategic_detail: current.storehouse_strategic_detail,
+      storehouse_philanthropic_detail: current.storehouse_philanthropic_detail,
+      storehouse_legacy_detail: current.storehouse_legacy_detail,
+      harvest_target_income: current.harvest_target_income,
+      harvest_yield_protocol: current.harvest_yield_protocol,
+      harvest_spending_categories: current.harvest_spending_categories,
+      harvest_review_date: current.harvest_review_date,
+      executor_primary: current.executor_primary,
+      executor_alternate: current.executor_alternate,
+      succession_terms: current.succession_terms,
+      ratification_signatories: current.ratification_signatories,
     };
 
-    const query = charter.id
-      ? supabase.from("sovereignty_charters" as any).update(payload).eq("id", charter.id)
+    const query = current.id
+      ? supabase.from("sovereignty_charters" as any).update(payload).eq("id", current.id)
       : supabase.from("sovereignty_charters" as any).insert(payload).select("id").single();
 
     const { data, error } = await query;
-    setSaving(false);
-
     if (error) {
       toast.error(error.message);
-      return;
+      return false;
     }
 
     const insertedCharter = data as { id?: string } | null;
-
-    if (!charter.id && insertedCharter?.id) {
-      setCharter((current) => (current ? { ...current, id: insertedCharter.id } : current));
+    if (!current.id && insertedCharter?.id) {
+      setCharter((c) => (c ? { ...c, id: insertedCharter.id } : c));
     }
+    return true;
+  };
 
-    toast.success("Sovereignty Charter saved");
-    setEditing(false);
-    load();
+  const autoSave = useAutoSave<CharterRecord>({
+    data: charter,
+    enabled: editing,
+    autoDetectDirty: true,
+    onSave: persistCharter,
+  });
+
+  const save = async () => {
+    const ok = await autoSave.flush();
+    if (ok) {
+      toast.success("Sovereignty Charter saved");
+      setEditing(false);
+      load();
+    }
   };
 
   if (loading) {
@@ -1029,18 +1037,23 @@ export default function SovereigntyCharter() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {editing && <AutoSaveIndicator status={autoSave} />}
             {editing ? (
               <>
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>
-                  Cancel
+                <Button size="sm" variant="outline" onClick={async () => {
+                  if (autoSave.isDirty) await autoSave.flush();
+                  setEditing(false);
+                  load();
+                }}>
+                  Done
                 </Button>
-                <Button size="sm" variant="outline" onClick={generateDraft} disabled={saving || drafting}>
+                <Button size="sm" variant="outline" onClick={generateDraft} disabled={autoSave.saving || drafting}>
                   {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
                   Generate draft
                 </Button>
-                <Button size="sm" onClick={save} disabled={saving}>
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save
+                <Button size="sm" onClick={save} disabled={autoSave.saving}>
+                  {autoSave.saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save & Close
                 </Button>
               </>
             ) : (

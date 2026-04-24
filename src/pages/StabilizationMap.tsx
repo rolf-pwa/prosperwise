@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { useAutoSave, AutoSaveIndicator } from "@/hooks/useAutoSave";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
 type StatusKind = "red" | "amber" | "green";
@@ -64,8 +65,24 @@ export default function StabilizationMap() {
   const [map, setMap] = useState<SMap | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+
+  const autoSave = useAutoSave<SMap>({
+    data: map,
+    enabled: editing,
+    onSave: async (current) => {
+      const { id: _, lead_id: __, contact_id: ___, generation_error: ____, ...rest } = current;
+      const { error } = await supabase
+        .from("stabilization_maps" as any)
+        .update({ ...rest, generation_status: "manually_edited" } as any)
+        .eq("id", current.id);
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+      return true;
+    },
+  });
 
   const load = async () => {
     if (!id) return;
@@ -116,21 +133,16 @@ export default function StabilizationMap() {
 
   const updateField = (key: keyof SMap, value: string) => {
     setMap((m) => (m ? { ...m, [key]: value } : m));
+    autoSave.markDirty();
   };
 
   const save = async () => {
-    if (!map) return;
-    setSaving(true);
-    const { id: _, lead_id: __, contact_id: ___, generation_error: ____, ...rest } = map;
-    const { error } = await supabase
-      .from("stabilization_maps" as any)
-      .update({ ...rest, generation_status: "manually_edited" } as any)
-      .eq("id", map.id);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Stabilization Map saved");
-    setEditing(false);
-    load();
+    const ok = await autoSave.flush();
+    if (ok) {
+      toast.success("Stabilization Map saved");
+      setEditing(false);
+      load();
+    }
   };
 
   const regenerate = async () => {
@@ -197,12 +209,17 @@ export default function StabilizationMap() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {editing && <AutoSaveIndicator status={autoSave} />}
             {editing ? (
               <>
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>Cancel</Button>
-                <Button size="sm" onClick={save} disabled={saving}>
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save
+                <Button size="sm" variant="outline" onClick={async () => {
+                  if (autoSave.isDirty) await autoSave.flush();
+                  setEditing(false);
+                  load();
+                }}>Done</Button>
+                <Button size="sm" onClick={save} disabled={autoSave.saving}>
+                  {autoSave.saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save & Close
                 </Button>
               </>
             ) : (
