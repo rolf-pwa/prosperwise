@@ -1082,12 +1082,12 @@ export default function SovereigntyCharter() {
                   <>
                     <Button size="sm" variant="outline" disabled>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Awaiting signatures
+                      Awaiting signed PDF in Resources
                     </Button>
                     {charter.esign_doc_url && (
                       <Button size="sm" variant="outline" asChild>
                         <a href={charter.esign_doc_url} target="_blank" rel="noreferrer noopener">
-                          <ExternalLink className="mr-2 h-4 w-4" /> Open signing doc
+                          <ExternalLink className="mr-2 h-4 w-4" /> Open in Drive
                         </a>
                       </Button>
                     )}
