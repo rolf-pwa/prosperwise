@@ -22,6 +22,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
+const RESOURCES_FOLDER_NAME = "Resources";
+const SIGNED_FILENAME_MARKER = "completed-adobe sign"; // case-insensitive substring
+
 async function getValidTokenForUser(supabaseAdmin: any, userId: string): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("google_tokens")
@@ -52,87 +55,142 @@ async function getValidTokenForUser(supabaseAdmin: any, userId: string): Promise
   return data.access_token;
 }
 
-async function pollOne(supabaseAdmin: any, charter: any): Promise<{ id: string; status: string; note?: string }> {
-  const docId = charter.esign_doc_id;
+function extractFolderId(driveUrl: string | null): string | null {
+  if (!driveUrl) return null;
+  const m = driveUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+async function findChildFolder(
+  accessToken: string,
+  parentFolderId: string,
+  folderName: string,
+): Promise<string | null> {
+  const safeName = folderName.replace(/'/g, "\\'");
+  const q = `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and name='${safeName}' and trashed=false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  if (!res.ok) return null;
+  return data.files?.[0]?.id || null;
+}
+
+async function findSignedPdfInFolder(
+  accessToken: string,
+  folderId: string,
+): Promise<{ id: string; name: string; modifiedTime?: string } | null> {
+  const q = `'${folderId}' in parents and mimeType='application/pdf' and trashed=false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  if (!res.ok) return null;
+  const files: Array<{ id: string; name: string; modifiedTime?: string }> = data.files || [];
+  // Match either "(completed-adobe sign)" anywhere or the literal "completed-adobe sign"
+  const signed = files.find((f) =>
+    f.name.toLowerCase().includes(SIGNED_FILENAME_MARKER),
+  );
+  return signed || null;
+}
+
+async function downloadPdfBytes(accessToken: string, fileId: string): Promise<Uint8Array | null> {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) {
+    console.error("PDF download failed:", await res.text());
+    return null;
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function pollOne(
+  supabaseAdmin: any,
+  charter: any,
+): Promise<{ id: string; status: string; note?: string }> {
   const userId = charter.esign_initiated_by;
-  if (!docId || !userId) return { id: charter.id, status: "skipped", note: "missing doc_id or initiator" };
+  if (!userId) return { id: charter.id, status: "skipped", note: "missing initiator" };
+
+  // Look up contact's Drive folder
+  const { data: contact } = await supabaseAdmin
+    .from("contacts")
+    .select("id, google_drive_url")
+    .eq("id", charter.contact_id)
+    .maybeSingle();
+  if (!contact?.google_drive_url) {
+    return { id: charter.id, status: "skipped", note: "contact has no Drive folder" };
+  }
+  const rootFolderId = extractFolderId(contact.google_drive_url);
+  if (!rootFolderId) {
+    return { id: charter.id, status: "skipped", note: "invalid Drive folder URL" };
+  }
 
   const accessToken = await getValidTokenForUser(supabaseAdmin, userId);
   if (!accessToken) {
     return { id: charter.id, status: "skipped", note: "initiator has no valid Google token" };
   }
 
-  // Fetch Drive file metadata including eSignatureMetadata
-  const metaRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${docId}?fields=id,name,modifiedTime,eSignatureMetadata`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const meta = await metaRes.json();
-  if (!metaRes.ok) {
-    const errMsg = meta.error?.message || "Drive metadata fetch failed";
+  const resourcesFolderId = await findChildFolder(accessToken, rootFolderId, RESOURCES_FOLDER_NAME);
+  if (!resourcesFolderId) {
     await supabaseAdmin
       .from("sovereignty_charters")
       .update({
         esign_last_checked_at: new Date().toISOString(),
-        esign_error: errMsg,
+        esign_error: null,
       })
       .eq("id", charter.id);
-    return { id: charter.id, status: "error", note: errMsg };
+    return { id: charter.id, status: "pending", note: "Resources folder not found yet" };
   }
 
-  const esign = meta.eSignatureMetadata;
-  const status = esign?.status || esign?.signatureStatus; // status may be e.g. "COMPLETED" or "IN_PROGRESS"
-
-  if (status === "COMPLETED") {
-    // Export signed PDF
-    const exportRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=application/pdf`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    let storedPath: string | null = null;
-    if (exportRes.ok) {
-      const pdfBytes = new Uint8Array(await exportRes.arrayBuffer());
-      const path = `signed-charters/${charter.contact_id}/${charter.id}-${Date.now()}.pdf`;
-      const { error: upErr } = await supabaseAdmin.storage
-        .from("charter-source-uploads")
-        .upload(path, pdfBytes, { contentType: "application/pdf", upsert: true });
-      if (!upErr) storedPath = path;
-      else console.error("PDF upload failed:", upErr);
-    } else {
-      console.error("PDF export failed:", await exportRes.text());
-    }
-
-    const ratifiedAt = new Date().toISOString();
+  const signed = await findSignedPdfInFolder(accessToken, resourcesFolderId);
+  if (!signed) {
     await supabaseAdmin
       .from("sovereignty_charters")
       .update({
-        esign_status: "ratified",
-        esign_signed_at: ratifiedAt,
-        esign_signed_pdf_path: storedPath,
-        esign_last_checked_at: ratifiedAt,
+        esign_last_checked_at: new Date().toISOString(),
         esign_error: null,
-        draft_status: "ratified",
-        ratified_at: ratifiedAt,
-        ratified_by: userId,
-        footer_status: "Ratified / Sovereign phase",
       })
       .eq("id", charter.id);
-
-    // Link in contact charter_url if not set
-    await supabaseAdmin
-      .from("contacts")
-      .update({ charter_url: `/sovereignty-charter/contact/${charter.contact_id}` })
-      .eq("id", charter.contact_id);
-
-    return { id: charter.id, status: "ratified" };
+    return { id: charter.id, status: "pending", note: "no signed PDF detected yet" };
   }
 
-  // Still pending
+  // Download and store the signed PDF
+  let storedPath: string | null = null;
+  const pdfBytes = await downloadPdfBytes(accessToken, signed.id);
+  if (pdfBytes) {
+    const path = `signed-charters/${charter.contact_id}/${charter.id}-${Date.now()}.pdf`;
+    const { error: upErr } = await supabaseAdmin.storage
+      .from("charter-source-uploads")
+      .upload(path, pdfBytes, { contentType: "application/pdf", upsert: true });
+    if (!upErr) storedPath = path;
+    else console.error("PDF upload failed:", upErr);
+  }
+
+  const ratifiedAt = new Date().toISOString();
   await supabaseAdmin
     .from("sovereignty_charters")
-    .update({ esign_last_checked_at: new Date().toISOString(), esign_error: null })
+    .update({
+      esign_status: "ratified",
+      esign_signed_at: ratifiedAt,
+      esign_signed_pdf_path: storedPath,
+      esign_doc_id: signed.id,
+      esign_doc_url: `https://drive.google.com/file/d/${signed.id}/view`,
+      esign_last_checked_at: ratifiedAt,
+      esign_error: null,
+      draft_status: "ratified",
+      ratified_at: ratifiedAt,
+      ratified_by: userId,
+      footer_status: "Ratified / Sovereign phase",
+    })
     .eq("id", charter.id);
-  return { id: charter.id, status: "pending", note: status || "no esign metadata yet" };
+
+  // Link in contact charter_url if not set
+  await supabaseAdmin
+    .from("contacts")
+    .update({ charter_url: `/sovereignty-charter/contact/${charter.contact_id}` })
+    .eq("id", charter.contact_id);
+
+  return { id: charter.id, status: "ratified", note: signed.name };
 }
 
 serve(async (req) => {
@@ -144,7 +202,6 @@ serve(async (req) => {
   try {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Allow optional charter_id to poll a single record (for manual refresh)
     let charterId: string | null = null;
     if (req.method === "POST") {
       try {
@@ -157,15 +214,14 @@ serve(async (req) => {
 
     let query = supabaseAdmin
       .from("sovereignty_charters")
-      .select("id, contact_id, esign_doc_id, esign_initiated_by, esign_status")
+      .select("id, contact_id, esign_initiated_by, esign_status")
       .eq("esign_status", "sent")
-      .not("esign_doc_id", "is", null)
       .limit(50);
 
     if (charterId) {
       query = supabaseAdmin
         .from("sovereignty_charters")
-        .select("id, contact_id, esign_doc_id, esign_initiated_by, esign_status")
+        .select("id, contact_id, esign_initiated_by, esign_status")
         .eq("id", charterId);
     }
 
@@ -185,13 +241,13 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ ok: true, checked: results.length, results }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("charter-esign-poll error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
