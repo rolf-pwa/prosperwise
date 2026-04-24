@@ -23,6 +23,18 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
+const REQUIRED_SCOPES = [
+  "https://www.googleapis.com/auth/documents",
+  "https://www.googleapis.com/auth/drive",
+];
+
+class InsufficientScopeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InsufficientScopeError";
+  }
+}
+
 async function getValidToken(supabaseAdmin: any, userId: string): Promise<string> {
   const { data, error } = await supabaseAdmin
     .from("google_tokens")
@@ -30,7 +42,14 @@ async function getValidToken(supabaseAdmin: any, userId: string): Promise<string
     .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) {
-    throw new Error("Google not connected. Please reconnect with Drive + Docs access.");
+    throw new InsufficientScopeError("Google not connected. Please reconnect with Drive + Docs access in Settings → Google.");
+  }
+  const grantedScopes: string[] = Array.isArray(data.scopes) ? data.scopes : [];
+  const missing = REQUIRED_SCOPES.filter((s) => !grantedScopes.includes(s));
+  if (missing.length > 0) {
+    throw new InsufficientScopeError(
+      "Your Google connection is missing required permissions for Docs and Drive. Please go to Settings → Google, disconnect, and reconnect to grant the new permissions.",
+    );
   }
   if (new Date(data.token_expiry) <= new Date()) {
     const res = await fetch("https://oauth2.googleapis.com/token", {
