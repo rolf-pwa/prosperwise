@@ -502,9 +502,12 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
 
   const changedFiles = allFiles.filter((file) => {
     const prevModified = existingMap.get(file.id);
-    if (prevModified === undefined) return true; // new file
+    const existingSource = (syncedSources || []).find((row: any) => row.external_file_id === file.id);
     const currentModified = file.modifiedTime || file.createdTime || null;
-    return prevModified !== currentModified; // re-import only if modified
+    if (prevModified === undefined) return true; // new file
+    if (prevModified !== currentModified) return true; // updated file
+    if (existingSource?.sync_error) return true; // retry prior failed imports
+    return !hasRenderableExtractedText(existingSource?.extracted_text); // retry placeholder/empty text
   });
 
   let importedCount = 0;
