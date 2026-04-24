@@ -662,6 +662,32 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
       if (error) throw error;
       importedCount += 1;
       importedIds.add(file.id);
+
+      // When a Quarterly Governance Review is freshly imported, create an internal
+      // Asana task with one subtask per priority captured in quarterly_system_reviews.
+      if (sourceKind === "quarterly_review") {
+        const parentTaskGid = extractTaskGid(contact.asana_url);
+        const projectGid = extractProjectGid(contact.asana_url);
+        const asanaToken = Deno.env.get("ASANA_ACCESS_TOKEN");
+        if (parentTaskGid && asanaToken) {
+          try {
+            await createReviewActionTask(
+              supabaseAdmin,
+              contactId,
+              contact.full_name,
+              parentTaskGid,
+              projectGid,
+              file.name,
+              file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
+              asanaToken,
+            );
+          } catch (taskErr) {
+            console.error(`[DriveWatch] Review action task creation failed for contact ${contactId}:`, taskErr);
+          }
+        } else {
+          console.warn(`[DriveWatch] Skipping review action task — missing parent task or Asana token (contact ${contactId}).`);
+        }
+      }
     } catch (error) {
       console.error(`[DriveWatch] Charter sync failed for ${file.name}:`, error);
       await supabaseAdmin.from("sovereignty_charter_sources").upsert({
