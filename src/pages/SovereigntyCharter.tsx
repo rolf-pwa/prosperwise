@@ -1065,15 +1065,8 @@ export default function SovereigntyCharter() {
                   <>
                     <Button size="sm" variant="outline" disabled>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Awaiting signed PDF in Resources
+                      Awaiting signed PDF in Drive
                     </Button>
-                    {charter.esign_doc_url && (
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={charter.esign_doc_url} target="_blank" rel="noreferrer noopener">
-                          <ExternalLink className="mr-2 h-4 w-4" /> Open in Drive
-                        </a>
-                      </Button>
-                    )}
                     <Button size="sm" variant="outline" onClick={refreshESignStatus} disabled={refreshingESign}>
                       {refreshingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Check status
@@ -1084,9 +1077,9 @@ export default function SovereigntyCharter() {
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" onClick={sendCharterForESign} disabled={sendingForESign || !googleStatus.data?.connected}>
+                  <Button size="sm" onClick={sendCharterForESign} disabled={sendingForESign}>
                     {sendingForESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                    Send for E-Signature
+                    Mark as Sent for Signature
                   </Button>
                 )}
                 {sourceCharterUrl && (
