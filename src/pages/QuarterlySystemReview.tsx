@@ -678,6 +678,11 @@ function EditorForm({ review, onChange }: { review: QuarterlyReview; onChange: (
       </div>
       {F("review_summary", "Review Summary", true)}
       {F("alignment_overview", "Alignment Overview", true)}
+      {F("purpose_statement", "Purpose Statement (Charter intro callout)", true)}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {F("primary_goal", "Primary Goal", true)}
+        {F("long_term_vision", "Long-Term Vision", true)}
+      </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-[#A98C5A]">Alignment Gaps</div>
