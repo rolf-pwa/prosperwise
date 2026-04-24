@@ -638,10 +638,10 @@ class AsanaService {
     return withFailSafe("verifyTaskBelongsToProject", async () => {
       let currentGid: string | null = taskGid;
       for (let depth = 0; depth < 4 && currentGid; depth++) {
-        const url = `${ASANA_BASE_URL}/tasks/${currentGid}?opt_fields=memberships.project.gid,parent.gid`;
-        const res = await fetch(url, { headers: this.headers() });
+        const url: string = `${ASANA_BASE_URL}/tasks/${currentGid}?opt_fields=memberships.project.gid,parent.gid`;
+        const res: Response = await fetch(url, { headers: this.headers() });
         if (!res.ok) return false;
-        const json = await res.json();
+        const json: any = await res.json();
         const memberships = json.data?.memberships || [];
         if (memberships.some((m: any) => m.project?.gid === projectGid)) return true;
         currentGid = json.data?.parent?.gid || null;

@@ -367,7 +367,7 @@ serve(async (req) => {
       const householdId = contactRes.data?.household_id;
 
       if (familyId || householdId) {
-        const extraQueries: Promise<any>[] = [];
+        const extraQueries: any[] = [];
         if (familyId) {
           extraQueries.push(supabase.from("families").select("id, name, charter_document_url, fee_tier, total_family_assets").eq("id", familyId).maybeSingle());
         } else {
@@ -483,7 +483,7 @@ serve(async (req) => {
       let householdMembers: any[] = [];
 
       if (contact.family_id || contact.household_id) {
-        const extraQueries: Promise<any>[] = [];
+        const extraQueries: any[] = [];
         if (contact.family_id) {
           extraQueries.push(supabase.from("families").select("id, name, charter_document_url, fee_tier, total_family_assets").eq("id", contact.family_id).maybeSingle());
         } else {
