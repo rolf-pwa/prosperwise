@@ -571,6 +571,10 @@ serve(async (req) => {
       // Fetch calendar meetings
       const meetings = await fetchMeetingsForContact(supabase, contact.email);
 
+      // Pinned Quarterly Reviews
+      const reviewMemberIds = [contact.id, ...householdMembers.map((m: any) => m.id)];
+      const quarterly_reviews = await fetchQuarterlyReviews(supabase, reviewMemberIds);
+
       return new Response(JSON.stringify({
         portal_token: newToken?.token || null,
         contact,
@@ -584,6 +588,7 @@ serve(async (req) => {
         household_members: householdMembers,
         hierarchy,
         corporations,
+        quarterly_reviews,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
