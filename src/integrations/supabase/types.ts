@@ -1899,27 +1899,55 @@ export type Database = {
           created_at: string
           custom_sections: Json
           draft_status: string
+          executor_alternate: string | null
+          executor_primary: string | null
           fiduciary_alliance: string | null
           footer_date_label: string | null
           footer_status: string | null
           full_markdown: string | null
           generation_summary: string | null
           governance_authority: string | null
+          growth_primary_detail: string | null
+          growth_primary_label: string | null
+          growth_primary_value: number | null
+          growth_secondary_detail: string | null
+          growth_secondary_label: string | null
+          growth_secondary_value: number | null
           harvest_accounts_note: string | null
+          harvest_review_date: string | null
+          harvest_spending_categories: string | null
+          harvest_target_income: number | null
+          harvest_yield_protocol: string | null
           id: string
           intro_callout: string | null
           intro_heading: string | null
           intro_note: string | null
           last_generated_at: string | null
+          long_term_strategy: string | null
           mission_of_capital: string | null
+          monitoring_cadence: string | null
+          primary_goal: string | null
+          professional_coordination: string | null
           protected_assets_note: string | null
           quiet_period: string | null
+          ratification_signatories: Json
           ratified_at: string | null
           ratified_by: string | null
+          roles_responsibilities: string | null
+          secondary_quiet_period_rule: string | null
+          storehouse_legacy_detail: string | null
+          storehouse_liquidity_detail: string | null
+          storehouse_liquidity_value: number | null
+          storehouse_philanthropic_detail: string | null
+          storehouse_strategic_detail: string | null
+          storehouse_strategic_value: number | null
           subtitle: string | null
+          succession_terms: string | null
           title: string | null
+          transition_summary: string | null
           updated_at: string
           vision_20_year: string | null
+          withdrawal_safeguards: string | null
         }
         Insert: {
           appendix_note?: string | null
@@ -1929,27 +1957,55 @@ export type Database = {
           created_at?: string
           custom_sections?: Json
           draft_status?: string
+          executor_alternate?: string | null
+          executor_primary?: string | null
           fiduciary_alliance?: string | null
           footer_date_label?: string | null
           footer_status?: string | null
           full_markdown?: string | null
           generation_summary?: string | null
           governance_authority?: string | null
+          growth_primary_detail?: string | null
+          growth_primary_label?: string | null
+          growth_primary_value?: number | null
+          growth_secondary_detail?: string | null
+          growth_secondary_label?: string | null
+          growth_secondary_value?: number | null
           harvest_accounts_note?: string | null
+          harvest_review_date?: string | null
+          harvest_spending_categories?: string | null
+          harvest_target_income?: number | null
+          harvest_yield_protocol?: string | null
           id?: string
           intro_callout?: string | null
           intro_heading?: string | null
           intro_note?: string | null
           last_generated_at?: string | null
+          long_term_strategy?: string | null
           mission_of_capital?: string | null
+          monitoring_cadence?: string | null
+          primary_goal?: string | null
+          professional_coordination?: string | null
           protected_assets_note?: string | null
           quiet_period?: string | null
+          ratification_signatories?: Json
           ratified_at?: string | null
           ratified_by?: string | null
+          roles_responsibilities?: string | null
+          secondary_quiet_period_rule?: string | null
+          storehouse_legacy_detail?: string | null
+          storehouse_liquidity_detail?: string | null
+          storehouse_liquidity_value?: number | null
+          storehouse_philanthropic_detail?: string | null
+          storehouse_strategic_detail?: string | null
+          storehouse_strategic_value?: number | null
           subtitle?: string | null
+          succession_terms?: string | null
           title?: string | null
+          transition_summary?: string | null
           updated_at?: string
           vision_20_year?: string | null
+          withdrawal_safeguards?: string | null
         }
         Update: {
           appendix_note?: string | null
@@ -1959,27 +2015,55 @@ export type Database = {
           created_at?: string
           custom_sections?: Json
           draft_status?: string
+          executor_alternate?: string | null
+          executor_primary?: string | null
           fiduciary_alliance?: string | null
           footer_date_label?: string | null
           footer_status?: string | null
           full_markdown?: string | null
           generation_summary?: string | null
           governance_authority?: string | null
+          growth_primary_detail?: string | null
+          growth_primary_label?: string | null
+          growth_primary_value?: number | null
+          growth_secondary_detail?: string | null
+          growth_secondary_label?: string | null
+          growth_secondary_value?: number | null
           harvest_accounts_note?: string | null
+          harvest_review_date?: string | null
+          harvest_spending_categories?: string | null
+          harvest_target_income?: number | null
+          harvest_yield_protocol?: string | null
           id?: string
           intro_callout?: string | null
           intro_heading?: string | null
           intro_note?: string | null
           last_generated_at?: string | null
+          long_term_strategy?: string | null
           mission_of_capital?: string | null
+          monitoring_cadence?: string | null
+          primary_goal?: string | null
+          professional_coordination?: string | null
           protected_assets_note?: string | null
           quiet_period?: string | null
+          ratification_signatories?: Json
           ratified_at?: string | null
           ratified_by?: string | null
+          roles_responsibilities?: string | null
+          secondary_quiet_period_rule?: string | null
+          storehouse_legacy_detail?: string | null
+          storehouse_liquidity_detail?: string | null
+          storehouse_liquidity_value?: number | null
+          storehouse_philanthropic_detail?: string | null
+          storehouse_strategic_detail?: string | null
+          storehouse_strategic_value?: number | null
           subtitle?: string | null
+          succession_terms?: string | null
           title?: string | null
+          transition_summary?: string | null
           updated_at?: string
           vision_20_year?: string | null
+          withdrawal_safeguards?: string | null
         }
         Relationships: [
           {
