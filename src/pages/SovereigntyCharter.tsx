@@ -1598,7 +1598,7 @@ export default function SovereigntyCharter() {
                           <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>{signatory.name || "—"}</td>
                           <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>{signatory.role || "—"}</td>
                           <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>
-                            {signatory.signed_at ? formatDate(signatory.signed_at, signatory.signed_at) : "Pending"}
+                            {signatory.signed_at ? formatDate(signatory.signed_at, signatory.signed_at) : "—"}
                           </td>
                         </tr>
                       ))}
