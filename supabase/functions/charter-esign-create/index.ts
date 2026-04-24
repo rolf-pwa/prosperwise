@@ -378,6 +378,7 @@ serve(async (req) => {
         esign_doc_id: docId,
         esign_doc_url: docUrl,
         esign_sent_at: sentAt,
+        esign_initiated_by: user.id,
         esign_error: null,
       })
       .eq("id", charter_id);

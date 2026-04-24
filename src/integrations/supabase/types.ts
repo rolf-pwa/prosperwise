@@ -1902,6 +1902,7 @@ export type Database = {
           esign_doc_id: string | null
           esign_doc_url: string | null
           esign_error: string | null
+          esign_initiated_by: string | null
           esign_last_checked_at: string | null
           esign_sent_at: string | null
           esign_signed_at: string | null
@@ -1968,6 +1969,7 @@ export type Database = {
           esign_doc_id?: string | null
           esign_doc_url?: string | null
           esign_error?: string | null
+          esign_initiated_by?: string | null
           esign_last_checked_at?: string | null
           esign_sent_at?: string | null
           esign_signed_at?: string | null
@@ -2034,6 +2036,7 @@ export type Database = {
           esign_doc_id?: string | null
           esign_doc_url?: string | null
           esign_error?: string | null
+          esign_initiated_by?: string | null
           esign_last_checked_at?: string | null
           esign_sent_at?: string | null
           esign_signed_at?: string | null
