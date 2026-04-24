@@ -1027,10 +1027,35 @@ export default function SovereigntyCharter() {
                   {syncDriveSources.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FolderSync className="mr-2 h-4 w-4" />}
                   Sync Drive folder
                 </Button>
-                <Button size="sm" onClick={ratifyCharter} disabled={ratifying || charter.draft_status === "ratified"}>
-                  {ratifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                  {charter.draft_status === "ratified" ? "Ratified" : "Ratify charter"}
-                </Button>
+                {charter.draft_status === "ratified" || charter.esign_status === "ratified" ? (
+                  <Button size="sm" disabled variant="outline">
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                    Ratified {charter.esign_signed_at ? `· ${formatDate(charter.esign_signed_at, "")}` : ""}
+                  </Button>
+                ) : charter.esign_status === "sent" ? (
+                  <>
+                    <Button size="sm" variant="outline" disabled>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Awaiting signatures
+                    </Button>
+                    {charter.esign_doc_url && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={charter.esign_doc_url} target="_blank" rel="noreferrer noopener">
+                          <ExternalLink className="mr-2 h-4 w-4" /> Open signing doc
+                        </a>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={refreshESignStatus} disabled={refreshingESign}>
+                      {refreshingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                      Check status
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="sm" onClick={sendCharterForESign} disabled={sendingForESign || !googleStatus.data?.connected}>
+                    {sendingForESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    Send for E-Signature
+                  </Button>
+                )}
                 {sourceCharterUrl && (
                   <Button size="sm" variant="outline" asChild>
                     <a href={sourceCharterUrl} target="_blank" rel="noreferrer noopener">
