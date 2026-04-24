@@ -236,7 +236,7 @@ if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders }
     const householdId = contactRes.data?.household_id;
 
     if (familyId || householdId) {
-      const extraQueries: any[] = [];
+      const extraQueries: Promise<any>[] = [];
       
       if (familyId) {
         extraQueries.push(
