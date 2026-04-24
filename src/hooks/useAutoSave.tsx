@@ -68,14 +68,24 @@ export function useAutoSave<T>({ data, enabled, onSave, delay = 1500, autoDetect
   const markDirty = useCallback(() => {
     setIsDirty(true);
   }, []);
-    } finally {
-      setSaving(false);
-    }
-  }, []);
 
-  const markDirty = useCallback(() => {
-    setIsDirty(true);
-  }, []);
+  // Capture baseline when editing begins (auto-detect mode)
+  useEffect(() => {
+    if (!autoDetectDirty) return;
+    if (enabled && !wasEnabledRef.current) {
+      baselineRef.current = data ? JSON.stringify(data) : null;
+      setIsDirty(false);
+    }
+    wasEnabledRef.current = enabled;
+  }, [enabled, data, autoDetectDirty]);
+
+  // Auto-detect dirty by comparing data to baseline
+  useEffect(() => {
+    if (!autoDetectDirty || !enabled) return;
+    if (!data || baselineRef.current == null) return;
+    const current = JSON.stringify(data);
+    if (current !== baselineRef.current) setIsDirty(true);
+  }, [data, enabled, autoDetectDirty]);
 
   const reset = useCallback(() => {
     if (timerRef.current) {
