@@ -209,12 +209,17 @@ export default function StabilizationMap() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {editing && <AutoSaveIndicator status={autoSave} />}
             {editing ? (
               <>
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>Cancel</Button>
-                <Button size="sm" onClick={save} disabled={saving}>
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save
+                <Button size="sm" variant="outline" onClick={async () => {
+                  if (autoSave.isDirty) await autoSave.flush();
+                  setEditing(false);
+                  load();
+                }}>Done</Button>
+                <Button size="sm" onClick={save} disabled={autoSave.saving}>
+                  {autoSave.saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save & Close
                 </Button>
               </>
             ) : (
