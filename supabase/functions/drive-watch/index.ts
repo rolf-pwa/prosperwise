@@ -446,10 +446,120 @@ async function processSignedDocsWatch(supabaseAdmin: any, accessToken: string, a
   return { success: true, foldersScanned: folderMap.size, contactsScanned: contacts.length, totalNewFiles, results };
 }
 
+async function findExistingSubtaskByName(parentTaskGid: string, name: string, asanaToken: string): Promise<string | null> {
+  const url = `${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks?opt_fields=name,gid&limit=100`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" } });
+  if (!res.ok) return null;
+  const json = await res.json();
+  const match = (json.data || []).find((t: any) => (t.name || "").trim() === name.trim());
+  return match?.gid || null;
+}
+
+async function createPlainSubtask(parentTaskGid: string, projectGid: string | null, name: string, notes: string, asanaToken: string): Promise<string | null> {
+  const taskData = { data: { name, notes } };
+  const res = await fetch(`${ASANA_BASE_URL}/tasks/${parentTaskGid}/subtasks`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(taskData),
+  });
+  if (!res.ok) {
+    console.error(`[DriveWatch] Failed to create subtask "${name}":`, await res.text());
+    return null;
+  }
+  const subtaskGid = (await res.json()).data?.gid;
+  if (!subtaskGid) return null;
+
+  if (projectGid) {
+    await fetch(`${ASANA_BASE_URL}/tasks/${subtaskGid}/addProject`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ data: { project: projectGid } }),
+    });
+  }
+
+  // Mark Internal Only via the parent's PW_Visibility custom field
+  const visInfo = await lookupVisibilityField(parentTaskGid, asanaToken);
+  if (visInfo) {
+    await fetch(`${ASANA_BASE_URL}/tasks/${subtaskGid}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${asanaToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ data: { custom_fields: { [visInfo.fieldGid]: visInfo.internalOnlyGid } } }),
+    });
+  }
+
+  return subtaskGid;
+}
+
+async function createReviewActionTask(
+  supabaseAdmin: any,
+  contactId: string,
+  contactName: string,
+  parentTaskGid: string,
+  projectGid: string | null,
+  fileName: string,
+  fileUrl: string,
+  asanaToken: string,
+): Promise<void> {
+  // Pull the most recent quarterly review for this contact
+  const { data: review, error: reviewErr } = await supabaseAdmin
+    .from("quarterly_system_reviews")
+    .select("id, review_date, priority_1, priority_2, priority_3, priority_4, priority_5")
+    .eq("contact_id", contactId)
+    .order("review_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (reviewErr || !review) {
+    console.warn(`[DriveWatch] No quarterly_system_reviews row for contact ${contactId}; skipping action task.`);
+    return;
+  }
+
+  const priorities = [review.priority_1, review.priority_2, review.priority_3, review.priority_4, review.priority_5]
+    .map((p) => (p || "").trim())
+    .filter((p) => p.length > 0);
+
+  if (priorities.length === 0) {
+    console.log(`[DriveWatch] Quarterly review ${review.id} has no priorities; skipping action task.`);
+    return;
+  }
+
+  const reviewDateLabel = review.review_date || new Date().toISOString().split("T")[0];
+  const parentName = `Quarterly Governance Review priorities — ${reviewDateLabel}`;
+
+  // Idempotency: skip if a subtask with this exact name already exists under the contact's parent task
+  const existing = await findExistingSubtaskByName(parentTaskGid, parentName, asanaToken);
+  if (existing) {
+    console.log(`[DriveWatch] Action task already exists for review ${review.id} (subtask gid ${existing}); skipping.`);
+    return;
+  }
+
+  const parentNotes = `Internal action items derived from the latest Quarterly Governance Review for ${contactName}.
+
+Review document: ${fileName}
+${fileUrl}
+
+Each subtask below corresponds to a priority captured in the review. Resolve them before the next quarterly cycle.`;
+
+  const reviewParentGid = await createPlainSubtask(parentTaskGid, projectGid, parentName, parentNotes, asanaToken);
+  if (!reviewParentGid) {
+    console.error(`[DriveWatch] Failed to create review action parent task for contact ${contactId}.`);
+    return;
+  }
+
+  for (let i = 0; i < priorities.length; i++) {
+    const priorityText = priorities[i];
+    const subtaskName = `Priority ${i + 1}: ${priorityText.length > 120 ? priorityText.slice(0, 117) + "…" : priorityText}`;
+    const subtaskNotes = `${priorityText}\n\nFrom Quarterly Governance Review (${reviewDateLabel}) for ${contactName}.`;
+    await createPlainSubtask(reviewParentGid, projectGid, subtaskName, subtaskNotes, asanaToken);
+  }
+
+  console.log(`[DriveWatch] Created review action task with ${priorities.length} priority subtasks for contact ${contactId}.`);
+}
+
 async function processCharterFolderSync(supabaseAdmin: any, accessToken: string, contactId: string) {
   const { data: contact, error: contactError } = await supabaseAdmin
     .from("contacts")
-    .select("id, full_name, google_drive_url")
+    .select("id, full_name, google_drive_url, asana_url")
     .eq("id", contactId)
     .maybeSingle();
 
