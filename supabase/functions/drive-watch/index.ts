@@ -491,23 +491,28 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
 
   const { data: existingSources } = await supabaseAdmin
     .from("sovereignty_charter_sources")
-    .select("external_file_id, external_modified_at")
+    .select("external_file_id, external_modified_at, sync_error, extracted_text")
     .eq("contact_id", contactId)
     .not("external_file_id", "is", null);
 
-  const existingMap = new Map<string, string | null>();
+  const existingMap = new Map<string, { modifiedAt: string | null; syncError: string | null; extractedText: string | null }>();
   for (const row of existingSources || []) {
-    if (row.external_file_id) existingMap.set(row.external_file_id, row.external_modified_at || null);
+    if (row.external_file_id) {
+      existingMap.set(row.external_file_id, {
+        modifiedAt: row.external_modified_at || null,
+        syncError: row.sync_error || null,
+        extractedText: row.extracted_text || null,
+      });
+    }
   }
 
   const changedFiles = allFiles.filter((file) => {
-    const prevModified = existingMap.get(file.id);
-    const existingSource = (syncedSources || []).find((row: any) => row.external_file_id === file.id);
+    const existingSource = existingMap.get(file.id);
     const currentModified = file.modifiedTime || file.createdTime || null;
-    if (prevModified === undefined) return true; // new file
-    if (prevModified !== currentModified) return true; // updated file
-    if (existingSource?.sync_error) return true; // retry prior failed imports
-    return !hasRenderableExtractedText(existingSource?.extracted_text); // retry placeholder/empty text
+    if (!existingSource) return true; // new file
+    if (existingSource.modifiedAt !== currentModified) return true; // updated file
+    if (existingSource.syncError) return true; // retry prior failed imports
+    return !hasRenderableExtractedText(existingSource.extractedText); // retry placeholder/empty text
   });
 
   let importedCount = 0;
