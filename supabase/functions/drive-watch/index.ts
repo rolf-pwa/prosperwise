@@ -370,12 +370,31 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
 
   const { data: watchState } = await supabaseAdmin
     .from("drive_watch_state")
-    .select("charter_last_checked_at")
+    .select("charter_last_checked_at, charter_last_synced_at")
     .eq("contact_id", contactId)
     .maybeSingle();
 
-  const afterTime = watchState?.charter_last_checked_at || new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const changedFiles = await listDriveFilesRecursively(accessToken, charterFolder.id, afterTime);
+  // Always scan the full folder. Idempotency is enforced by external_file_id +
+  // external_modified_at: files that haven't changed since the last import are skipped.
+  const allFiles = await listDriveFilesRecursively(accessToken, charterFolder.id, new Date(0).toISOString());
+
+  const { data: existingSources } = await supabaseAdmin
+    .from("sovereignty_charter_sources")
+    .select("external_file_id, external_modified_at")
+    .eq("contact_id", contactId)
+    .not("external_file_id", "is", null);
+
+  const existingMap = new Map<string, string | null>();
+  for (const row of existingSources || []) {
+    if (row.external_file_id) existingMap.set(row.external_file_id, row.external_modified_at || null);
+  }
+
+  const changedFiles = allFiles.filter((file) => {
+    const prevModified = existingMap.get(file.id);
+    if (prevModified === undefined) return true; // new file
+    const currentModified = file.modifiedTime || file.createdTime || null;
+    return prevModified !== currentModified; // re-import only if modified
+  });
 
   let importedCount = 0;
   const importedIds = new Set<string>();
@@ -447,7 +466,7 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
   await supabaseAdmin.from("drive_watch_state").upsert({
     contact_id: contactId,
     charter_last_checked_at: now,
-    charter_last_synced_at: importedCount > 0 ? now : null,
+    charter_last_synced_at: importedCount > 0 ? now : (watchState?.charter_last_synced_at || null),
     charter_folder_id: charterFolder.id,
     charter_sync_status: importedCount > 0 ? "synced" : "idle",
     updated_at: now,
