@@ -517,6 +517,34 @@ export default function SovereigntyCharter() {
     setCharter((current) => (current ? { ...current, [key]: value } : current));
   };
 
+  const updateNumericField = (key: keyof CharterRecord, value: string) => {
+    const parsed = value.trim() === "" ? null : Number(value);
+    setCharter((current) => (current ? { ...current, [key]: Number.isNaN(parsed as number) ? null : parsed } : current));
+  };
+
+  const addSignatory = () => {
+    setCharter((current) => current ? {
+      ...current,
+      ratification_signatories: [...current.ratification_signatories, { name: "", role: "", signed_at: null }],
+    } : current);
+  };
+
+  const removeSignatory = (index: number) => {
+    setCharter((current) => current ? {
+      ...current,
+      ratification_signatories: current.ratification_signatories.filter((_, i) => i !== index),
+    } : current);
+  };
+
+  const updateSignatory = (index: number, key: keyof Signatory, value: string) => {
+    setCharter((current) => current ? {
+      ...current,
+      ratification_signatories: current.ratification_signatories.map((s, i) =>
+        i === index ? { ...s, [key]: value } : s
+      ),
+    } : current);
+  };
+
   const updateCustomContainer = (page: keyof CustomSectionGroups, id: string, key: keyof CustomContainer, value: string) => {
     setCharter((current) => {
       if (!current) return current;
