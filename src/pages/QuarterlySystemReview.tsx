@@ -464,6 +464,13 @@ export default function QuarterlySystemReview() {
               </div>
             </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3mm" }}>
+              <StatusCard label="Sovereignty Charter" status={review.charter_status} detail={review.charter_detail} />
+              <StatusCard label="The Vineyard" status={review.vineyard_status} detail={review.vineyard_detail} />
+              <StatusCard label="The Storehouses" status={review.storehouse_status} detail={review.storehouse_detail} />
+              <StatusCard label="Cross-System Alignment" status={review.cross_system_status} detail={review.cross_system_detail} />
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6mm" }}>
               <div>
                 <div style={colLabel}>Alignment Gaps</div>
@@ -483,13 +490,6 @@ export default function QuarterlySystemReview() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3mm" }}>
-              <StatusCard label="Sovereignty Charter" status={review.charter_status} detail={review.charter_detail} />
-              <StatusCard label="The Vineyard" status={review.vineyard_status} detail={review.vineyard_detail} />
-              <StatusCard label="The Storehouses" status={review.storehouse_status} detail={review.storehouse_detail} />
-              <StatusCard label="Cross-System Alignment" status={review.cross_system_status} detail={review.cross_system_detail} />
             </div>
 
             <div style={{ background: "#A98C5A", color: "#fff", margin: "auto -10mm 0 -10mm", padding: "3mm 10mm", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
