@@ -1899,6 +1899,15 @@ export type Database = {
           created_at: string
           custom_sections: Json
           draft_status: string
+          esign_doc_id: string | null
+          esign_doc_url: string | null
+          esign_error: string | null
+          esign_initiated_by: string | null
+          esign_last_checked_at: string | null
+          esign_sent_at: string | null
+          esign_signed_at: string | null
+          esign_signed_pdf_path: string | null
+          esign_status: string
           executor_alternate: string | null
           executor_primary: string | null
           fiduciary_alliance: string | null
@@ -1957,6 +1966,15 @@ export type Database = {
           created_at?: string
           custom_sections?: Json
           draft_status?: string
+          esign_doc_id?: string | null
+          esign_doc_url?: string | null
+          esign_error?: string | null
+          esign_initiated_by?: string | null
+          esign_last_checked_at?: string | null
+          esign_sent_at?: string | null
+          esign_signed_at?: string | null
+          esign_signed_pdf_path?: string | null
+          esign_status?: string
           executor_alternate?: string | null
           executor_primary?: string | null
           fiduciary_alliance?: string | null
@@ -2015,6 +2033,15 @@ export type Database = {
           created_at?: string
           custom_sections?: Json
           draft_status?: string
+          esign_doc_id?: string | null
+          esign_doc_url?: string | null
+          esign_error?: string | null
+          esign_initiated_by?: string | null
+          esign_last_checked_at?: string | null
+          esign_sent_at?: string | null
+          esign_signed_at?: string | null
+          esign_signed_pdf_path?: string | null
+          esign_status?: string
           executor_alternate?: string | null
           executor_primary?: string | null
           fiduciary_alliance?: string | null
