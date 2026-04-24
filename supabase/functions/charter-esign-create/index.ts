@@ -35,6 +35,14 @@ class InsufficientScopeError extends Error {
   }
 }
 
+function isScopePermissionError(status: number, message: string) {
+  if (status !== 401 && status !== 403) return false;
+
+  return /(insufficient authentication scopes?|access token scope insufficient|insufficientpermissions|request had insufficient authentication scopes)/i.test(
+    message,
+  );
+}
+
 async function getValidToken(supabaseAdmin: any, userId: string): Promise<string> {
   const { data, error } = await supabaseAdmin
     .from("google_tokens")
@@ -367,12 +375,12 @@ serve(async (req) => {
     const created = await createRes.json();
     if (!createRes.ok) {
       const apiMsg = created.error?.message || JSON.stringify(created);
-      if (createRes.status === 401 || createRes.status === 403 || /insufficient/i.test(apiMsg)) {
+      if (isScopePermissionError(createRes.status, apiMsg)) {
         throw new InsufficientScopeError(
           "Your Google connection is missing required permissions for Docs and Drive. Please go to Settings → Google, disconnect, and reconnect to grant the new permissions.",
         );
       }
-      throw new Error(`Failed to create doc: ${apiMsg}`);
+      throw new Error(`Google Docs rejected document creation [${createRes.status}]: ${apiMsg}`);
     }
     const docId: string = created.documentId;
     const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
