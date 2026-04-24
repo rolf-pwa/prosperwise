@@ -93,6 +93,12 @@ type CustomSectionGroups = {
   pageTwo: CustomContainer[];
 };
 
+type Signatory = {
+  name: string;
+  role: string;
+  signed_at?: string | null;
+};
+
 type CharterRecord = {
   id?: string;
   contact_id: string;
@@ -115,6 +121,40 @@ type CharterRecord = {
   footer_date_label: string;
   full_markdown: string;
   custom_sections: CustomSectionGroups;
+  // ── Phase 2 structured fields ───────────────────────────────────────────
+  transition_summary: string;
+  primary_goal: string;
+  long_term_strategy: string;
+  monitoring_cadence: string;
+  withdrawal_safeguards: string;
+  roles_responsibilities: string;
+  professional_coordination: string;
+  secondary_quiet_period_rule: string;
+  // Growth (Vineyard) detail
+  growth_primary_label: string;
+  growth_primary_value: number | null;
+  growth_primary_detail: string;
+  growth_secondary_label: string;
+  growth_secondary_value: number | null;
+  growth_secondary_detail: string;
+  // Storehouse detail
+  storehouse_liquidity_value: number | null;
+  storehouse_liquidity_detail: string;
+  storehouse_strategic_value: number | null;
+  storehouse_strategic_detail: string;
+  storehouse_philanthropic_detail: string;
+  storehouse_legacy_detail: string;
+  // Harvest
+  harvest_target_income: number | null;
+  harvest_yield_protocol: string;
+  harvest_spending_categories: string;
+  harvest_review_date: string | null;
+  // Succession & ratification
+  executor_primary: string;
+  executor_alternate: string;
+  succession_terms: string;
+  ratification_signatories: Signatory[];
+  // Lifecycle
   draft_status?: CharterDraftStatus;
   ratified_at?: string | null;
   ratified_by?: string | null;
@@ -281,6 +321,35 @@ export default function SovereigntyCharter() {
       footer_date_label: formatDate(contactRecord.quiet_period_start_date, "Ratification date to be confirmed"),
       full_markdown: "",
       custom_sections: { pageOne: [], pageTwo: [] },
+      // ── Phase 2 structured defaults ──────────────────────────────────────
+      transition_summary: "",
+      primary_goal: "",
+      long_term_strategy: "",
+      monitoring_cadence: "Quarterly Governance Review with the ProsperWise Personal CFO.",
+      withdrawal_safeguards: "Withdrawals from protected accounts require a documented review against this Charter before execution.",
+      roles_responsibilities: `${resolvedFullName} acts as Sovereign. ProsperWise serves as Personal CFO and architectural steward.`,
+      professional_coordination: [contactRecord.lawyer_name, contactRecord.accountant_name, contactRecord.executor_name, contactRecord.poa_name].filter(Boolean).join("; ") || "Professional team to be confirmed.",
+      secondary_quiet_period_rule: "Material new capital events trigger a 30-day quiet period before deployment decisions.",
+      growth_primary_label: "Vineyard — Primary Growth",
+      growth_primary_value: null,
+      growth_primary_detail: "",
+      growth_secondary_label: "Vineyard — Secondary Growth",
+      growth_secondary_value: null,
+      growth_secondary_detail: "",
+      storehouse_liquidity_value: null,
+      storehouse_liquidity_detail: "",
+      storehouse_strategic_value: null,
+      storehouse_strategic_detail: "",
+      storehouse_philanthropic_detail: "",
+      storehouse_legacy_detail: "",
+      harvest_target_income: null,
+      harvest_yield_protocol: "",
+      harvest_spending_categories: "",
+      harvest_review_date: null,
+      executor_primary: contactRecord.executor_name || "",
+      executor_alternate: "",
+      succession_terms: "",
+      ratification_signatories: [],
     };
   };
 
@@ -298,6 +367,21 @@ export default function SovereigntyCharter() {
         };
       })
       .filter(Boolean) as CustomContainer[];
+  };
+
+  const normalizeSignatories = (value: unknown): Signatory[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item): Signatory | null => {
+        if (!item || typeof item !== "object") return null;
+        const record = item as Record<string, unknown>;
+        return {
+          name: typeof record.name === "string" ? record.name : "",
+          role: typeof record.role === "string" ? record.role : "",
+          signed_at: typeof record.signed_at === "string" ? record.signed_at : null,
+        };
+      })
+      .filter((s): s is Signatory => s !== null);
   };
 
   const normalizeCustomSections = (value: unknown): CustomSectionGroups => {
@@ -416,6 +500,7 @@ export default function SovereigntyCharter() {
         id: typeof savedCharter.id === "string" ? savedCharter.id : undefined,
         contact_id: resolvedContact.id,
         custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+        ratification_signatories: normalizeSignatories(savedCharter.ratification_signatories),
       });
     } else {
       setCharter(baseCharter);
@@ -430,6 +515,34 @@ export default function SovereigntyCharter() {
 
   const updateField = (key: keyof CharterRecord, value: string) => {
     setCharter((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  const updateNumericField = (key: keyof CharterRecord, value: string) => {
+    const parsed = value.trim() === "" ? null : Number(value);
+    setCharter((current) => (current ? { ...current, [key]: Number.isNaN(parsed as number) ? null : parsed } : current));
+  };
+
+  const addSignatory = () => {
+    setCharter((current) => current ? {
+      ...current,
+      ratification_signatories: [...current.ratification_signatories, { name: "", role: "", signed_at: null }],
+    } : current);
+  };
+
+  const removeSignatory = (index: number) => {
+    setCharter((current) => current ? {
+      ...current,
+      ratification_signatories: current.ratification_signatories.filter((_, i) => i !== index),
+    } : current);
+  };
+
+  const updateSignatory = (index: number, key: keyof Signatory, value: string) => {
+    setCharter((current) => current ? {
+      ...current,
+      ratification_signatories: current.ratification_signatories.map((s, i) =>
+        i === index ? { ...s, [key]: value } : s
+      ),
+    } : current);
   };
 
   const updateCustomContainer = (page: keyof CustomSectionGroups, id: string, key: keyof CustomContainer, value: string) => {
@@ -588,6 +701,7 @@ export default function SovereigntyCharter() {
           id: typeof savedCharter.id === "string" ? savedCharter.id : current.id,
           full_markdown: typeof savedCharter.full_markdown === "string" ? savedCharter.full_markdown : current.full_markdown,
           custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+          ratification_signatories: normalizeSignatories(savedCharter.ratification_signatories),
         } : current);
       }
 
@@ -728,6 +842,35 @@ export default function SovereigntyCharter() {
       footer_date_label: charter.footer_date_label,
       full_markdown: charter.full_markdown,
       custom_sections: charter.custom_sections,
+      // ── Phase 2 structured fields ─────────────────────────────────────
+      transition_summary: charter.transition_summary,
+      primary_goal: charter.primary_goal,
+      long_term_strategy: charter.long_term_strategy,
+      monitoring_cadence: charter.monitoring_cadence,
+      withdrawal_safeguards: charter.withdrawal_safeguards,
+      roles_responsibilities: charter.roles_responsibilities,
+      professional_coordination: charter.professional_coordination,
+      secondary_quiet_period_rule: charter.secondary_quiet_period_rule,
+      growth_primary_label: charter.growth_primary_label,
+      growth_primary_value: charter.growth_primary_value,
+      growth_primary_detail: charter.growth_primary_detail,
+      growth_secondary_label: charter.growth_secondary_label,
+      growth_secondary_value: charter.growth_secondary_value,
+      growth_secondary_detail: charter.growth_secondary_detail,
+      storehouse_liquidity_value: charter.storehouse_liquidity_value,
+      storehouse_liquidity_detail: charter.storehouse_liquidity_detail,
+      storehouse_strategic_value: charter.storehouse_strategic_value,
+      storehouse_strategic_detail: charter.storehouse_strategic_detail,
+      storehouse_philanthropic_detail: charter.storehouse_philanthropic_detail,
+      storehouse_legacy_detail: charter.storehouse_legacy_detail,
+      harvest_target_income: charter.harvest_target_income,
+      harvest_yield_protocol: charter.harvest_yield_protocol,
+      harvest_spending_categories: charter.harvest_spending_categories,
+      harvest_review_date: charter.harvest_review_date,
+      executor_primary: charter.executor_primary,
+      executor_alternate: charter.executor_alternate,
+      succession_terms: charter.succession_terms,
+      ratification_signatories: charter.ratification_signatories,
     };
 
     const query = charter.id
@@ -950,6 +1093,132 @@ export default function SovereigntyCharter() {
                 <Input value={charter.footer_date_label} onChange={(e) => updateField("footer_date_label", e.target.value)} />
               </Field>
             </div>
+          </div>
+
+          {/* ── Phase 2: Structured Charter Fields (AI-populated) ──────────── */}
+          <div className="mt-6 space-y-6 rounded-lg border border-border bg-card p-5 shadow-sm">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Strategic Narrative</h3>
+              <p className="text-sm text-muted-foreground">AI-extracted strategic context from the Charter sources. Edit freely.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Transition Summary">
+                <Textarea value={charter.transition_summary} onChange={(e) => updateField("transition_summary", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Primary Goal">
+                <Textarea value={charter.primary_goal} onChange={(e) => updateField("primary_goal", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Long-Term Strategy">
+                <Textarea value={charter.long_term_strategy} onChange={(e) => updateField("long_term_strategy", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Monitoring Cadence">
+                <Textarea value={charter.monitoring_cadence} onChange={(e) => updateField("monitoring_cadence", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Withdrawal Safeguards">
+                <Textarea value={charter.withdrawal_safeguards} onChange={(e) => updateField("withdrawal_safeguards", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Roles & Responsibilities">
+                <Textarea value={charter.roles_responsibilities} onChange={(e) => updateField("roles_responsibilities", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Professional Coordination">
+                <Textarea value={charter.professional_coordination} onChange={(e) => updateField("professional_coordination", e.target.value)} rows={4} />
+              </Field>
+              <Field label="Secondary Quiet Period Rule">
+                <Textarea value={charter.secondary_quiet_period_rule} onChange={(e) => updateField("secondary_quiet_period_rule", e.target.value)} rows={4} />
+              </Field>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Vineyard — Growth Allocations</h3>
+              <p className="text-sm text-muted-foreground">Primary and secondary growth pillars within the Vineyard.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Primary Growth Label">
+                <Input value={charter.growth_primary_label} onChange={(e) => updateField("growth_primary_label", e.target.value)} />
+              </Field>
+              <Field label="Primary Growth Value (CAD)">
+                <Input type="number" value={charter.growth_primary_value ?? ""} onChange={(e) => updateNumericField("growth_primary_value", e.target.value)} />
+              </Field>
+              <Field label="Primary Growth Detail">
+                <Textarea value={charter.growth_primary_detail} onChange={(e) => updateField("growth_primary_detail", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Secondary Growth Label">
+                <Input value={charter.growth_secondary_label} onChange={(e) => updateField("growth_secondary_label", e.target.value)} />
+              </Field>
+              <Field label="Secondary Growth Value (CAD)">
+                <Input type="number" value={charter.growth_secondary_value ?? ""} onChange={(e) => updateNumericField("growth_secondary_value", e.target.value)} />
+              </Field>
+              <Field label="Secondary Growth Detail">
+                <Textarea value={charter.growth_secondary_detail} onChange={(e) => updateField("growth_secondary_detail", e.target.value)} rows={3} />
+              </Field>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Storehouse Allocations</h3>
+              <p className="text-sm text-muted-foreground">Targeted reserves for liquidity, strategic, philanthropic, and legacy purposes.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Liquidity Reserve Value (CAD)">
+                <Input type="number" value={charter.storehouse_liquidity_value ?? ""} onChange={(e) => updateNumericField("storehouse_liquidity_value", e.target.value)} />
+              </Field>
+              <Field label="Liquidity Reserve Detail">
+                <Textarea value={charter.storehouse_liquidity_detail} onChange={(e) => updateField("storehouse_liquidity_detail", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Strategic Reserve Value (CAD)">
+                <Input type="number" value={charter.storehouse_strategic_value ?? ""} onChange={(e) => updateNumericField("storehouse_strategic_value", e.target.value)} />
+              </Field>
+              <Field label="Strategic Reserve Detail">
+                <Textarea value={charter.storehouse_strategic_detail} onChange={(e) => updateField("storehouse_strategic_detail", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Philanthropic Trust Detail">
+                <Textarea value={charter.storehouse_philanthropic_detail} onChange={(e) => updateField("storehouse_philanthropic_detail", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Legacy Trust Detail">
+                <Textarea value={charter.storehouse_legacy_detail} onChange={(e) => updateField("storehouse_legacy_detail", e.target.value)} rows={3} />
+              </Field>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Harvest Protocol</h3>
+              <p className="text-sm text-muted-foreground">Income drawn from protected accounts and the rules around it.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Annual Harvest Target Income (CAD)">
+                <Input type="number" value={charter.harvest_target_income ?? ""} onChange={(e) => updateNumericField("harvest_target_income", e.target.value)} />
+              </Field>
+              <Field label="Harvest Review Date">
+                <Input type="date" value={charter.harvest_review_date ?? ""} onChange={(e) => updateField("harvest_review_date", e.target.value)} />
+              </Field>
+              <Field label="Harvest Yield Protocol">
+                <Textarea value={charter.harvest_yield_protocol} onChange={(e) => updateField("harvest_yield_protocol", e.target.value)} rows={3} />
+              </Field>
+              <Field label="Harvest Spending Categories">
+                <Textarea value={charter.harvest_spending_categories} onChange={(e) => updateField("harvest_spending_categories", e.target.value)} rows={3} />
+              </Field>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Succession & Ratification</h3>
+              <p className="text-sm text-muted-foreground">Executor lineage, succession terms, and signatories.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Primary Executor">
+                <Input value={charter.executor_primary} onChange={(e) => updateField("executor_primary", e.target.value)} />
+              </Field>
+              <Field label="Alternate Executor">
+                <Input value={charter.executor_alternate} onChange={(e) => updateField("executor_alternate", e.target.value)} />
+              </Field>
+            </div>
+            <Field label="Succession Terms">
+              <Textarea value={charter.succession_terms} onChange={(e) => updateField("succession_terms", e.target.value)} rows={4} />
+            </Field>
+
+            <SignatoriesEditor
+              signatories={charter.ratification_signatories}
+              onAdd={addSignatory}
+              onRemove={removeSignatory}
+              onUpdate={updateSignatory}
+            />
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -1234,6 +1503,51 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-2">
       <Label className="text-sm font-medium text-foreground">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function SignatoriesEditor({
+  signatories,
+  onAdd,
+  onRemove,
+  onUpdate,
+}: {
+  signatories: Signatory[];
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+  onUpdate: (index: number, key: keyof Signatory, value: string) => void;
+}) {
+  return (
+    <div className="rounded-md border border-border p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Ratification Signatories</p>
+          <p className="text-xs text-muted-foreground">Names and roles of those ratifying the Charter.</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={onAdd}>
+          <Plus className="mr-2 h-4 w-4" /> Add signatory
+        </Button>
+      </div>
+      {signatories.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">No signatories yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {signatories.map((sig, index) => (
+            <div key={index} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+              <Field label="Name">
+                <Input value={sig.name} onChange={(e) => onUpdate(index, "name", e.target.value)} />
+              </Field>
+              <Field label="Role">
+                <Input value={sig.role} onChange={(e) => onUpdate(index, "role", e.target.value)} placeholder="Sovereign / Personal CFO / Witness" />
+              </Field>
+              <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(index)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
