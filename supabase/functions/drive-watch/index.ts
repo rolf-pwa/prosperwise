@@ -466,7 +466,7 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
   await supabaseAdmin.from("drive_watch_state").upsert({
     contact_id: contactId,
     charter_last_checked_at: now,
-    charter_last_synced_at: importedCount > 0 ? now : null,
+    charter_last_synced_at: importedCount > 0 ? now : (watchState?.charter_last_synced_at || null),
     charter_folder_id: charterFolder.id,
     charter_sync_status: importedCount > 0 ? "synced" : "idle",
     updated_at: now,
