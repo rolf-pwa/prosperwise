@@ -174,10 +174,117 @@ async function uploadBlobToStorage(supabaseAdmin: any, contactId: string, fileNa
   return path;
 }
 
+// ---------- Vertex AI PDF extraction (Montreal region) ----------
+const VERTEX_REGION = "northamerica-northeast1";
+const VERTEX_MODEL = "gemini-2.5-flash-preview-05-20";
+const PDF_INLINE_MAX_BYTES = 18 * 1024 * 1024; // ~18 MB safe for inline base64
+
+interface VertexServiceAccountKey {
+  project_id: string;
+  private_key: string;
+  client_email: string;
+  token_uri: string;
+}
+
+async function getVertexAccessToken(sa: VertexServiceAccountKey): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: sa.token_uri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unsigned = `${enc(header)}.${enc(payload)}`;
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const binaryKey = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(unsigned)
+  );
+  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${unsigned}.${signature}`;
+  const res = await fetch(sa.token_uri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Vertex token exchange failed: ${data.error_description || data.error}`);
+  return data.access_token;
+}
+
+function blobToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+async function extractPdfTextWithVertex(blob: Blob, fileName?: string): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  if (buffer.byteLength > PDF_INLINE_MAX_BYTES) {
+    return `[Imported PDF: ${fileName || "Drive file"} is too large to extract inline (${Math.round(buffer.byteLength / 1024 / 1024)} MB). Reference the linked file for content.]`;
+  }
+  const gcpKeyRaw = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+  if (!gcpKeyRaw) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+  const sa: VertexServiceAccountKey = JSON.parse(gcpKeyRaw);
+  const accessToken = await getVertexAccessToken(sa);
+  const base64 = blobToBase64(buffer);
+
+  const vertexUrl = `https://${VERTEX_REGION}-aiplatform.googleapis.com/v1/projects/${sa.project_id}/locations/${VERTEX_REGION}/publishers/google/models/${VERTEX_MODEL}:generateContent`;
+  const prompt = `Extract the full readable text from this PDF document titled "${fileName || "source document"}". Preserve headings, lists, and paragraph structure using plain text formatting. Do not summarize, do not add commentary, and do not wrap the output in code fences. Return only the extracted text.`;
+
+  const aiResponse = await fetch(vertexUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "application/pdf", data: base64 } },
+          ],
+        },
+      ],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text();
+    throw new Error(`Vertex PDF extraction failed: ${errText.slice(0, 500)}`);
+  }
+  const aiResult = await aiResponse.json();
+  const text = aiResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  return text.trim();
+}
+
 async function extractTextFromDriveBlob(blob: Blob, mimeType?: string, fileName?: string) {
   const type = mimeType || blob.type || "application/octet-stream";
   if (type.includes("pdf")) {
-    return `[Imported PDF: ${fileName || "Drive file"}. Use this as a supporting source document. Detailed PDF parsing is not yet enabled in this step.]`;
+    try {
+      const extracted = await extractPdfTextWithVertex(blob, fileName);
+      if (extracted) return extracted.slice(0, CHARTER_TEXT_LIMIT);
+      return `[PDF ${fileName || "source"} returned no text from Vertex extraction.]`;
+    } catch (err) {
+      console.error(`[DriveWatch] PDF extraction error for ${fileName}:`, err);
+      return `[PDF extraction failed for ${fileName || "source"}: ${err instanceof Error ? err.message : "unknown error"}]`;
+    }
   }
   return (await blob.text()).slice(0, CHARTER_TEXT_LIMIT);
 }
