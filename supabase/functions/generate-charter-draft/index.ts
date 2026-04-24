@@ -443,6 +443,35 @@ CRITICAL RULES:
       pageTwo: Array.isArray(parsedDraft.custom_sections?.pageTwo) ? parsedDraft.custom_sections.pageTwo : [],
     };
 
+    const toNullableNumber = (value: unknown): number | null => {
+      if (value === null || value === undefined || value === "") return null;
+      const num = typeof value === "number" ? value : Number(String(value).replace(/[^0-9.\-]/g, ""));
+      return Number.isFinite(num) ? num : null;
+    };
+    const toNullableString = (value: unknown): string | null => {
+      if (value === null || value === undefined) return null;
+      const str = String(value).trim();
+      return str ? str : null;
+    };
+    const toNullableDate = (value: unknown): string | null => {
+      const str = toNullableString(value);
+      if (!str) return null;
+      // Accept YYYY-MM-DD or ISO; normalize to YYYY-MM-DD
+      const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+      return match ? match[1] : null;
+    };
+    const toSignatoriesArray = (value: unknown) => {
+      if (!Array.isArray(value)) return [] as Array<{ role: string; name: string; signed_at: string | null }>;
+      return value
+        .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+        .map((row) => ({
+          role: String(row.role || "").trim(),
+          name: String(row.name || "").trim(),
+          signed_at: toNullableDate(row.signed_at),
+        }))
+        .filter((row) => row.role || row.name);
+    };
+
     const draftPayload = {
       contact_id: contactId,
       title: String(parsedDraft.title || baseCharter.title),
@@ -462,6 +491,36 @@ CRITICAL RULES:
       appendix_note: String(parsedDraft.appendix_note || baseCharter.appendix_note),
       footer_status: String(parsedDraft.footer_status || "Draft / AI-generated"),
       footer_date_label: String(parsedDraft.footer_date_label || baseCharter.footer_date_label),
+      // ── New structured fields (Hybrid template) ──
+      transition_summary: toNullableString(parsedDraft.transition_summary),
+      primary_goal: toNullableString(parsedDraft.primary_goal),
+      long_term_strategy: toNullableString(parsedDraft.long_term_strategy),
+      roles_responsibilities: toNullableString(parsedDraft.roles_responsibilities),
+      withdrawal_safeguards: toNullableString(parsedDraft.withdrawal_safeguards),
+      secondary_quiet_period_rule: toNullableString(parsedDraft.secondary_quiet_period_rule),
+      professional_coordination: toNullableString(parsedDraft.professional_coordination),
+      monitoring_cadence: toNullableString(parsedDraft.monitoring_cadence),
+      growth_primary_label: toNullableString(parsedDraft.growth_primary_label),
+      growth_primary_value: toNullableNumber(parsedDraft.growth_primary_value),
+      growth_primary_detail: toNullableString(parsedDraft.growth_primary_detail),
+      growth_secondary_label: toNullableString(parsedDraft.growth_secondary_label),
+      growth_secondary_value: toNullableNumber(parsedDraft.growth_secondary_value),
+      growth_secondary_detail: toNullableString(parsedDraft.growth_secondary_detail),
+      storehouse_liquidity_value: toNullableNumber(parsedDraft.storehouse_liquidity_value),
+      storehouse_liquidity_detail: toNullableString(parsedDraft.storehouse_liquidity_detail),
+      storehouse_strategic_value: toNullableNumber(parsedDraft.storehouse_strategic_value),
+      storehouse_strategic_detail: toNullableString(parsedDraft.storehouse_strategic_detail),
+      storehouse_philanthropic_detail: toNullableString(parsedDraft.storehouse_philanthropic_detail),
+      storehouse_legacy_detail: toNullableString(parsedDraft.storehouse_legacy_detail),
+      harvest_target_income: toNullableNumber(parsedDraft.harvest_target_income),
+      harvest_yield_protocol: toNullableString(parsedDraft.harvest_yield_protocol),
+      harvest_spending_categories: toNullableString(parsedDraft.harvest_spending_categories),
+      harvest_review_date: toNullableDate(parsedDraft.harvest_review_date),
+      executor_primary: toNullableString(parsedDraft.executor_primary),
+      executor_alternate: toNullableString(parsedDraft.executor_alternate),
+      succession_terms: toNullableString(parsedDraft.succession_terms),
+      ratification_signatories: toSignatoriesArray(parsedDraft.ratification_signatories),
+      // ── End new fields ──
       custom_sections: customSections,
       draft_status: "generated",
       generation_summary: String(parsedDraft.generation_summary || "Initial AI draft generated from the provided charter resources."),
