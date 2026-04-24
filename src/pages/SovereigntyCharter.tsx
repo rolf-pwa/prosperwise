@@ -1292,12 +1292,21 @@ export default function SovereigntyCharter() {
               <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>
                 {charter.intro_note}
               </div>
+              {charter.transition_summary?.trim() ? (
+                <div style={{ fontSize: "7.5pt", color: "#3B3F3F", borderTop: "1px dashed #D3C5B7", paddingTop: "1.8mm", marginTop: "0.5mm" }}>
+                  <strong style={{ color: "#2A4034" }}>Transition context: </strong>{charter.transition_summary}
+                </div>
+              ) : null}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
               <SectionCard title="Mission of Capital" body={charter.mission_of_capital} />
               <SectionCard title="20-Year Vision" body={charter.vision_20_year} />
             </div>
+
+            {charter.primary_goal?.trim() ? (
+              <SectionCard title="Primary Goal of This Charter" body={charter.primary_goal} />
+            ) : null}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
               <ArticleCard title="Governance & Authority" body={charter.governance_authority} />
