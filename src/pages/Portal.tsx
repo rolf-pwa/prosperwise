@@ -42,6 +42,15 @@ interface PortalData {
   household_members: any[];
   hierarchy?: any;
   corporations?: any[];
+  quarterly_reviews?: Array<{
+    id: string;
+    contact_id: string;
+    title: string;
+    file_name: string | null;
+    signed_url: string | null;
+    drive_url: string | null;
+    review_date: string | null;
+  }>;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -524,7 +533,7 @@ const Portal = () => {
     );
   }
 
-  const { contact, charter, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [] } = data;
+  const { contact, charter, vineyard_accounts, storehouses, holding_tank = [], audit_trail, portal_requests, meetings, family, household, household_members, hierarchy, corporations = [], quarterly_reviews = [] } = data;
   const portalToken = token || data.portal_token || "";
   const hierarchyLevel = hierarchy?.level || "individual";
 
@@ -1061,18 +1070,62 @@ const Portal = () => {
 
             {/* Reviews Tab */}
             <TabsContent value="reviews" className="mt-4">
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
-                  <FileBarChart className="h-7 w-7 text-accent" />
+              {!isSelf ? (
+                <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+                  <FileBarChart className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Reviews are only visible on your own view.</p>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
-                <p className="text-sm text-muted-foreground max-w-md mb-1">
-                  Comprehensive AI-powered reviews of your financial territory.
-                </p>
-                <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
-                  Coming Soon
-                </span>
-              </div>
+              ) : quarterly_reviews.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
+                    <FileBarChart className="h-7 w-7 text-accent" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mb-1">
+                    Comprehensive AI-powered reviews of your financial territory.
+                  </p>
+                  <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
+                    Pinned automatically once your advisor saves a review
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileBarChart className="h-4 w-4 text-accent" />
+                    <h3 className="text-sm font-semibold text-foreground font-serif">Quarterly Governance Reviews</h3>
+                  </div>
+                  {quarterly_reviews.map((review) => {
+                    const member = household_members.find((m: any) => m.id === review.contact_id);
+                    const memberName = review.contact_id === contact.id
+                      ? `${contact.first_name} ${contact.last_name || ""}`.trim()
+                      : member ? `${member.first_name} ${member.last_name || ""}`.trim() : null;
+                    const href = review.signed_url || review.drive_url || "#";
+                    const dateLabel = review.review_date
+                      ? new Date(review.review_date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+                      : null;
+                    return (
+                      <a
+                        key={review.id}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                          <FileBarChart className="h-5 w-5 text-accent" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{review.title}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                            {dateLabel && <span>{dateLabel}</span>}
+                            {memberName && <span>· {memberName}</span>}
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
