@@ -93,6 +93,12 @@ type CustomSectionGroups = {
   pageTwo: CustomContainer[];
 };
 
+type Signatory = {
+  name: string;
+  role: string;
+  signed_at?: string | null;
+};
+
 type CharterRecord = {
   id?: string;
   contact_id: string;
@@ -115,6 +121,40 @@ type CharterRecord = {
   footer_date_label: string;
   full_markdown: string;
   custom_sections: CustomSectionGroups;
+  // ── Phase 2 structured fields ───────────────────────────────────────────
+  transition_summary: string;
+  primary_goal: string;
+  long_term_strategy: string;
+  monitoring_cadence: string;
+  withdrawal_safeguards: string;
+  roles_responsibilities: string;
+  professional_coordination: string;
+  secondary_quiet_period_rule: string;
+  // Growth (Vineyard) detail
+  growth_primary_label: string;
+  growth_primary_value: number | null;
+  growth_primary_detail: string;
+  growth_secondary_label: string;
+  growth_secondary_value: number | null;
+  growth_secondary_detail: string;
+  // Storehouse detail
+  storehouse_liquidity_value: number | null;
+  storehouse_liquidity_detail: string;
+  storehouse_strategic_value: number | null;
+  storehouse_strategic_detail: string;
+  storehouse_philanthropic_detail: string;
+  storehouse_legacy_detail: string;
+  // Harvest
+  harvest_target_income: number | null;
+  harvest_yield_protocol: string;
+  harvest_spending_categories: string;
+  harvest_review_date: string | null;
+  // Succession & ratification
+  executor_primary: string;
+  executor_alternate: string;
+  succession_terms: string;
+  ratification_signatories: Signatory[];
+  // Lifecycle
   draft_status?: CharterDraftStatus;
   ratified_at?: string | null;
   ratified_by?: string | null;
