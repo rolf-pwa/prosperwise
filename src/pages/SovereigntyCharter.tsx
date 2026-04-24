@@ -1358,26 +1358,23 @@ export default function SovereigntyCharter() {
               <ContainerCard
                 title="The Vineyard"
                 subtitle="Protected Principal & Harvest Accounts"
-                meta={`Tracked value ${formatCurrency(vineyardAccounts.reduce((sum, account) => sum + (account.current_value || 0), 0))}`}
                 items={vineyardAccounts.length
-                  ? vineyardAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${formatCurrency(account.current_value)} · ${isProtectedAccount(account) ? "Protected" : "Eligible Harvest"}`)
+                  ? vineyardAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${isProtectedAccount(account) ? "Protected" : "Eligible Harvest"}`)
                   : [charter.protected_assets_note, charter.harvest_accounts_note]}
               />
 
               {STOREHOUSE_CONFIG.map(({ num, name, subtitle }) => {
                 const containerAccounts = storehouses.filter((storehouse) => storehouse.storehouse_number === num);
-                const containerValue = containerAccounts.reduce((sum, storehouse) => sum + (storehouse.current_value || 0), 0);
 
                 return (
                   <ContainerCard
                     key={name}
                     title={name}
                     subtitle={subtitle}
-                    meta={`Tracked value ${formatCurrency(containerValue)}`}
                     items={containerAccounts.length
                       ? containerAccounts.flatMap((storehouse) => {
                           const rules = groupedRules[storehouse.label] || groupedRules[`Storehouse ${storehouse.storehouse_number}`] || [];
-                          const detail = `${storehouse.label} · ${formatCurrency(storehouse.current_value)}${storehouse.target_value != null ? ` · Target ${formatCurrency(storehouse.target_value)}` : ""}`;
+                          const detail = storehouse.label;
                           const notes = rules.length
                             ? rules.map((rule) => rule.rule_description)
                             : [storehouse.asset_type, storehouse.risk_cap ? `Risk cap: ${storehouse.risk_cap}` : null, storehouse.notes]
@@ -1394,7 +1391,6 @@ export default function SovereigntyCharter() {
                 <ContainerCard
                   key={section.id}
                   title={section.title}
-                  meta={section.meta}
                   items={section.body.split("\n").map((line) => line.trim()).filter(Boolean)}
                 />
               ))}
