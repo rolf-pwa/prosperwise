@@ -1406,20 +1406,22 @@ export default function SovereigntyCharter() {
               items={waterfallPriorities.map((priority) => `${priority.priority_order}. ${priority.priority_label}${priority.target_amount ? ` · ${formatCurrency(priority.target_amount)}` : ""}${priority.priority_description ? ` — ${priority.priority_description}` : ""}`)}
             />
 
-            {(charter.growth_primary_detail || charter.growth_secondary_detail || charter.growth_primary_value || charter.growth_secondary_value) ? (
+            {(charter.growth_primary_detail || charter.growth_secondary_detail) ? (
               <div>
                 <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Vineyard Growth Allocation</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
-                  <ContainerCard
-                    title={charter.growth_primary_label || "Primary Growth"}
-                    meta={charter.growth_primary_value != null ? `Target ${formatCurrency(charter.growth_primary_value)}` : undefined}
-                    items={(charter.growth_primary_detail || "—").split("\n").map((s) => s.trim()).filter(Boolean)}
-                  />
-                  <ContainerCard
-                    title={charter.growth_secondary_label || "Secondary Growth"}
-                    meta={charter.growth_secondary_value != null ? `Target ${formatCurrency(charter.growth_secondary_value)}` : undefined}
-                    items={(charter.growth_secondary_detail || "—").split("\n").map((s) => s.trim()).filter(Boolean)}
-                  />
+                  {charter.growth_primary_detail ? (
+                    <ContainerCard
+                      title={charter.growth_primary_label || "Primary Growth"}
+                      items={charter.growth_primary_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
+                    />
+                  ) : null}
+                  {charter.growth_secondary_detail ? (
+                    <ContainerCard
+                      title={charter.growth_secondary_label || "Secondary Growth"}
+                      items={charter.growth_secondary_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
+                    />
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -1431,14 +1433,12 @@ export default function SovereigntyCharter() {
                   {charter.storehouse_liquidity_detail ? (
                     <ContainerCard
                       title="Liquidity Reserve"
-                      meta={charter.storehouse_liquidity_value != null ? `Target ${formatCurrency(charter.storehouse_liquidity_value)}` : undefined}
                       items={charter.storehouse_liquidity_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
                     />
                   ) : null}
                   {charter.storehouse_strategic_detail ? (
                     <ContainerCard
                       title="Strategic Reserve"
-                      meta={charter.storehouse_strategic_value != null ? `Target ${formatCurrency(charter.storehouse_strategic_value)}` : undefined}
                       items={charter.storehouse_strategic_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
                     />
                   ) : null}
@@ -1458,19 +1458,16 @@ export default function SovereigntyCharter() {
               </div>
             ) : null}
 
-            {(charter.harvest_target_income || charter.harvest_yield_protocol || charter.harvest_spending_categories || charter.harvest_review_date) ? (
+            {(charter.harvest_yield_protocol || charter.harvest_spending_categories || charter.harvest_review_date) ? (
               <div>
                 <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Harvest Protocol</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
-                  {charter.harvest_target_income != null ? (
-                    <MetricCard label="Target Annual Income" value={formatCurrency(charter.harvest_target_income)} />
-                  ) : null}
-                  {charter.harvest_review_date ? (
+                {charter.harvest_review_date ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
                     <MetricCard label="Next Harvest Review" value={formatDate(charter.harvest_review_date, charter.harvest_review_date)} />
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
                 {(charter.harvest_yield_protocol || charter.harvest_spending_categories) ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginTop: "4mm" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginTop: charter.harvest_review_date ? "4mm" : 0 }}>
                     {charter.harvest_yield_protocol ? (
                       <ArticleCard title="Yield Protocol" body={charter.harvest_yield_protocol} />
                     ) : null}
