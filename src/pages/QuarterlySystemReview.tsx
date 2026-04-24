@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, ClipboardCheck, Loader2, Printer, RefreshCw, Save } from "lucide-react";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAutoSave, AutoSaveIndicator } from "@/hooks/useAutoSave";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
 type StatusKind = "red" | "amber" | "green";
@@ -107,15 +108,27 @@ export default function QuarterlySystemReview() {
   const [review, setReview] = useState<QuarterlyReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reviewRef = useRef<QuarterlyReview | null>(null);
   const [harvestSnapshots, setHarvestSnapshots] = useState<ReviewHarvestSnapshot[]>([]);
   const [vineyardAccounts, setVineyardAccounts] = useState<ReviewVineyardAccount[]>([]);
   const [storehouses, setStorehouses] = useState<ReviewStorehouse[]>([]);
+
+  const autoSave = useAutoSave<QuarterlyReview>({
+    data: review,
+    enabled: editing,
+    onSave: async (current) => {
+      const { id: _, contact_id: __, generation_error: ___, ...rest } = current;
+      const { error } = await supabase
+        .from("quarterly_system_reviews")
+        .update({ ...rest, generation_status: "manually_edited" })
+        .eq("id", current.id);
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+      return true;
+    },
+  });
 
   const isFreshGeneration = (updatedAt?: string | null) => {
     if (!updatedAt) return false;
@@ -208,70 +221,17 @@ export default function QuarterlySystemReview() {
 
   const updateField = (key: keyof QuarterlyReview, value: string) => {
     setReview((current) => (current ? { ...current, [key]: value } : current));
-    setIsDirty(true);
-  };
-
-  const persist = async (silent = false): Promise<boolean> => {
-    const current = reviewRef.current;
-    if (!current) return false;
-    setSaving(true);
-    const { id: _, contact_id: __, generation_error: ___, ...rest } = current;
-    const { error } = await supabase
-      .from("quarterly_system_reviews")
-      .update({ ...rest, generation_status: "manually_edited" })
-      .eq("id", current.id);
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return false;
-    }
-    setLastSavedAt(new Date());
-    setIsDirty(false);
-    if (!silent) toast.success("Quarterly Review saved");
-    return true;
+    autoSave.markDirty();
   };
 
   const save = async () => {
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-    const ok = await persist(false);
+    const ok = await autoSave.flush();
     if (ok) {
+      toast.success("Quarterly Review saved");
       setEditing(false);
       load();
     }
   };
-
-  // Keep ref in sync for the auto-save closure
-  useEffect(() => {
-    reviewRef.current = review;
-  }, [review]);
-
-  // Debounced auto-save while editing
-  useEffect(() => {
-    if (!editing || !isDirty) return;
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      void persist(true);
-    }, 1500);
-    return () => {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [review, editing, isDirty]);
-
-  // Flush on unload / navigation if dirty
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
 
   const regenerate = async () => {
     if (!review) return;
