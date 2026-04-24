@@ -203,7 +203,7 @@ serve(async (req) => {
       if (reviewUpdateError) throw reviewUpdateError;
     }
 
-    const [vineyardRes, storehouseRes, harvestRes] = await Promise.all([
+    const [vineyardRes, storehouseRes, harvestRes, charterRes] = await Promise.all([
       supabase
         .from("vineyard_accounts")
         .select("id, account_name, account_type, current_value")
@@ -219,11 +219,21 @@ serve(async (req) => {
         .select("id, vineyard_account_id, storehouse_id, snapshot_date, boy_value, current_harvest, current_value")
         .eq("contact_id", contactId)
         .order("snapshot_date", { ascending: false }),
+      supabase
+        .from("sovereignty_charters")
+        .select("intro_note, intro_callout, intro_heading, mission_of_capital, vision_20_year")
+        .eq("contact_id", contactId)
+        .maybeSingle(),
     ]);
 
     if (vineyardRes.error) throw vineyardRes.error;
     if (storehouseRes.error) throw storehouseRes.error;
     if (harvestRes.error) throw harvestRes.error;
+
+    const charter = charterRes.data || null;
+    const purposeStatement = (charter?.intro_note || charter?.intro_callout || "").toString().trim();
+    const primaryGoal = (charter?.mission_of_capital || "").toString().trim();
+    const longTermVision = (charter?.vision_20_year || "").toString().trim();
 
     const vineyardAccounts = (vineyardRes.data || []) as VineyardAccount[];
     const storehouses = (storehouseRes.data || []) as Storehouse[];
