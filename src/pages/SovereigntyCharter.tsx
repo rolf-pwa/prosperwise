@@ -262,7 +262,6 @@ export default function SovereigntyCharter() {
   const syncDriveSources = useSyncCharterDriveSources();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [ratifying, setRatifying] = useState(false);
   const [sendingForESign, setSendingForESign] = useState(false);
