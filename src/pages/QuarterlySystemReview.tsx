@@ -24,6 +24,9 @@ type QuarterlyReview = {
   review_date: string | null;
   review_summary: string;
   alignment_overview: string;
+  purpose_statement: string;
+  primary_goal: string;
+  long_term_vision: string;
   charter_status: ReviewStatus | string;
   charter_detail: string;
   vineyard_status: ReviewStatus | string;
