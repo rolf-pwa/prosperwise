@@ -1292,12 +1292,21 @@ export default function SovereigntyCharter() {
               <div style={{ fontSize: "7.5pt", color: "#3B3F3F" }}>
                 {charter.intro_note}
               </div>
+              {charter.transition_summary?.trim() ? (
+                <div style={{ fontSize: "7.5pt", color: "#3B3F3F", borderTop: "1px dashed #D3C5B7", paddingTop: "1.8mm", marginTop: "0.5mm" }}>
+                  <strong style={{ color: "#2A4034" }}>Transition context: </strong>{charter.transition_summary}
+                </div>
+              ) : null}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
               <SectionCard title="Mission of Capital" body={charter.mission_of_capital} />
               <SectionCard title="20-Year Vision" body={charter.vision_20_year} />
             </div>
+
+            {charter.primary_goal?.trim() ? (
+              <SectionCard title="Primary Goal of This Charter" body={charter.primary_goal} />
+            ) : null}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
               <ArticleCard title="Governance & Authority" body={charter.governance_authority} />
@@ -1396,8 +1405,166 @@ export default function SovereigntyCharter() {
               body={waterfallPriorities.length ? undefined : "Waterfall priorities have not yet been defined for this family."}
               items={waterfallPriorities.map((priority) => `${priority.priority_order}. ${priority.priority_label}${priority.target_amount ? ` · ${formatCurrency(priority.target_amount)}` : ""}${priority.priority_description ? ` — ${priority.priority_description}` : ""}`)}
             />
+
+            {(charter.growth_primary_detail || charter.growth_secondary_detail || charter.growth_primary_value || charter.growth_secondary_value) ? (
+              <div>
+                <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Vineyard Growth Allocation</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                  <ContainerCard
+                    title={charter.growth_primary_label || "Primary Growth"}
+                    meta={charter.growth_primary_value != null ? `Target ${formatCurrency(charter.growth_primary_value)}` : undefined}
+                    items={(charter.growth_primary_detail || "—").split("\n").map((s) => s.trim()).filter(Boolean)}
+                  />
+                  <ContainerCard
+                    title={charter.growth_secondary_label || "Secondary Growth"}
+                    meta={charter.growth_secondary_value != null ? `Target ${formatCurrency(charter.growth_secondary_value)}` : undefined}
+                    items={(charter.growth_secondary_detail || "—").split("\n").map((s) => s.trim()).filter(Boolean)}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {(charter.storehouse_liquidity_detail || charter.storehouse_strategic_detail || charter.storehouse_legacy_detail || charter.storehouse_philanthropic_detail) ? (
+              <div>
+                <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Storehouse Strategic Notes</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                  {charter.storehouse_liquidity_detail ? (
+                    <ContainerCard
+                      title="Liquidity Reserve"
+                      meta={charter.storehouse_liquidity_value != null ? `Target ${formatCurrency(charter.storehouse_liquidity_value)}` : undefined}
+                      items={charter.storehouse_liquidity_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
+                    />
+                  ) : null}
+                  {charter.storehouse_strategic_detail ? (
+                    <ContainerCard
+                      title="Strategic Reserve"
+                      meta={charter.storehouse_strategic_value != null ? `Target ${formatCurrency(charter.storehouse_strategic_value)}` : undefined}
+                      items={charter.storehouse_strategic_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
+                    />
+                  ) : null}
+                  {charter.storehouse_philanthropic_detail ? (
+                    <ContainerCard
+                      title="Philanthropic Storehouse"
+                      items={charter.storehouse_philanthropic_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
+                    />
+                  ) : null}
+                  {charter.storehouse_legacy_detail ? (
+                    <ContainerCard
+                      title="Legacy Storehouse"
+                      items={charter.storehouse_legacy_detail.split("\n").map((s) => s.trim()).filter(Boolean)}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {(charter.harvest_target_income || charter.harvest_yield_protocol || charter.harvest_spending_categories || charter.harvest_review_date) ? (
+              <div>
+                <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Harvest Protocol</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                  {charter.harvest_target_income != null ? (
+                    <MetricCard label="Target Annual Income" value={formatCurrency(charter.harvest_target_income)} />
+                  ) : null}
+                  {charter.harvest_review_date ? (
+                    <MetricCard label="Next Harvest Review" value={formatDate(charter.harvest_review_date, charter.harvest_review_date)} />
+                  ) : null}
+                </div>
+                {(charter.harvest_yield_protocol || charter.harvest_spending_categories) ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm", marginTop: "4mm" }}>
+                    {charter.harvest_yield_protocol ? (
+                      <ArticleCard title="Yield Protocol" body={charter.harvest_yield_protocol} />
+                    ) : null}
+                    {charter.harvest_spending_categories ? (
+                      <ArticleCard title="Spending Categories" body={charter.harvest_spending_categories} />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
+
+        {(charter.long_term_strategy || charter.monitoring_cadence || charter.withdrawal_safeguards || charter.roles_responsibilities || charter.professional_coordination || charter.executor_primary || charter.executor_alternate || charter.succession_terms || charter.ratification_signatories.length > 0) ? (
+          <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
+            <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
+              <div style={{ fontSize: "8pt", fontWeight: 300, color: "rgba(255,255,255,.55)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: "3mm" }}>
+                Strategic Stewardship
+              </div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "23pt", fontWeight: 300, lineHeight: 1.08 }}>
+                Long-Term Strategy, Roles & Succession
+              </div>
+            </div>
+
+            <div style={{ padding: "12mm", display: "flex", flexDirection: "column", gap: "5mm" }}>
+              {charter.long_term_strategy ? (
+                <ArticleCard title="Long-Term Strategy" body={charter.long_term_strategy} />
+              ) : null}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
+                {charter.monitoring_cadence ? (
+                  <SectionCard title="Monitoring Cadence" body={charter.monitoring_cadence} />
+                ) : null}
+                {charter.withdrawal_safeguards ? (
+                  <SectionCard title="Withdrawal Safeguards" body={charter.withdrawal_safeguards} />
+                ) : null}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5mm" }}>
+                {charter.roles_responsibilities ? (
+                  <ArticleCard title="Roles & Responsibilities" body={charter.roles_responsibilities} />
+                ) : null}
+                {charter.professional_coordination ? (
+                  <ArticleCard title="Professional Coordination" body={charter.professional_coordination} />
+                ) : null}
+              </div>
+
+              {(charter.executor_primary || charter.executor_alternate || charter.succession_terms) ? (
+                <div>
+                  <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Succession Plan</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
+                    {charter.executor_primary ? (
+                      <MetricCard label="Primary Executor" value={charter.executor_primary} />
+                    ) : null}
+                    {charter.executor_alternate ? (
+                      <MetricCard label="Alternate Executor" value={charter.executor_alternate} />
+                    ) : null}
+                  </div>
+                  {charter.succession_terms ? (
+                    <div style={{ marginTop: "4mm" }}>
+                      <ArticleCard title="Succession Terms" body={charter.succession_terms} />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {charter.ratification_signatories.length > 0 ? (
+                <div>
+                  <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Ratification Signatories</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr style={{ background: "#F8F6F2" }}>
+                        <th style={{ fontSize: "7pt", fontWeight: 600, color: "#6B7070", textTransform: "uppercase", letterSpacing: ".08em", padding: "2.4mm 2mm", borderBottom: "1px solid #D9CDBF", textAlign: "left", width: "40%" }}>Name</th>
+                        <th style={{ fontSize: "7pt", fontWeight: 600, color: "#6B7070", textTransform: "uppercase", letterSpacing: ".08em", padding: "2.4mm 2mm", borderBottom: "1px solid #D9CDBF", textAlign: "left", width: "35%" }}>Role</th>
+                        <th style={{ fontSize: "7pt", fontWeight: 600, color: "#6B7070", textTransform: "uppercase", letterSpacing: ".08em", padding: "2.4mm 2mm", borderBottom: "1px solid #D9CDBF", textAlign: "left", width: "25%" }}>Signed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {charter.ratification_signatories.map((signatory, idx) => (
+                        <tr key={`sig-${idx}`}>
+                          <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>{signatory.name || "—"}</td>
+                          <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>{signatory.role || "—"}</td>
+                          <td style={{ fontSize: "7.5pt", padding: "2.4mm 2mm", borderBottom: "1px solid #ECE5DB", verticalAlign: "top" }}>
+                            {signatory.signed_at ? formatDate(signatory.signed_at, signatory.signed_at) : "Pending"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className={`${pageWrap} print-page-break`} style={{ ...pageStyle, marginTop: "6mm" }}>
           <div style={{ backgroundColor: "#2A4034", color: "#fff", padding: "9mm 12mm 8mm" }}>
