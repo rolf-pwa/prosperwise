@@ -372,7 +372,7 @@ export default function SovereigntyCharter() {
   const normalizeSignatories = (value: unknown): Signatory[] => {
     if (!Array.isArray(value)) return [];
     return value
-      .map((item) => {
+      .map((item): Signatory | null => {
         if (!item || typeof item !== "object") return null;
         const record = item as Record<string, unknown>;
         return {
@@ -381,7 +381,7 @@ export default function SovereigntyCharter() {
           signed_at: typeof record.signed_at === "string" ? record.signed_at : null,
         };
       })
-      .filter((s): s is Signatory => Boolean(s));
+      .filter((s): s is Signatory => s !== null);
   };
 
   const normalizeCustomSections = (value: unknown): CustomSectionGroups => {
