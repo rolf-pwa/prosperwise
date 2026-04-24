@@ -429,7 +429,7 @@ export default function SovereigntyCharter() {
         ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       supabase.from("vineyard_accounts").select("id, account_name, account_number, account_type, current_value, book_value, notes").eq("contact_id", contactId).order("created_at"),
-      supabase.from("storehouses").select("id, label, storehouse_number, current_value, target_value, asset_type, notes, risk_cap").eq("contact_id", contactId).order("storehouse_number"),
+      supabase.from("storehouses").select("id, label, storehouse_number, current_value, book_value, target_value, asset_type, notes, risk_cap").eq("contact_id", contactId).order("storehouse_number"),
       familyId
         ? supabase.from("storehouse_rules").select("id, storehouse_label, storehouse_number, rule_type, rule_description, rule_value").eq("family_id", familyId).order("storehouse_number")
         : Promise.resolve({ data: [], error: null }),
