@@ -23,6 +23,18 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
+const REQUIRED_SCOPES = [
+  "https://www.googleapis.com/auth/documents",
+  "https://www.googleapis.com/auth/drive",
+];
+
+class InsufficientScopeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InsufficientScopeError";
+  }
+}
+
 async function getValidToken(supabaseAdmin: any, userId: string): Promise<string> {
   const { data, error } = await supabaseAdmin
     .from("google_tokens")
@@ -30,7 +42,14 @@ async function getValidToken(supabaseAdmin: any, userId: string): Promise<string
     .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) {
-    throw new Error("Google not connected. Please reconnect with Drive + Docs access.");
+    throw new InsufficientScopeError("Google not connected. Please reconnect with Drive + Docs access in Settings → Google.");
+  }
+  const grantedScopes: string[] = Array.isArray(data.scopes) ? data.scopes : [];
+  const missing = REQUIRED_SCOPES.filter((s) => !grantedScopes.includes(s));
+  if (missing.length > 0) {
+    throw new InsufficientScopeError(
+      "Your Google connection is missing required permissions for Docs and Drive. Please go to Settings → Google, disconnect, and reconnect to grant the new permissions.",
+    );
   }
   if (new Date(data.token_expiry) <= new Date()) {
     const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -346,7 +365,15 @@ serve(async (req) => {
       body: JSON.stringify({ title: docTitle }),
     });
     const created = await createRes.json();
-    if (!createRes.ok) throw new Error(`Failed to create doc: ${created.error?.message || JSON.stringify(created)}`);
+    if (!createRes.ok) {
+      const apiMsg = created.error?.message || JSON.stringify(created);
+      if (createRes.status === 401 || createRes.status === 403 || /insufficient/i.test(apiMsg)) {
+        throw new InsufficientScopeError(
+          "Your Google connection is missing required permissions for Docs and Drive. Please go to Settings → Google, disconnect, and reconnect to grant the new permissions.",
+        );
+      }
+      throw new Error(`Failed to create doc: ${apiMsg}`);
+    }
     const docId: string = created.documentId;
     const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
 
@@ -395,9 +422,13 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("charter-esign-create error:", e);
+    const isScopeErr = e instanceof InsufficientScopeError;
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: e instanceof Error ? e.message : "Unknown error",
+        code: isScopeErr ? "reconnect_google" : "unknown",
+      }),
+      { status: isScopeErr ? 412 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
