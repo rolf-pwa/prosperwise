@@ -585,7 +585,7 @@ const tableBodyCell: React.CSSProperties = { padding: "2.5mm 2mm", verticalAlign
 function StatusCard({ label, status, detail }: { label: string; status: string; detail: string }) {
   const kind = STATUS_KIND[status] || "amber";
   return (
-    <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 4mm" }}>
+    <div style={{ background: "#FFFFFF", border: "1px solid #D3C5B7", padding: "3mm 4mm" }}>
       <strong style={{ display: "block", fontSize: "8.5pt", fontWeight: 600, color: "#3B3F3F", marginBottom: "1mm" }}>
         {label}&nbsp;
         <span style={{ color: STATUS_COLOR[kind], fontSize: "7pt", letterSpacing: ".08em", textTransform: "uppercase" }}>
