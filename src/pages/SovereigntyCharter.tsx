@@ -161,6 +161,13 @@ type CharterRecord = {
   ratified_by?: string | null;
   generation_summary?: string | null;
   last_generated_at?: string | null;
+  // E-signature
+  esign_status?: string | null;
+  esign_doc_id?: string | null;
+  esign_doc_url?: string | null;
+  esign_sent_at?: string | null;
+  esign_signed_at?: string | null;
+  esign_error?: string | null;
 };
 
 type CharterSourceDraft = {
