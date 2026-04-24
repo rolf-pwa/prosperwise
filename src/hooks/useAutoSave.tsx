@@ -17,6 +17,12 @@ type UseAutoSaveOptions<T> = {
   onSave: (data: T) => Promise<boolean>;
   /** Debounce delay in ms (default 1500). */
   delay?: number;
+  /**
+   * If true, the hook automatically detects dirty state by JSON-comparing
+   * the current `data` to a baseline captured when `enabled` flips to true.
+   * If false (default), call `markDirty()` manually from your setters.
+   */
+  autoDetectDirty?: boolean;
 };
 
 /**
