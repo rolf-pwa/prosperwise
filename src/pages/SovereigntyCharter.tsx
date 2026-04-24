@@ -1507,6 +1507,51 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function SignatoriesEditor({
+  signatories,
+  onAdd,
+  onRemove,
+  onUpdate,
+}: {
+  signatories: Signatory[];
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+  onUpdate: (index: number, key: keyof Signatory, value: string) => void;
+}) {
+  return (
+    <div className="rounded-md border border-border p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Ratification Signatories</p>
+          <p className="text-xs text-muted-foreground">Names and roles of those ratifying the Charter.</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={onAdd}>
+          <Plus className="mr-2 h-4 w-4" /> Add signatory
+        </Button>
+      </div>
+      {signatories.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">No signatories yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {signatories.map((sig, index) => (
+            <div key={index} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+              <Field label="Name">
+                <Input value={sig.name} onChange={(e) => onUpdate(index, "name", e.target.value)} />
+              </Field>
+              <Field label="Role">
+                <Input value={sig.role} onChange={(e) => onUpdate(index, "role", e.target.value)} placeholder="Sovereign / Personal CFO / Witness" />
+              </Field>
+              <Button type="button" size="sm" variant="ghost" onClick={() => onRemove(index)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CustomContainerEditor({
   title,
   description,
