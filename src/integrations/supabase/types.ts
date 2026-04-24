@@ -1520,11 +1520,14 @@ export type Database = {
           generation_status: string
           id: string
           logic_trace: string | null
+          long_term_vision: string
+          primary_goal: string
           priority_1: string
           priority_2: string
           priority_3: string
           priority_4: string
           priority_5: string
+          purpose_statement: string
           review_date: string | null
           review_summary: string
           storehouse_detail: string
@@ -1554,11 +1557,14 @@ export type Database = {
           generation_status?: string
           id?: string
           logic_trace?: string | null
+          long_term_vision?: string
+          primary_goal?: string
           priority_1?: string
           priority_2?: string
           priority_3?: string
           priority_4?: string
           priority_5?: string
+          purpose_statement?: string
           review_date?: string | null
           review_summary?: string
           storehouse_detail?: string
@@ -1588,11 +1594,14 @@ export type Database = {
           generation_status?: string
           id?: string
           logic_trace?: string | null
+          long_term_vision?: string
+          primary_goal?: string
           priority_1?: string
           priority_2?: string
           priority_3?: string
           priority_4?: string
           priority_5?: string
+          purpose_statement?: string
           review_date?: string | null
           review_summary?: string
           storehouse_detail?: string
