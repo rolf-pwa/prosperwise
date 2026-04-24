@@ -24,7 +24,11 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
+type TokenResult =
+  | { ok: true; accessToken: string }
+  | { ok: false; reason: "no_token" | "refresh_failed"; detail?: string };
+
+async function getValidGoogleToken(supabaseAdmin: any): Promise<TokenResult> {
   const { data, error } = await supabaseAdmin
     .from("google_tokens")
     .select("*")
@@ -33,7 +37,7 @@ async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
 
   if (error || !data) {
     console.error("[DriveWatch] No Google tokens found:", error);
-    return null;
+    return { ok: false, reason: "no_token" };
   }
 
   if (new Date(data.token_expiry) <= new Date()) {
@@ -49,8 +53,12 @@ async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
     });
     const tokens = await res.json();
     if (tokens.error) {
-      console.error("[DriveWatch] Token refresh failed:", tokens.error);
-      return null;
+      console.error("[DriveWatch] Token refresh failed:", tokens.error, tokens.error_description);
+      // If the refresh token itself is invalid, clear it so the next connect issues a fresh one.
+      if (tokens.error === "invalid_grant") {
+        await supabaseAdmin.from("google_tokens").delete().eq("user_id", data.user_id);
+      }
+      return { ok: false, reason: "refresh_failed", detail: tokens.error_description || tokens.error };
     }
 
     const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
@@ -59,10 +67,10 @@ async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
       .update({ access_token: tokens.access_token, token_expiry: newExpiry })
       .eq("user_id", data.user_id);
 
-    return tokens.access_token;
+    return { ok: true, accessToken: tokens.access_token };
   }
 
-  return data.access_token;
+  return { ok: true, accessToken: data.access_token };
 }
 
 function extractFolderId(driveUrl: string): string | null {
@@ -466,10 +474,18 @@ serve(async (req) => {
 
   try {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const accessToken = await getValidGoogleToken(supabaseAdmin);
-    if (!accessToken) {
-      return new Response(JSON.stringify({ error: "No valid Google token available" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const tokenResult = await getValidGoogleToken(supabaseAdmin);
+    if (!tokenResult.ok) {
+      const needsReconnect = tokenResult.reason === "refresh_failed" || tokenResult.reason === "no_token";
+      const message = tokenResult.reason === "refresh_failed"
+        ? `Google access has expired or was revoked (${tokenResult.detail || "invalid_grant"}). Please disconnect Google in Settings and reconnect to refresh access.`
+        : "No Google account is connected. Connect Google in Settings to enable Drive sync.";
+      return new Response(
+        JSON.stringify({ error: message, code: "google_reauth_required", needsReconnect }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
+    const accessToken = tokenResult.accessToken;
 
     let body: any = {};
     if (req.method !== "GET") {
