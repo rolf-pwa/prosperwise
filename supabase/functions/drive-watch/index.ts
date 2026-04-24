@@ -293,8 +293,10 @@ async function extractTextFromDriveBlob(blob: Blob, mimeType?: string, fileName?
   return (await blob.text()).slice(0, CHARTER_TEXT_LIMIT);
 }
 
-function inferSourceKind(name: string, mimeType?: string): "statement" | "meeting_transcript" | "stabilization_session" | "note" | "link" {
+function inferSourceKind(name: string, mimeType?: string): "quarterly_review" | "statement" | "meeting_transcript" | "stabilization_session" | "note" | "link" {
   const normalized = `${name} ${mimeType || ""}`.toLowerCase();
+  // Quarterly Governance Review PDFs (saved from the QSR page) — pin to Portal Reviews
+  if (normalized.includes("quarterly") || normalized.includes("governance review") || normalized.includes("qsr")) return "quarterly_review";
   if (normalized.includes("transcript") || normalized.includes("meeting")) return "meeting_transcript";
   if (normalized.includes("stabilization") || normalized.includes("session")) return "stabilization_session";
   if (normalized.includes("statement") || normalized.includes("account") || normalized.includes("pdf")) return "statement";
