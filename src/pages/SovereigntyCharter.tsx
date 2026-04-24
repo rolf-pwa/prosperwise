@@ -1340,7 +1340,7 @@ export default function SovereigntyCharter() {
         </div>
       )}
 
-      <div className="mx-auto max-w-[210mm] px-6 py-6 print:p-0 print:max-w-none">
+      <div id="charter-printable-root" className="mx-auto max-w-[210mm] px-6 py-6 print:p-0 print:max-w-none">
         {(charter.generation_summary || charter.last_generated_at || charter.ratified_at) && (
           <div className="mb-6 rounded-lg border border-border bg-card p-4 print:hidden">
             <div className="flex flex-wrap items-center justify-between gap-3">
