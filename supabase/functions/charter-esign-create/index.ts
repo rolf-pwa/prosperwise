@@ -422,9 +422,13 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("charter-esign-create error:", e);
+    const isScopeErr = e instanceof InsufficientScopeError;
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: e instanceof Error ? e.message : "Unknown error",
+        code: isScopeErr ? "reconnect_google" : "unknown",
+      }),
+      { status: isScopeErr ? 412 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
