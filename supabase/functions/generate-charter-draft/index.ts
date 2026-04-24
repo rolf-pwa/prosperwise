@@ -322,13 +322,61 @@ serve(async (req) => {
 
 You are ProsperWise's charter architect. Draft the initial Sovereignty Charter using only the supplied contact profile, current financial structure, and resource materials.
 
-Return a JSON object with these exact string fields: title, subtitle, intro_heading, intro_callout, intro_note, mission_of_capital, vision_20_year, governance_authority, conflict_resolution, fiduciary_alliance, quiet_period, architecture_intro, protected_assets_note, harvest_accounts_note, appendix_note, footer_status, footer_date_label, generation_summary, full_markdown.
+Return a JSON object with these fields:
 
-Also return custom_sections as an object with pageOne and pageTwo arrays, where each array contains objects with title, meta, and body. Keep pageOne containers constitutional/governance oriented and pageTwo containers operational/container oriented.
+LEGACY DISPLAY FIELDS (strings):
+- title, subtitle, intro_heading, intro_callout, intro_note, mission_of_capital, vision_20_year, governance_authority, conflict_resolution, fiduciary_alliance, quiet_period, architecture_intro, protected_assets_note, harvest_accounts_note, appendix_note, footer_status, footer_date_label, generation_summary, full_markdown
+
+PURPOSE & OBJECTIVES (strings; from the Charter draft's "Purpose & Objectives" section):
+- transition_summary: 1-3 sentences describing the financial transition the family is navigating (sale, inheritance, retirement, etc.)
+- primary_goal: a single concise sentence stating the primary financial goal (e.g., "Preserve capital and generate sustainable income while protecting the family from outside financial pressure")
+- long_term_strategy: 2-4 sentences on the long-term capital deployment strategy (growth assets, reserves, philanthropic intent)
+
+GOVERNANCE & SAFEGUARDS (strings):
+- roles_responsibilities: who decides what (Sovereign / Personal CFO / advisors)
+- withdrawal_safeguards: rules and limits around withdrawals from growth assets
+- secondary_quiet_period_rule: rule for future inflows above the family's threshold (e.g., "All future inflows over $50k trigger a 90-day Quiet Period")
+- professional_coordination: how lawyer/CPA/insurance professionals coordinate with the Charter
+- monitoring_cadence: how often the Charter is reviewed (quarterly, annually, etc.)
+
+GROWTH ASSETS (numbers may be null if unknown; strings otherwise):
+- growth_primary_label: short label for the primary growth asset (e.g., "Investment Portfolio", "Operating Business")
+- growth_primary_value: numeric current value (number, not string), or null if unknown
+- growth_primary_detail: 1-2 sentences describing the primary growth asset's role
+- growth_secondary_label, growth_secondary_value, growth_secondary_detail: same structure for the secondary growth asset (or null/empty if none)
+
+STOREHOUSES (numbers may be null; strings otherwise):
+- storehouse_liquidity_value: numeric current value of liquidity reserves, or null
+- storehouse_liquidity_detail: 1-2 sentences describing the liquidity reserve target/policy
+- storehouse_strategic_value: numeric current value of strategic reserves, or null
+- storehouse_strategic_detail: 1-2 sentences describing strategic reserve purpose
+- storehouse_philanthropic_detail: 1-2 sentences on philanthropic chamber (purpose, vehicle)
+- storehouse_legacy_detail: 1-2 sentences on legacy/intergenerational chamber
+
+ANNUAL HARVEST (numbers may be null; strings otherwise):
+- harvest_target_income: numeric annual target income from the Vineyard, or null
+- harvest_yield_protocol: 2-4 sentences describing the harvest date, yield protocol, and replenishment rules
+- harvest_spending_categories: short summary of spending categories the harvest funds
+- harvest_review_date: ISO date string (YYYY-MM-DD) for the next harvest review, or null
+
+SUCCESSION (strings):
+- executor_primary: name of the primary executor, or empty string if unknown
+- executor_alternate: name of the alternate executor, or empty string if unknown
+- succession_terms: 2-4 sentences summarizing succession terms and instructions to executors
+
+RATIFICATION:
+- ratification_signatories: a JSON array of objects with shape { "role": string, "name": string, "signed_at": string|null }. Include the Sovereign, Personal CFO, Legal Counsel, and Tax Professional. Use empty string for "name" if unknown and null for "signed_at" if not yet signed.
+
+CUSTOM SECTIONS:
+- custom_sections: an object with pageOne and pageTwo arrays, where each array contains objects with title, meta, and body. Keep pageOne containers constitutional/governance oriented and pageTwo containers operational/container oriented.
 
 Use the template fields to summarize and structure the charter for the designed ProsperWise layout, but also produce full_markdown as the complete long-form constitutional document ready to append to the final document.
 
-Do not invent facts, numbers, institutions, or family members not supported by the materials. If a detail is unknown, use careful language that notes it remains to be confirmed.`;
+CRITICAL RULES:
+- Do not invent facts, numbers, institutions, or family members not supported by the materials.
+- For numeric fields, return JSON numbers (not strings, not currency-formatted text). Use null when unknown.
+- For string fields where data is unknown, use careful language noting the detail remains to be confirmed (do not fabricate).
+- Pull values directly from the supplied Sovereignty Charter draft document when present; only synthesize from financial structure when the draft is silent.`;
 
     const userPrompt = JSON.stringify({
       contact,
@@ -395,6 +443,35 @@ Do not invent facts, numbers, institutions, or family members not supported by t
       pageTwo: Array.isArray(parsedDraft.custom_sections?.pageTwo) ? parsedDraft.custom_sections.pageTwo : [],
     };
 
+    const toNullableNumber = (value: unknown): number | null => {
+      if (value === null || value === undefined || value === "") return null;
+      const num = typeof value === "number" ? value : Number(String(value).replace(/[^0-9.\-]/g, ""));
+      return Number.isFinite(num) ? num : null;
+    };
+    const toNullableString = (value: unknown): string | null => {
+      if (value === null || value === undefined) return null;
+      const str = String(value).trim();
+      return str ? str : null;
+    };
+    const toNullableDate = (value: unknown): string | null => {
+      const str = toNullableString(value);
+      if (!str) return null;
+      // Accept YYYY-MM-DD or ISO; normalize to YYYY-MM-DD
+      const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+      return match ? match[1] : null;
+    };
+    const toSignatoriesArray = (value: unknown) => {
+      if (!Array.isArray(value)) return [] as Array<{ role: string; name: string; signed_at: string | null }>;
+      return value
+        .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+        .map((row) => ({
+          role: String(row.role || "").trim(),
+          name: String(row.name || "").trim(),
+          signed_at: toNullableDate(row.signed_at),
+        }))
+        .filter((row) => row.role || row.name);
+    };
+
     const draftPayload = {
       contact_id: contactId,
       title: String(parsedDraft.title || baseCharter.title),
@@ -414,6 +491,36 @@ Do not invent facts, numbers, institutions, or family members not supported by t
       appendix_note: String(parsedDraft.appendix_note || baseCharter.appendix_note),
       footer_status: String(parsedDraft.footer_status || "Draft / AI-generated"),
       footer_date_label: String(parsedDraft.footer_date_label || baseCharter.footer_date_label),
+      // ── New structured fields (Hybrid template) ──
+      transition_summary: toNullableString(parsedDraft.transition_summary),
+      primary_goal: toNullableString(parsedDraft.primary_goal),
+      long_term_strategy: toNullableString(parsedDraft.long_term_strategy),
+      roles_responsibilities: toNullableString(parsedDraft.roles_responsibilities),
+      withdrawal_safeguards: toNullableString(parsedDraft.withdrawal_safeguards),
+      secondary_quiet_period_rule: toNullableString(parsedDraft.secondary_quiet_period_rule),
+      professional_coordination: toNullableString(parsedDraft.professional_coordination),
+      monitoring_cadence: toNullableString(parsedDraft.monitoring_cadence),
+      growth_primary_label: toNullableString(parsedDraft.growth_primary_label),
+      growth_primary_value: toNullableNumber(parsedDraft.growth_primary_value),
+      growth_primary_detail: toNullableString(parsedDraft.growth_primary_detail),
+      growth_secondary_label: toNullableString(parsedDraft.growth_secondary_label),
+      growth_secondary_value: toNullableNumber(parsedDraft.growth_secondary_value),
+      growth_secondary_detail: toNullableString(parsedDraft.growth_secondary_detail),
+      storehouse_liquidity_value: toNullableNumber(parsedDraft.storehouse_liquidity_value),
+      storehouse_liquidity_detail: toNullableString(parsedDraft.storehouse_liquidity_detail),
+      storehouse_strategic_value: toNullableNumber(parsedDraft.storehouse_strategic_value),
+      storehouse_strategic_detail: toNullableString(parsedDraft.storehouse_strategic_detail),
+      storehouse_philanthropic_detail: toNullableString(parsedDraft.storehouse_philanthropic_detail),
+      storehouse_legacy_detail: toNullableString(parsedDraft.storehouse_legacy_detail),
+      harvest_target_income: toNullableNumber(parsedDraft.harvest_target_income),
+      harvest_yield_protocol: toNullableString(parsedDraft.harvest_yield_protocol),
+      harvest_spending_categories: toNullableString(parsedDraft.harvest_spending_categories),
+      harvest_review_date: toNullableDate(parsedDraft.harvest_review_date),
+      executor_primary: toNullableString(parsedDraft.executor_primary),
+      executor_alternate: toNullableString(parsedDraft.executor_alternate),
+      succession_terms: toNullableString(parsedDraft.succession_terms),
+      ratification_signatories: toSignatoriesArray(parsedDraft.ratification_signatories),
+      // ── End new fields ──
       custom_sections: customSections,
       draft_status: "generated",
       generation_summary: String(parsedDraft.generation_summary || "Initial AI draft generated from the provided charter resources."),
