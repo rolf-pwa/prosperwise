@@ -231,7 +231,8 @@ serve(async (req) => {
     if (harvestRes.error) throw harvestRes.error;
 
     const charter = charterRes.data || null;
-    const purposeStatement = (charter?.intro_note || charter?.intro_callout || "").toString().trim();
+    // Prefer intro_callout (the actual Charter Purpose Statement) over intro_note (which is the meta-format description).
+    const purposeStatement = (charter?.intro_callout || charter?.intro_note || "").toString().trim();
     const primaryGoal = (charter?.mission_of_capital || "").toString().trim();
     const longTermVision = (charter?.vision_20_year || "").toString().trim();
 
