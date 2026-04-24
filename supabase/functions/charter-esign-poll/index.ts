@@ -139,7 +139,7 @@ async function pollOne(
         esign_error: null,
       })
       .eq("id", charter.id);
-    return { id: charter.id, status: "pending", note: "Resources folder not found yet" };
+    return { id: charter.id, status: "pending", note: "Sovereignty Charter Sources folder not found yet" };
   }
 
   const signed = await findSignedPdfInFolder(accessToken, resourcesFolderId);
