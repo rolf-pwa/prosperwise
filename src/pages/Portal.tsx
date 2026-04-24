@@ -42,6 +42,15 @@ interface PortalData {
   household_members: any[];
   hierarchy?: any;
   corporations?: any[];
+  quarterly_reviews?: Array<{
+    id: string;
+    contact_id: string;
+    title: string;
+    file_name: string | null;
+    signed_url: string | null;
+    drive_url: string | null;
+    review_date: string | null;
+  }>;
 }
 
 const ROLE_LABELS: Record<string, string> = {
