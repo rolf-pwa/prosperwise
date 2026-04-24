@@ -13,8 +13,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGoogleStatus, useSyncCharterDriveSources } from "@/hooks/useGoogle";
 import { draftSovereigntyCharter, isValidSourceUrl, sanitizeSourceText, sanitizeSourceTitle, sanitizeSourceUrl, uploadCharterSourceFile, type CharterDraftStatus, type CharterSourceInputMode, type CharterSourceKind, type CharterSourceRecord } from "@/lib/charter";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 
 type ContactRecord = {
   id: string;
@@ -786,111 +784,36 @@ export default function SovereigntyCharter() {
     }
   };
 
-  const renderCharterToPdfBase64 = async (): Promise<string> => {
-    const root = document.getElementById("charter-printable-root");
-    if (!root) throw new Error("Charter content not ready. Try again in a moment.");
-    // Render each .stab-doc page to a separate PDF page so layout is preserved.
-    const pages = Array.from(root.querySelectorAll<HTMLElement>(".stab-doc"));
-    if (pages.length === 0) throw new Error("No charter pages found to export.");
-
-    // A4 portrait — author width is 210mm, so always fit by width and slice tall
-    // pages across multiple PDF pages. This preserves the on-screen layout exactly
-    // and avoids the "shrink to fit height" path that warped earlier renders.
-    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const PX_PER_MM = 96 / 25.4; // CSS pixel ≈ 3.7795 per mm
-    const targetWidthPx = Math.round(210 * PX_PER_MM); // 794px
-
-    let firstPage = true;
-    for (let i = 0; i < pages.length; i++) {
-      const el = pages[i];
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        windowWidth: targetWidthPx,
-        width: targetWidthPx,
-      });
-      // Convert captured pixel height into mm at A4 width
-      const renderW = pageW;
-      const fullH = (canvas.height * renderW) / canvas.width;
-
-      if (fullH <= pageH + 0.5) {
-        // Fits on a single PDF page — top-aligned, full width.
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
-        if (!firstPage) pdf.addPage();
-        firstPage = false;
-        pdf.addImage(imgData, "JPEG", 0, 0, renderW, fullH);
-      } else {
-        // Slice the tall canvas into A4-height chunks rather than shrinking.
-        const sliceHeightPx = Math.floor((pageH * canvas.width) / renderW);
-        let renderedPx = 0;
-        while (renderedPx < canvas.height) {
-          const remainingPx = canvas.height - renderedPx;
-          const thisSlicePx = Math.min(sliceHeightPx, remainingPx);
-          const slice = document.createElement("canvas");
-          slice.width = canvas.width;
-          slice.height = thisSlicePx;
-          const ctx = slice.getContext("2d");
-          if (!ctx) break;
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, slice.width, slice.height);
-          ctx.drawImage(
-            canvas,
-            0, renderedPx, canvas.width, thisSlicePx,
-            0, 0, canvas.width, thisSlicePx,
-          );
-          const sliceData = slice.toDataURL("image/jpeg", 0.92);
-          const sliceHmm = (thisSlicePx * renderW) / canvas.width;
-          if (!firstPage) pdf.addPage();
-          firstPage = false;
-          pdf.addImage(sliceData, "JPEG", 0, 0, renderW, sliceHmm);
-          renderedPx += thisSlicePx;
-        }
-      }
-    }
-
-    // Output as base64 (without data URI prefix)
-    const dataUri = pdf.output("datauristring");
-    const idx = dataUri.indexOf("base64,");
-    return idx >= 0 ? dataUri.slice(idx + "base64,".length) : dataUri;
-  };
-
   const sendCharterForESign = async () => {
     if (!charter?.id) {
-      toast.error("Save the charter before sending for e-signature");
+      toast.error("Save the charter before marking it sent for signature");
       return;
     }
-    if (!googleStatus.data?.connected) {
-      toast.error("Connect your Google account first (Settings → Google)");
+    if (!user?.id) {
+      toast.error("You must be signed in");
       return;
     }
     setSendingForESign(true);
     try {
-      toast.info("Generating PDF…");
-      const pdf_base64 = await renderCharterToPdfBase64();
-
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/charter-esign-create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ charter_id: charter.id, pdf_base64 }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to upload signing PDF");
+      const { error } = await supabase
+        .from("sovereignty_charters" as any)
+        .update({
+          esign_status: "sent",
+          esign_sent_at: new Date().toISOString(),
+          esign_initiated_by: user.id,
+          esign_doc_id: null,
+          esign_doc_url: null,
+          esign_error: null,
+        })
+        .eq("id", charter.id);
+      if (error) throw error;
       toast.success(
-        "PDF uploaded to the Resources folder. Send it via Adobe Sign in Drive — once the signed copy (containing 'Completed-Adobe Sign') lands back in the same folder, the charter will auto-ratify.",
-        { duration: 10000 },
+        "Marked as sent for signature. Use Print / PDF to save the charter to the contact's Drive 'Sovereignty Charter Sources' folder, then send it via Adobe Sign. The signed PDF (filename containing 'Completed-Adobe Sign') will auto-ratify the charter when it lands back in that folder.",
+        { duration: 12000 },
       );
-      if (data.file_url) window.open(data.file_url, "_blank", "noopener,noreferrer");
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send for e-signature");
+      toast.error(e instanceof Error ? e.message : "Failed to mark as sent for signature");
     } finally {
       setSendingForESign(false);
     }
@@ -1142,15 +1065,8 @@ export default function SovereigntyCharter() {
                   <>
                     <Button size="sm" variant="outline" disabled>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Awaiting signed PDF in Resources
+                      Awaiting signed PDF in Drive
                     </Button>
-                    {charter.esign_doc_url && (
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={charter.esign_doc_url} target="_blank" rel="noreferrer noopener">
-                          <ExternalLink className="mr-2 h-4 w-4" /> Open in Drive
-                        </a>
-                      </Button>
-                    )}
                     <Button size="sm" variant="outline" onClick={refreshESignStatus} disabled={refreshingESign}>
                       {refreshingESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                       Check status
@@ -1161,9 +1077,9 @@ export default function SovereigntyCharter() {
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" onClick={sendCharterForESign} disabled={sendingForESign || !googleStatus.data?.connected}>
+                  <Button size="sm" onClick={sendCharterForESign} disabled={sendingForESign}>
                     {sendingForESign ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                    Send for E-Signature
+                    Mark as Sent for Signature
                   </Button>
                 )}
                 {sourceCharterUrl && (
