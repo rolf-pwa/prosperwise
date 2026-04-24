@@ -65,8 +65,24 @@ export default function StabilizationMap() {
   const [map, setMap] = useState<SMap | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+
+  const autoSave = useAutoSave<SMap>({
+    data: map,
+    enabled: editing,
+    onSave: async (current) => {
+      const { id: _, lead_id: __, contact_id: ___, generation_error: ____, ...rest } = current;
+      const { error } = await supabase
+        .from("stabilization_maps" as any)
+        .update({ ...rest, generation_status: "manually_edited" } as any)
+        .eq("id", current.id);
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+      return true;
+    },
+  });
 
   const load = async () => {
     if (!id) return;
