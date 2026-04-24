@@ -382,12 +382,27 @@ export default function QuarterlySystemReview() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {editing && (
+              <span className="text-xs text-muted-foreground mr-2">
+                {saving
+                  ? "Saving…"
+                  : isDirty
+                    ? "Unsaved changes"
+                    : lastSavedAt
+                      ? `Saved ${format(lastSavedAt, "h:mm:ss a")}`
+                      : "Auto-save on"}
+              </span>
+            )}
             {editing ? (
               <>
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); load(); }}>Cancel</Button>
+                <Button size="sm" variant="outline" onClick={async () => {
+                  if (isDirty) await persist(true);
+                  setEditing(false);
+                  load();
+                }}>Done</Button>
                 <Button size="sm" onClick={save} disabled={saving}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save
+                  Save & Close
                 </Button>
               </>
             ) : (
