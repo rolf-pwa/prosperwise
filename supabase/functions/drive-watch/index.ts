@@ -176,7 +176,7 @@ async function uploadBlobToStorage(supabaseAdmin: any, contactId: string, fileNa
 
 // ---------- Vertex AI PDF extraction (Montreal region) ----------
 const VERTEX_REGION = "northamerica-northeast1";
-const VERTEX_MODEL = "gemini-2.5-flash-preview-05-20";
+const VERTEX_MODEL = "gemini-2.5-flash";
 const PDF_INLINE_MAX_BYTES = 18 * 1024 * 1024; // ~18 MB safe for inline base64
 
 interface VertexServiceAccountKey {
@@ -234,6 +234,13 @@ function blobToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function hasRenderableExtractedText(text: string | null | undefined) {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  return !trimmed.startsWith("[PDF extraction failed") && !trimmed.startsWith("[PDF ");
+}
+
 async function extractPdfTextWithVertex(blob: Blob, fileName?: string): Promise<string> {
   const buffer = await blob.arrayBuffer();
   if (buffer.byteLength > PDF_INLINE_MAX_BYTES) {
@@ -277,14 +284,11 @@ async function extractPdfTextWithVertex(blob: Blob, fileName?: string): Promise<
 async function extractTextFromDriveBlob(blob: Blob, mimeType?: string, fileName?: string) {
   const type = mimeType || blob.type || "application/octet-stream";
   if (type.includes("pdf")) {
-    try {
-      const extracted = await extractPdfTextWithVertex(blob, fileName);
-      if (extracted) return extracted.slice(0, CHARTER_TEXT_LIMIT);
-      return `[PDF ${fileName || "source"} returned no text from Vertex extraction.]`;
-    } catch (err) {
-      console.error(`[DriveWatch] PDF extraction error for ${fileName}:`, err);
-      return `[PDF extraction failed for ${fileName || "source"}: ${err instanceof Error ? err.message : "unknown error"}]`;
+    const extracted = await extractPdfTextWithVertex(blob, fileName);
+    if (!hasRenderableExtractedText(extracted)) {
+      throw new Error(`PDF extraction returned no usable text for ${fileName || "source"}`);
     }
+    return extracted.slice(0, CHARTER_TEXT_LIMIT);
   }
   return (await blob.text()).slice(0, CHARTER_TEXT_LIMIT);
 }
@@ -487,20 +491,28 @@ async function processCharterFolderSync(supabaseAdmin: any, accessToken: string,
 
   const { data: existingSources } = await supabaseAdmin
     .from("sovereignty_charter_sources")
-    .select("external_file_id, external_modified_at")
+    .select("external_file_id, external_modified_at, sync_error, extracted_text")
     .eq("contact_id", contactId)
     .not("external_file_id", "is", null);
 
-  const existingMap = new Map<string, string | null>();
+  const existingMap = new Map<string, { modifiedAt: string | null; syncError: string | null; extractedText: string | null }>();
   for (const row of existingSources || []) {
-    if (row.external_file_id) existingMap.set(row.external_file_id, row.external_modified_at || null);
+    if (row.external_file_id) {
+      existingMap.set(row.external_file_id, {
+        modifiedAt: row.external_modified_at || null,
+        syncError: row.sync_error || null,
+        extractedText: row.extracted_text || null,
+      });
+    }
   }
 
   const changedFiles = allFiles.filter((file) => {
-    const prevModified = existingMap.get(file.id);
-    if (prevModified === undefined) return true; // new file
+    const existingSource = existingMap.get(file.id);
     const currentModified = file.modifiedTime || file.createdTime || null;
-    return prevModified !== currentModified; // re-import only if modified
+    if (!existingSource) return true; // new file
+    if (existingSource.modifiedAt !== currentModified) return true; // updated file
+    if (existingSource.syncError) return true; // retry prior failed imports
+    return !hasRenderableExtractedText(existingSource.extractedText); // retry placeholder/empty text
   });
 
   let importedCount = 0;
