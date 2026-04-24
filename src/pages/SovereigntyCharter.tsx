@@ -369,6 +369,21 @@ export default function SovereigntyCharter() {
       .filter(Boolean) as CustomContainer[];
   };
 
+  const normalizeSignatories = (value: unknown): Signatory[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const record = item as Record<string, unknown>;
+        return {
+          name: typeof record.name === "string" ? record.name : "",
+          role: typeof record.role === "string" ? record.role : "",
+          signed_at: typeof record.signed_at === "string" ? record.signed_at : null,
+        };
+      })
+      .filter((s): s is Signatory => Boolean(s));
+  };
+
   const normalizeCustomSections = (value: unknown): CustomSectionGroups => {
     if (Array.isArray(value)) {
       return {
@@ -485,6 +500,7 @@ export default function SovereigntyCharter() {
         id: typeof savedCharter.id === "string" ? savedCharter.id : undefined,
         contact_id: resolvedContact.id,
         custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+        ratification_signatories: normalizeSignatories(savedCharter.ratification_signatories),
       });
     } else {
       setCharter(baseCharter);
@@ -657,6 +673,7 @@ export default function SovereigntyCharter() {
           id: typeof savedCharter.id === "string" ? savedCharter.id : current.id,
           full_markdown: typeof savedCharter.full_markdown === "string" ? savedCharter.full_markdown : current.full_markdown,
           custom_sections: normalizeCustomSections(savedCharter.custom_sections),
+          ratification_signatories: normalizeSignatories(savedCharter.ratification_signatories),
         } : current);
       }
 
@@ -797,6 +814,35 @@ export default function SovereigntyCharter() {
       footer_date_label: charter.footer_date_label,
       full_markdown: charter.full_markdown,
       custom_sections: charter.custom_sections,
+      // ── Phase 2 structured fields ─────────────────────────────────────
+      transition_summary: charter.transition_summary,
+      primary_goal: charter.primary_goal,
+      long_term_strategy: charter.long_term_strategy,
+      monitoring_cadence: charter.monitoring_cadence,
+      withdrawal_safeguards: charter.withdrawal_safeguards,
+      roles_responsibilities: charter.roles_responsibilities,
+      professional_coordination: charter.professional_coordination,
+      secondary_quiet_period_rule: charter.secondary_quiet_period_rule,
+      growth_primary_label: charter.growth_primary_label,
+      growth_primary_value: charter.growth_primary_value,
+      growth_primary_detail: charter.growth_primary_detail,
+      growth_secondary_label: charter.growth_secondary_label,
+      growth_secondary_value: charter.growth_secondary_value,
+      growth_secondary_detail: charter.growth_secondary_detail,
+      storehouse_liquidity_value: charter.storehouse_liquidity_value,
+      storehouse_liquidity_detail: charter.storehouse_liquidity_detail,
+      storehouse_strategic_value: charter.storehouse_strategic_value,
+      storehouse_strategic_detail: charter.storehouse_strategic_detail,
+      storehouse_philanthropic_detail: charter.storehouse_philanthropic_detail,
+      storehouse_legacy_detail: charter.storehouse_legacy_detail,
+      harvest_target_income: charter.harvest_target_income,
+      harvest_yield_protocol: charter.harvest_yield_protocol,
+      harvest_spending_categories: charter.harvest_spending_categories,
+      harvest_review_date: charter.harvest_review_date,
+      executor_primary: charter.executor_primary,
+      executor_alternate: charter.executor_alternate,
+      succession_terms: charter.succession_terms,
+      ratification_signatories: charter.ratification_signatories,
     };
 
     const query = charter.id
