@@ -1348,60 +1348,6 @@ export default function SovereigntyCharter() {
           </div>
 
           <div style={{ padding: "12mm", display: "flex", flexDirection: "column", gap: "6mm" }}>
-            <div style={{ background: "#F8F6F2", borderLeft: "3px solid #A98C5A", padding: "3mm 5mm", display: "flex", flexDirection: "column", gap: "1.5mm" }}>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "7.5pt", fontWeight: 400, fontStyle: "italic", color: "#3B3F3F", lineHeight: 1.55 }}>
-                {charter.architecture_intro}
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4mm" }}>
-              <ContainerCard
-                title="The Vineyard"
-                subtitle="Protected Principal & Harvest Accounts"
-                items={vineyardAccounts.length
-                  ? vineyardAccounts.map((account) => `${account.account_name}${account.account_number ? ` (${account.account_number})` : ""} · ${isProtectedAccount(account) ? "Protected" : "Eligible Harvest"}`)
-                  : [charter.protected_assets_note, charter.harvest_accounts_note]}
-              />
-
-              {STOREHOUSE_CONFIG.map(({ num, name, subtitle }) => {
-                const containerAccounts = storehouses.filter((storehouse) => storehouse.storehouse_number === num);
-
-                return (
-                  <ContainerCard
-                    key={name}
-                    title={name}
-                    subtitle={subtitle}
-                    items={containerAccounts.length
-                      ? containerAccounts.flatMap((storehouse) => {
-                          const rules = groupedRules[storehouse.label] || groupedRules[`Storehouse ${storehouse.storehouse_number}`] || [];
-                          const detail = storehouse.label;
-                          const notes = rules.length
-                            ? rules.map((rule) => rule.rule_description)
-                            : [storehouse.asset_type, storehouse.risk_cap ? `Risk cap: ${storehouse.risk_cap}` : null, storehouse.notes]
-                                .filter(Boolean) as string[];
-
-                          return [detail, ...notes];
-                        })
-                      : ["No accounts currently designated to this container."]}
-                  />
-                );
-              })}
-
-              {charter.custom_sections.pageTwo.map((section) => (
-                <ContainerCard
-                  key={section.id}
-                  title={section.title}
-                  items={section.body.split("\n").map((line) => line.trim()).filter(Boolean)}
-                />
-              ))}
-            </div>
-
-            <SectionCard
-              title="Sovereign Waterfall"
-              body={waterfallPriorities.length ? undefined : "Waterfall priorities have not yet been defined for this family."}
-              items={waterfallPriorities.map((priority) => `${priority.priority_order}. ${priority.priority_label}${priority.target_amount ? ` · ${formatCurrency(priority.target_amount)}` : ""}${priority.priority_description ? ` — ${priority.priority_description}` : ""}`)}
-            />
-
             {(charter.growth_primary_detail || charter.growth_secondary_detail) ? (
               <div>
                 <div style={{ fontSize: "6.5pt", letterSpacing: ".12em", textTransform: "uppercase", color: "#7a8a8a", marginBottom: "2mm" }}>Vineyard Growth Allocation</div>
