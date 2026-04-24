@@ -1029,7 +1029,7 @@ export default function SovereigntyCharter() {
                 </Button>
                 {charter.draft_status === "ratified" || charter.esign_status === "ratified" ? (
                   <Button size="sm" disabled variant="outline">
-                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-success" />
                     Ratified {charter.esign_signed_at ? `· ${formatDate(charter.esign_signed_at, "")}` : ""}
                   </Button>
                 ) : charter.esign_status === "sent" ? (
