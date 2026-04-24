@@ -793,29 +793,62 @@ export default function SovereigntyCharter() {
     const pages = Array.from(root.querySelectorAll<HTMLElement>(".stab-doc"));
     if (pages.length === 0) throw new Error("No charter pages found to export.");
 
-    // A4 portrait
+    // A4 portrait — author width is 210mm, so always fit by width and slice tall
+    // pages across multiple PDF pages. This preserves the on-screen layout exactly
+    // and avoids the "shrink to fit height" path that warped earlier renders.
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
+    const PX_PER_MM = 96 / 25.4; // CSS pixel ≈ 3.7795 per mm
+    const targetWidthPx = Math.round(210 * PX_PER_MM); // 794px
 
+    let firstPage = true;
     for (let i = 0; i < pages.length; i++) {
-      const canvas = await html2canvas(pages[i], {
+      const el = pages[i];
+      const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
+        windowWidth: targetWidthPx,
+        width: targetWidthPx,
       });
-      const imgData = canvas.toDataURL("image/jpeg", 0.92);
-      const ratio = canvas.width / canvas.height;
-      let renderW = pageW;
-      let renderH = pageW / ratio;
-      if (renderH > pageH) {
-        renderH = pageH;
-        renderW = pageH * ratio;
+      // Convert captured pixel height into mm at A4 width
+      const renderW = pageW;
+      const fullH = (canvas.height * renderW) / canvas.width;
+
+      if (fullH <= pageH + 0.5) {
+        // Fits on a single PDF page — top-aligned, full width.
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+        if (!firstPage) pdf.addPage();
+        firstPage = false;
+        pdf.addImage(imgData, "JPEG", 0, 0, renderW, fullH);
+      } else {
+        // Slice the tall canvas into A4-height chunks rather than shrinking.
+        const sliceHeightPx = Math.floor((pageH * canvas.width) / renderW);
+        let renderedPx = 0;
+        while (renderedPx < canvas.height) {
+          const remainingPx = canvas.height - renderedPx;
+          const thisSlicePx = Math.min(sliceHeightPx, remainingPx);
+          const slice = document.createElement("canvas");
+          slice.width = canvas.width;
+          slice.height = thisSlicePx;
+          const ctx = slice.getContext("2d");
+          if (!ctx) break;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, slice.width, slice.height);
+          ctx.drawImage(
+            canvas,
+            0, renderedPx, canvas.width, thisSlicePx,
+            0, 0, canvas.width, thisSlicePx,
+          );
+          const sliceData = slice.toDataURL("image/jpeg", 0.92);
+          const sliceHmm = (thisSlicePx * renderW) / canvas.width;
+          if (!firstPage) pdf.addPage();
+          firstPage = false;
+          pdf.addImage(sliceData, "JPEG", 0, 0, renderW, sliceHmm);
+          renderedPx += thisSlicePx;
+        }
       }
-      const x = (pageW - renderW) / 2;
-      const y = 0;
-      if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, "JPEG", x, y, renderW, renderH);
     }
 
     // Output as base64 (without data URI prefix)
