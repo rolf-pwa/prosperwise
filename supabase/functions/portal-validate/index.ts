@@ -316,6 +316,10 @@ if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders }
       }
     }
 
+    // Pinned Quarterly Reviews (synced from "Sovereignty Charter Sources" Drive folder)
+    const reviewMemberIds = [contactId, ...householdMembers.map((m: any) => m.id)];
+    const quarterly_reviews = await fetchQuarterlyReviews(supabase, reviewMemberIds);
+
     return new Response(JSON.stringify({
       contact: contactRes.data,
       vineyard_accounts: accountsRes.data || [],
@@ -335,6 +339,7 @@ if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders }
       hierarchy,
       corporations,
       charter: charterRes.data,
+      quarterly_reviews,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
