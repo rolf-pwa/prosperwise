@@ -365,7 +365,15 @@ serve(async (req) => {
       body: JSON.stringify({ title: docTitle }),
     });
     const created = await createRes.json();
-    if (!createRes.ok) throw new Error(`Failed to create doc: ${created.error?.message || JSON.stringify(created)}`);
+    if (!createRes.ok) {
+      const apiMsg = created.error?.message || JSON.stringify(created);
+      if (createRes.status === 401 || createRes.status === 403 || /insufficient/i.test(apiMsg)) {
+        throw new InsufficientScopeError(
+          "Your Google connection is missing required permissions for Docs and Drive. Please go to Settings → Google, disconnect, and reconnect to grant the new permissions.",
+        );
+      }
+      throw new Error(`Failed to create doc: ${apiMsg}`);
+    }
     const docId: string = created.documentId;
     const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
 
