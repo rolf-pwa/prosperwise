@@ -57,6 +57,7 @@ type Storehouse = {
   label: string;
   storehouse_number: number;
   current_value: number | null;
+  book_value: number | null;
   target_value: number | null;
   asset_type: string | null;
   notes: string | null;
@@ -428,7 +429,7 @@ export default function SovereigntyCharter() {
         ? supabase.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       supabase.from("vineyard_accounts").select("id, account_name, account_number, account_type, current_value, book_value, notes").eq("contact_id", contactId).order("created_at"),
-      supabase.from("storehouses").select("id, label, storehouse_number, current_value, target_value, asset_type, notes, risk_cap").eq("contact_id", contactId).order("storehouse_number"),
+      supabase.from("storehouses").select("id, label, storehouse_number, current_value, book_value, target_value, asset_type, notes, risk_cap").eq("contact_id", contactId).order("storehouse_number"),
       familyId
         ? supabase.from("storehouse_rules").select("id, storehouse_label, storehouse_number, rule_type, rule_description, rule_value").eq("family_id", familyId).order("storehouse_number")
         : Promise.resolve({ data: [], error: null }),
@@ -1534,7 +1535,7 @@ export default function SovereigntyCharter() {
               rows={vineyardAccounts.map((account) => ({
                 label: account.account_name,
                 type: account.account_type,
-                value: formatCurrency(account.current_value),
+                value: formatCurrency(account.book_value),
                 note: isProtectedAccount(account) ? "Protected" : "Eligible Harvest",
               }))}
               emptyLabel="No Vineyard accounts are currently linked."
@@ -1546,7 +1547,7 @@ export default function SovereigntyCharter() {
                 ...storehouses.map((storehouse) => ({
                   label: storehouse.label,
                   type: storehouse.asset_type || `Storehouse #${storehouse.storehouse_number}`,
-                  value: formatCurrency(storehouse.current_value),
+                  value: formatCurrency(storehouse.book_value),
                   note: storehouse.risk_cap || storehouse.notes || "Governed reserve",
                 })),
                 ...charter.custom_sections.pageOne.map((section) => ({
