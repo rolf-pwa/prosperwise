@@ -22,7 +22,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
-const RESOURCES_FOLDER_NAME = "Resources";
+const RESOURCES_FOLDER_NAME = "Sovereignty Charter Sources";
 const SIGNED_FILENAME_MARKER = "completed-adobe sign"; // case-insensitive substring
 
 async function getValidTokenForUser(supabaseAdmin: any, userId: string): Promise<string | null> {
