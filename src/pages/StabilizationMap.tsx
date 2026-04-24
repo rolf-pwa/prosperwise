@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { useAutoSave, AutoSaveIndicator } from "@/hooks/useAutoSave";
 import pwLogoWhite from "@/assets/prosperwise-logo-white.png";
 
 type StatusKind = "red" | "amber" | "green";
@@ -116,21 +117,16 @@ export default function StabilizationMap() {
 
   const updateField = (key: keyof SMap, value: string) => {
     setMap((m) => (m ? { ...m, [key]: value } : m));
+    autoSave.markDirty();
   };
 
   const save = async () => {
-    if (!map) return;
-    setSaving(true);
-    const { id: _, lead_id: __, contact_id: ___, generation_error: ____, ...rest } = map;
-    const { error } = await supabase
-      .from("stabilization_maps" as any)
-      .update({ ...rest, generation_status: "manually_edited" } as any)
-      .eq("id", map.id);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Stabilization Map saved");
-    setEditing(false);
-    load();
+    const ok = await autoSave.flush();
+    if (ok) {
+      toast.success("Stabilization Map saved");
+      setEditing(false);
+      load();
+    }
   };
 
   const regenerate = async () => {
