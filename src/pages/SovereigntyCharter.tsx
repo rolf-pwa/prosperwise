@@ -917,7 +917,7 @@ export default function SovereigntyCharter() {
     }
   };
 
-
+  const ratifyCharter = async () => {
     if (!charter?.id || !contactId) {
       toast.error("Save or generate the charter before ratifying it");
       return;
