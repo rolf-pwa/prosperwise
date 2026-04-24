@@ -173,6 +173,42 @@ async function buildHierarchy(supabase: any, contact: any) {
   return { level: "individual" };
 }
 
+// Fetch Quarterly Reviews pinned from the "Sovereignty Charter Sources" Drive folder.
+// Returns rows with a 24h signed URL when stored in the private bucket; falls back to the Drive link.
+async function fetchQuarterlyReviews(supabase: any, contactIds: string[]) {
+  if (!contactIds || contactIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("sovereignty_charter_sources")
+    .select("id, contact_id, title, file_name, source_url, storage_bucket, storage_path, external_modified_at, created_at")
+    .in("contact_id", contactIds)
+    .eq("source_kind", "quarterly_review")
+    .order("external_modified_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  if (error || !data) return [];
+
+  const enriched = await Promise.all(
+    data.map(async (row: any) => {
+      let signed_url: string | null = null;
+      if (row.storage_bucket && row.storage_path) {
+        const { data: signed } = await supabase.storage
+          .from(row.storage_bucket)
+          .createSignedUrl(row.storage_path, 60 * 60 * 24);
+        signed_url = signed?.signedUrl || null;
+      }
+      return {
+        id: row.id,
+        contact_id: row.contact_id,
+        title: row.title || row.file_name || "Quarterly Governance Review",
+        file_name: row.file_name,
+        signed_url,
+        drive_url: row.source_url || null,
+        review_date: row.external_modified_at || row.created_at,
+      };
+    }),
+  );
+  return enriched;
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
