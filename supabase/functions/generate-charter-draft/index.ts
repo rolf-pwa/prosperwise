@@ -627,7 +627,36 @@ CRITICAL RULES:
       .single();
     if (savedCharterError || !savedCharter) throw savedCharterError || new Error("Failed to reload charter");
 
-    return respond(req, { ok: true, charterId: savedCharterId, charter: savedCharter, sources: sourceInsertRows, summary: draftPayload.generation_summary });
+    // Create / replace working Google Doc draft (best-effort; non-fatal on failure)
+    let googleDocUrl: string | null = null;
+    let googleDocError: string | null = null;
+    try {
+      const accessToken = await getValidGoogleToken(admin, user.id);
+      if (!accessToken) {
+        googleDocError = "Google not connected for this user; skipped Google Doc creation.";
+      } else {
+        const docTitle = `${draftPayload.title} — Working Draft`;
+        const doc = await createCharterGoogleDoc(accessToken, docTitle, draftPayload.full_markdown);
+        if (doc) {
+          googleDocUrl = doc.url;
+          await admin.from("contacts").update({ charter_url: doc.url }).eq("id", contactId);
+        } else {
+          googleDocError = "Google Doc creation failed; see edge function logs.";
+        }
+      }
+    } catch (docErr) {
+      console.error("Google Doc creation error:", docErr);
+      googleDocError = docErr instanceof Error ? docErr.message : "Unknown Google Doc error";
+    }
+
+    return respond(req, {
+      ok: true,
+      charterId: savedCharterId,
+      charter: savedCharter,
+      sources: sourceInsertRows,
+      summary: draftPayload.generation_summary,
+      diagnostics: { googleDocUrl, googleDocError },
+    });
   } catch (error) {
     console.error("generate-charter-draft error:", error);
     return respond(req, {
