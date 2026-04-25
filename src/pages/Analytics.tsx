@@ -67,6 +67,7 @@ const Analytics = () => {
   const [updates, setUpdates] = useState<MarketingUpdate[]>([]);
   const [reads, setReads] = useState<ReadRecord[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [georgiaSessions, setGeorgiaSessions] = useState<GeorgiaSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [drillContact, setDrillContact] = useState<Contact | null>(null);
   const [drillUpdate, setDrillUpdate] = useState<MarketingUpdate | null>(null);
@@ -83,11 +84,13 @@ const Analytics = () => {
       supabase.from("marketing_updates").select("*").order("created_at", { ascending: false }),
       supabase.from("marketing_update_reads").select("*").gte("read_at", rangeStart).order("read_at", { ascending: false }),
       supabase.from("contacts").select("id, full_name, email, governance_status, household_id"),
-    ]).then(([loginsRes, updatesRes, readsRes, contactsRes]) => {
+      supabase.from("georgia_session_starts").select("*").gte("started_at", rangeStart).order("started_at", { ascending: false }),
+    ]).then(([loginsRes, updatesRes, readsRes, contactsRes, georgiaRes]) => {
       setLogins((loginsRes.data as any) || []);
       setUpdates(updatesRes.data || []);
       setReads(readsRes.data || []);
       setContacts(contactsRes.data || []);
+      setGeorgiaSessions((georgiaRes.data as any) || []);
       setLoading(false);
     });
   }, [rangeStart]);
