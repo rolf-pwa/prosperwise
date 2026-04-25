@@ -104,25 +104,40 @@ export default function DiscoveryEmbed() {
   const reachedLeadCaptureRef = useRef(false);
   const leadCapturedRef = useRef(false);
 
+  const sessionInsertedRef = useRef(false);
+  const sessionKeyRef = useRef<string | null>(null);
+
+  const ensureSessionStarted = async () => {
+    if (sessionInsertedRef.current) return;
+    sessionInsertedRef.current = true;
+
+    const sessionKey = sessionKeyRef.current;
+    if (!sessionKey) return;
+
+    if (sessionStorage.getItem(`${SESSION_START_KEY}_inserted`) === "1") return;
+
+    const { error } = await supabase.from("georgia_session_starts").insert({
+      session_key: sessionKey,
+      source: "discovery_embed",
+      landing_path: window.location.pathname,
+      referrer: document.referrer || null,
+      user_agent: navigator.userAgent || null,
+    });
+    if (error) {
+      console.error("Failed to track Georgia embed session start", error);
+      sessionInsertedRef.current = false;
+    } else {
+      sessionStorage.setItem(`${SESSION_START_KEY}_inserted`, "1");
+    }
+  };
+
   useEffect(() => {
     const sessionKey = getOrCreateSessionKey(SESSION_START_KEY);
+    sessionKeyRef.current = sessionKey;
     bindGeorgiaSession(sessionKey);
 
-    const started = sessionStorage.getItem(`${SESSION_START_KEY}_inserted`);
-    if (!started) {
-      void supabase.from("georgia_session_starts").insert({
-        session_key: sessionKey,
-        source: "discovery_embed",
-        landing_path: window.location.pathname,
-        referrer: document.referrer || null,
-        user_agent: navigator.userAgent || null,
-      }).then(({ error }) => {
-        if (error) {
-          console.error("Failed to track Georgia embed session start", error);
-        } else {
-          sessionStorage.setItem(`${SESSION_START_KEY}_inserted`, "1");
-        }
-      });
+    if (sessionStorage.getItem(`${SESSION_START_KEY}_inserted`) === "1") {
+      sessionInsertedRef.current = true;
     }
 
     const detach = attachExitBeacon(() => ({
@@ -135,12 +150,14 @@ export default function DiscoveryEmbed() {
   }, []);
 
   // Keep funnel refs in sync and push debounced updates as the chat progresses.
+  // Only emit updates after a session row has been inserted (i.e. user engaged).
   useEffect(() => {
     messageCountRef.current = messages.length;
     phaseRef.current = phase;
     if (phase === "lead_capture" || phase === "complete") {
       reachedLeadCaptureRef.current = true;
     }
+    if (!sessionInsertedRef.current) return;
     trackSessionUpdate({
       message_count: messages.length,
       reached_lead_capture: reachedLeadCaptureRef.current,
