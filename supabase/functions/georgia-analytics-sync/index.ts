@@ -167,7 +167,7 @@ function buildTrafficRows(starts: SessionStartRow[]) {
 
 function buildAbandonedRows(starts: SessionStartRow[]) {
   const rows: (string | number | boolean)[][] = [[
-    "Started At", "Date", "Session Key", "Source", "Landing Path", "Referrer",
+    "Started At", "Date", "Session Key", "Referrer",
     "Last Activity", "Ended At", "Message Count", "Reached Lead Form", "Final Phase",
   ]];
   const abandoned = starts.filter((row) => !row.lead_captured);
@@ -176,8 +176,6 @@ function buildAbandonedRows(starts: SessionStartRow[]) {
       row.started_at,
       toDateKey(row.started_at),
       row.session_key,
-      row.source,
-      row.landing_path || "",
       row.referrer || "",
       row.last_activity_at || "",
       row.ended_at || "",
