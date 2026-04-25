@@ -204,11 +204,23 @@ async function ensureSheets(spreadsheetId: string, titles: string[]) {
   });
 }
 
-async function writeSheetData(spreadsheetId: string, summaryTitle: string, trafficTitle: string, summaryRows: (string | number)[][], trafficRows: string[][]) {
+async function writeSheetData(
+  spreadsheetId: string,
+  summaryTitle: string,
+  trafficTitle: string,
+  abandonedTitle: string,
+  summaryRows: (string | number)[][],
+  trafficRows: (string | number | boolean)[][],
+  abandonedRows: (string | number | boolean)[][],
+) {
   await gatewayFetch(`/spreadsheets/${spreadsheetId}/values:batchClear`, {
     method: "POST",
     body: JSON.stringify({
-      ranges: [sheetRange(summaryTitle, "A:Z"), sheetRange(trafficTitle, "A:Z")],
+      ranges: [
+        sheetRange(summaryTitle, "A:Z"),
+        sheetRange(trafficTitle, "A:Z"),
+        sheetRange(abandonedTitle, "A:Z"),
+      ],
     }),
   });
 
@@ -217,16 +229,9 @@ async function writeSheetData(spreadsheetId: string, summaryTitle: string, traff
     body: JSON.stringify({
       valueInputOption: "USER_ENTERED",
       data: [
-        {
-          range: sheetRange(summaryTitle, "A1"),
-          majorDimension: "ROWS",
-          values: summaryRows,
-        },
-        {
-          range: sheetRange(trafficTitle, "A1"),
-          majorDimension: "ROWS",
-          values: trafficRows,
-        },
+        { range: sheetRange(summaryTitle, "A1"), majorDimension: "ROWS", values: summaryRows },
+        { range: sheetRange(trafficTitle, "A1"), majorDimension: "ROWS", values: trafficRows },
+        { range: sheetRange(abandonedTitle, "A1"), majorDimension: "ROWS", values: abandonedRows },
       ],
     }),
   });
