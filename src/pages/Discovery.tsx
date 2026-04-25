@@ -86,25 +86,41 @@ export default function Discovery() {
   const reachedLeadCaptureRef = useRef(false);
   const leadCapturedRef = useRef(false);
 
+  const sessionInsertedRef = useRef(false);
+  const sessionKeyRef = useRef<string | null>(null);
+
+  const ensureSessionStarted = async () => {
+    if (sessionInsertedRef.current) return;
+    sessionInsertedRef.current = true; // optimistic guard against concurrent calls
+
+    const sessionKey = sessionKeyRef.current;
+    if (!sessionKey) return;
+
+    if (sessionStorage.getItem(`${SESSION_START_KEY}_inserted`) === "1") return;
+
+    const { error } = await supabase.from("georgia_session_starts").insert({
+      session_key: sessionKey,
+      source: "discovery",
+      landing_path: window.location.pathname,
+      referrer: document.referrer || null,
+      user_agent: navigator.userAgent || null,
+    });
+    if (error) {
+      console.error("Failed to track Georgia session start", error);
+      sessionInsertedRef.current = false; // allow retry on next message
+    } else {
+      sessionStorage.setItem(`${SESSION_START_KEY}_inserted`, "1");
+    }
+  };
+
   useEffect(() => {
     const sessionKey = getOrCreateSessionKey(SESSION_START_KEY);
+    sessionKeyRef.current = sessionKey;
     bindGeorgiaSession(sessionKey);
 
-    const started = sessionStorage.getItem(`${SESSION_START_KEY}_inserted`);
-    if (!started) {
-      void supabase.from("georgia_session_starts").insert({
-        session_key: sessionKey,
-        source: "discovery",
-        landing_path: window.location.pathname,
-        referrer: document.referrer || null,
-        user_agent: navigator.userAgent || null,
-      }).then(({ error }) => {
-        if (error) {
-          console.error("Failed to track Georgia session start", error);
-        } else {
-          sessionStorage.setItem(`${SESSION_START_KEY}_inserted`, "1");
-        }
-      });
+    // If a row already exists for this session (e.g. page refresh mid-chat), don't re-insert.
+    if (sessionStorage.getItem(`${SESSION_START_KEY}_inserted`) === "1") {
+      sessionInsertedRef.current = true;
     }
 
     const detach = attachExitBeacon(() => ({
@@ -117,12 +133,14 @@ export default function Discovery() {
   }, []);
 
   // Keep funnel refs in sync and push debounced updates as the chat progresses.
+  // Only emit updates after a session row has been inserted (i.e. user engaged).
   useEffect(() => {
     messageCountRef.current = messages.length;
     phaseRef.current = phase;
     if (phase === "lead_capture" || phase === "complete") {
       reachedLeadCaptureRef.current = true;
     }
+    if (!sessionInsertedRef.current) return;
     trackSessionUpdate({
       message_count: messages.length,
       reached_lead_capture: reachedLeadCaptureRef.current,
