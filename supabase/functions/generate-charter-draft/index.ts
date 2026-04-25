@@ -11,6 +11,67 @@ const ALLOWED_ORIGINS = [
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MAX_SOURCE_TEXT = 20000;
 const MAX_SOURCES = 12;
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") || "";
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+
+async function getValidGoogleToken(admin: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
+  const { data, error } = await admin.from("google_tokens").select("*").eq("user_id", userId).maybeSingle();
+  if (error || !data) return null;
+
+  if (new Date(data.token_expiry as string) <= new Date()) {
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return null;
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        refresh_token: data.refresh_token as string,
+        grant_type: "refresh_token",
+      }),
+    });
+    const tokens = await res.json();
+    if (tokens.error) return null;
+    const newExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+    await admin.from("google_tokens").update({ access_token: tokens.access_token, token_expiry: newExpiry }).eq("user_id", userId);
+    return tokens.access_token;
+  }
+
+  return data.access_token as string;
+}
+
+async function createCharterGoogleDoc(accessToken: string, title: string, markdown: string): Promise<{ id: string; url: string } | null> {
+  // 1. Create the doc
+  const createRes = await fetch("https://docs.googleapis.com/v1/documents", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  const createData = await createRes.json();
+  if (!createRes.ok || !createData.documentId) {
+    console.error("Failed to create Google Doc:", createData);
+    return null;
+  }
+  const documentId = createData.documentId as string;
+
+  // 2. Insert markdown content as plain text body
+  const body = (markdown || "").trim() || "Charter draft pending.";
+  const updateRes = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [
+        { insertText: { location: { index: 1 }, text: body } },
+      ],
+    }),
+  });
+  if (!updateRes.ok) {
+    const errText = await updateRes.text();
+    console.error("Failed to write Google Doc body:", errText);
+  }
+
+  return { id: documentId, url: `https://docs.google.com/document/d/${documentId}/edit` };
+}
 
 const SourceSchema = z.object({
   sourceKind: z.enum(["statement", "stabilization_session", "meeting_transcript", "link", "note"]),
@@ -566,7 +627,36 @@ CRITICAL RULES:
       .single();
     if (savedCharterError || !savedCharter) throw savedCharterError || new Error("Failed to reload charter");
 
-    return respond(req, { ok: true, charterId: savedCharterId, charter: savedCharter, sources: sourceInsertRows, summary: draftPayload.generation_summary });
+    // Create / replace working Google Doc draft (best-effort; non-fatal on failure)
+    let googleDocUrl: string | null = null;
+    let googleDocError: string | null = null;
+    try {
+      const accessToken = await getValidGoogleToken(admin, user.id);
+      if (!accessToken) {
+        googleDocError = "Google not connected for this user; skipped Google Doc creation.";
+      } else {
+        const docTitle = `${draftPayload.title} — Working Draft`;
+        const doc = await createCharterGoogleDoc(accessToken, docTitle, draftPayload.full_markdown);
+        if (doc) {
+          googleDocUrl = doc.url;
+          await admin.from("contacts").update({ charter_url: doc.url }).eq("id", contactId);
+        } else {
+          googleDocError = "Google Doc creation failed; see edge function logs.";
+        }
+      }
+    } catch (docErr) {
+      console.error("Google Doc creation error:", docErr);
+      googleDocError = docErr instanceof Error ? docErr.message : "Unknown Google Doc error";
+    }
+
+    return respond(req, {
+      ok: true,
+      charterId: savedCharterId,
+      charter: savedCharter,
+      sources: sourceInsertRows,
+      summary: draftPayload.generation_summary,
+      diagnostics: { googleDocUrl, googleDocError },
+    });
   } catch (error) {
     console.error("generate-charter-draft error:", error);
     return respond(req, {

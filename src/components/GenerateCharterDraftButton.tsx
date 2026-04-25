@@ -86,8 +86,17 @@ export function GenerateCharterDraftButton({ contactId }: Props) {
       };
 
       toast.loading("Generating charter draft...", { id: "charter-draft" });
-      await draftSovereigntyCharter(payload);
-      toast.success("Charter draft generated", { id: "charter-draft" });
+      const result = await draftSovereigntyCharter(payload);
+      const docUrl = (result as any)?.diagnostics?.googleDocUrl as string | null | undefined;
+      const docError = (result as any)?.diagnostics?.googleDocError as string | null | undefined;
+      if (docUrl) {
+        toast.success("Charter draft generated — Google Doc created", {
+          id: "charter-draft",
+          action: { label: "Open Doc", onClick: () => window.open(docUrl, "_blank", "noopener,noreferrer") },
+        });
+      } else {
+        toast.success(docError ? `Charter draft generated (Doc skipped: ${docError})` : "Charter draft generated", { id: "charter-draft" });
+      }
       navigate(`/sovereignty-charter/contact/${contactId}`);
     } catch (err) {
       console.error(err);
