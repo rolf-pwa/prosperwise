@@ -141,7 +141,10 @@ function buildSummaryRows(starts: SessionStartRow[], leads: LeadRow[]) {
 }
 
 function buildTrafficRows(starts: SessionStartRow[]) {
-  const rows = [["Started At", "Date", "Session Key", "Source", "Landing Path", "Referrer", "User Agent"]];
+  const rows: (string | number | boolean)[][] = [[
+    "Started At", "Date", "Session Key", "Source", "Landing Path", "Referrer", "User Agent",
+    "Last Activity", "Ended At", "Message Count", "Reached Lead Form", "Lead Captured", "Final Phase",
+  ]];
   for (const row of starts) {
     rows.push([
       row.started_at,
@@ -151,6 +154,36 @@ function buildTrafficRows(starts: SessionStartRow[]) {
       row.landing_path || "",
       row.referrer || "",
       row.user_agent || "",
+      row.last_activity_at || "",
+      row.ended_at || "",
+      row.message_count ?? 0,
+      row.reached_lead_capture ?? false,
+      row.lead_captured ?? false,
+      row.final_phase || "",
+    ]);
+  }
+  return rows;
+}
+
+function buildAbandonedRows(starts: SessionStartRow[]) {
+  const rows: (string | number | boolean)[][] = [[
+    "Started At", "Date", "Session Key", "Source", "Landing Path", "Referrer",
+    "Last Activity", "Ended At", "Message Count", "Reached Lead Form", "Final Phase",
+  ]];
+  const abandoned = starts.filter((row) => !row.lead_captured);
+  for (const row of abandoned) {
+    rows.push([
+      row.started_at,
+      toDateKey(row.started_at),
+      row.session_key,
+      row.source,
+      row.landing_path || "",
+      row.referrer || "",
+      row.last_activity_at || "",
+      row.ended_at || "",
+      row.message_count ?? 0,
+      row.reached_lead_capture ?? false,
+      row.final_phase || "",
     ]);
   }
   return rows;
