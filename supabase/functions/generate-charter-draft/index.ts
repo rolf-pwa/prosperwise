@@ -62,7 +62,7 @@ You are the "Sovereign Architect." Your role is to draft the $3,999 Sovereignty 
 
 CORE PHILOSOPHY
 
-The Perimeter: The Charter is the constitution that establishes a family's financial territory. It is the governing document of the Sovereignty Operating System.
+The Perimeter: The Charter is the boundary between family peace and "The Noise."
 
 Professional Alliance: We do not compete with the Lawyer/CPA; we provide the strategic architecture that their documents must inhabit.
 
@@ -70,7 +70,7 @@ Command Phase: This document marks the end of "The Quiet Period."
 
 DRAFTING STRUCTURE
 
-Preamble, Mission, & Vision
+1. Preamble, Mission, & Vision
 
 Define the transition and the end of the Quiet Period.
 
@@ -78,7 +78,7 @@ Synthesize the "Purpose of Capital" into a 1-2 sentence Mission.
 
 Describe a 20-year Vision of family flourishing.
 
-Articles of Governance
+2. Articles of Governance
 
 Article I: Governance & Authority: Define the decision-rights between Steward and Architect.
 
@@ -90,21 +90,25 @@ Article IV: Succession: Detailed instructions for Executors and Trustees.
 
 Article VI: Future Inflows: Codify the Secondary Quiet Period (90 days) for all future inheritances over $50k.
 
-Appendix A: The Structural Architecture
+3. Appendix A: The Structural Architecture
 
-The Vineyard: The growth-oriented economic engine.
+The Storehouse ($100k): The immediate Assuris-protected safety buffer.
 
-The Storehouse: The sovereignty structure that includes Chambers: Liquidity Reserves, Strategic Reserves, Philanthropic Trust, Legacy Trust.
+The Vineyard ($900k): The growth-oriented economic engine.
 
-The Harvest Protocol
+The Vault: Real estate and foundational hard assets.
+
+The Tributary: Acknowledge the $20k/year in government benefits (CPP/OAS/Survivor).
+
+4. The Harvest Protocol
 
 Define the annual Harvest Date (e.g., October 1st).
 
-Establish the Sovereignty Threshold logic: Annual liquidity requirements.
+Establish the Sovereignty Threshold logic ($120k total: $100k from Vineyard + $20k from Tributary).
 
-Detail the replenishment of the Storehouse chambers.
+Detail the replenishment of the Granary (Cash) and Armoury (Children's Future).
 
-Ratification
+5. Ratification
 
 Include signature blocks for the Sovereign, Personal CFO, Legal Counsel, and Tax Professional.
 
@@ -112,7 +116,7 @@ TONE & VOICE
 
 "The Steady Hand": Weighty, authoritative, and serif-styled in spirit.
 
-Terminology: Use ProsperWise terms exclusively (Vineyard, Storehouse, Harvest, Sovereignty).
+Terminology: Use ProsperWise terms exclusively (Vineyard, Storehouse, Harvest, Sovereignty, Command).
 
 OUTPUT FORMAT
 
@@ -255,7 +259,7 @@ serve(async (req) => {
     if (charterError) throw charterError;
 
     const familyId = contact.family_id;
-    const [familyRes, vineyardRes, storehouseRes, rulesRes] = await Promise.all([
+    const [familyRes, vineyardRes, storehouseRes, rulesRes, kbRes] = await Promise.all([
       familyId
         ? admin.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -264,12 +268,21 @@ serve(async (req) => {
       familyId
         ? admin.from("storehouse_rules").select("id, storehouse_label, storehouse_number, rule_type, rule_description, rule_value").eq("family_id", familyId).order("storehouse_number")
         : Promise.resolve({ data: [], error: null }),
+      admin.from("knowledge_base").select("title, category, content").eq("is_active", true).in("target", ["charter-draft", "both"]).order("category"),
     ]);
 
     if (familyRes.error) throw familyRes.error;
     if (vineyardRes.error) throw vineyardRes.error;
     if (storehouseRes.error) throw storehouseRes.error;
     if (rulesRes.error) throw rulesRes.error;
+    if (kbRes.error) throw kbRes.error;
+
+    const knowledgeBaseEntries = (kbRes.data || []) as Array<{ title: string; category: string; content: string }>;
+    const knowledgeBaseBlock = knowledgeBaseEntries.length
+      ? `\n\nADDITIONAL KNOWLEDGE BASE (editable in /knowledge-base, target = "charter-draft"):\n\n${knowledgeBaseEntries
+          .map((entry) => `### ${entry.title} [${entry.category}]\n${entry.content}`)
+          .join("\n\n")}`
+      : "";
 
     const vineyardAccounts = vineyardRes.data || [];
     const storehouses = storehouseRes.data || [];
@@ -318,7 +331,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `${SOVEREIGN_ARCHITECT_SYSTEM_PROMPT}
+    const systemPrompt = `${SOVEREIGN_ARCHITECT_SYSTEM_PROMPT}${knowledgeBaseBlock}
 
 You are ProsperWise's charter architect. Draft the initial Sovereignty Charter using only the supplied contact profile, current financial structure, and resource materials.
 

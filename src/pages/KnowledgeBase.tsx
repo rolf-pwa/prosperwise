@@ -316,6 +316,7 @@ function KnowledgeTab() {
                       <SelectItem value="both">Both Georgias</SelectItem>
                       <SelectItem value="transition">Transition Assistant</SelectItem>
                       <SelectItem value="portal">Client Portal</SelectItem>
+                      <SelectItem value="charter-draft">Charter Draft Generator</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -398,6 +399,7 @@ function KnowledgeTab() {
             <SelectItem value="all">All Targets</SelectItem>
             <SelectItem value="transition">Transition Assistant</SelectItem>
             <SelectItem value="portal">Client Portal</SelectItem>
+            <SelectItem value="charter-draft">Charter Draft Generator</SelectItem>
             <SelectItem value="both">Both</SelectItem>
           </SelectContent>
         </Select>
@@ -442,7 +444,13 @@ function KnowledgeTab() {
                       {CATEGORIES.find((c) => c.value === entry.category)?.label || entry.category}
                     </Badge>
                     <Badge variant="outline" className="text-[10px]">
-                      {entry.target === "both" ? "Both" : entry.target === "transition" ? "Transition" : "Portal"}
+                      {entry.target === "both"
+                        ? "Both"
+                        : entry.target === "transition"
+                        ? "Transition"
+                        : entry.target === "charter-draft"
+                        ? "Charter Draft"
+                        : "Portal"}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2">
