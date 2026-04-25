@@ -618,6 +618,68 @@ const Analytics = () => {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Georgia Chat Funnel + Abandoned Sessions */}
+            <Card>
+              <CardHeader className="flex flex-row items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                <CardTitle className="text-sm">Georgia Chat — Sessions & Abandonment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Sessions Started</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Reached Lead Form</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.filter((s) => s.reached_lead_capture).length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Lead Captured</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.filter((s) => s.lead_captured).length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Abandoned</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.filter((s) => !s.lead_captured).length}</p>
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Last Phase</TableHead>
+                      <TableHead>Msgs</TableHead>
+                      <TableHead>Last Activity</TableHead>
+                      <TableHead>Landing</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {georgiaSessions.filter((s) => !s.lead_captured).slice(0, 50).map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="text-xs">{format(new Date(s.started_at), "MMM d, h:mm a")}</TableCell>
+                        <TableCell><Badge variant="secondary">{s.source}</Badge></TableCell>
+                        <TableCell>
+                          <Badge variant={s.reached_lead_capture ? "default" : "secondary"}>
+                            {s.final_phase}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{s.message_count}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(s.last_activity_at), "MMM d, h:mm a")}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{s.landing_path || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {georgiaSessions.filter((s) => !s.lead_captured).length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="text-muted-foreground text-center">No abandoned sessions in this period</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
