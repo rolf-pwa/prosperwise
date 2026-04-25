@@ -22,6 +22,12 @@ type SessionStartRow = {
   referrer: string | null;
   user_agent: string | null;
   started_at: string;
+  ended_at: string | null;
+  last_activity_at: string | null;
+  message_count: number | null;
+  reached_lead_capture: boolean | null;
+  lead_captured: boolean | null;
+  final_phase: string | null;
 };
 
 type LeadRow = {
