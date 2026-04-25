@@ -57,3 +57,6 @@ verify_jwt = false
 [functions.charter-esign-poll]
 verify_jwt = false
 
+[functions.georgia-session-update]
+verify_jwt = false
+
