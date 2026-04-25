@@ -819,8 +819,14 @@ export type Database = {
       georgia_session_starts: {
         Row: {
           created_at: string
+          ended_at: string | null
+          final_phase: string
           id: string
           landing_path: string | null
+          last_activity_at: string
+          lead_captured: boolean
+          message_count: number
+          reached_lead_capture: boolean
           referrer: string | null
           session_key: string
           source: string
@@ -829,8 +835,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          ended_at?: string | null
+          final_phase?: string
           id?: string
           landing_path?: string | null
+          last_activity_at?: string
+          lead_captured?: boolean
+          message_count?: number
+          reached_lead_capture?: boolean
           referrer?: string | null
           session_key: string
           source?: string
@@ -839,8 +851,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          ended_at?: string | null
+          final_phase?: string
           id?: string
           landing_path?: string | null
+          last_activity_at?: string
+          lead_captured?: boolean
+          message_count?: number
+          reached_lead_capture?: boolean
           referrer?: string | null
           session_key?: string
           source?: string
