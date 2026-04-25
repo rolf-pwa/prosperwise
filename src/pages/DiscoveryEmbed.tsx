@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { attachExitBeacon, bindGeorgiaSession, trackSessionUpdate } from "@/lib/georgia-session-tracker";
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const SESSION_START_KEY = "georgia_embed_started_v1";
@@ -97,24 +98,56 @@ export default function DiscoveryEmbed() {
     }
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    const started = sessionStorage.getItem(SESSION_START_KEY);
-    if (started) return;
+  // Refs hold latest funnel state for the exit beacon.
+  const messageCountRef = useRef(0);
+  const phaseRef = useRef<Phase>(phase);
+  const reachedLeadCaptureRef = useRef(false);
+  const leadCapturedRef = useRef(false);
 
+  useEffect(() => {
     const sessionKey = getOrCreateSessionKey(SESSION_START_KEY);
-    void supabase.from("georgia_session_starts").insert({
-      session_key: sessionKey,
-      source: "discovery_embed",
-      landing_path: window.location.pathname,
-      referrer: document.referrer || null,
-      user_agent: navigator.userAgent || null,
-    }).then(({ error }) => {
-      if (error) {
-        sessionStorage.removeItem(SESSION_START_KEY);
-        console.error("Failed to track Georgia embed session start", error);
-      }
-    });
+    bindGeorgiaSession(sessionKey);
+
+    const started = sessionStorage.getItem(`${SESSION_START_KEY}_inserted`);
+    if (!started) {
+      void supabase.from("georgia_session_starts").insert({
+        session_key: sessionKey,
+        source: "discovery_embed",
+        landing_path: window.location.pathname,
+        referrer: document.referrer || null,
+        user_agent: navigator.userAgent || null,
+      }).then(({ error }) => {
+        if (error) {
+          console.error("Failed to track Georgia embed session start", error);
+        } else {
+          sessionStorage.setItem(`${SESSION_START_KEY}_inserted`, "1");
+        }
+      });
+    }
+
+    const detach = attachExitBeacon(() => ({
+      message_count: messageCountRef.current,
+      reached_lead_capture: reachedLeadCaptureRef.current,
+      lead_captured: leadCapturedRef.current,
+      final_phase: phaseRef.current,
+    }));
+    return detach;
   }, []);
+
+  // Keep funnel refs in sync and push debounced updates as the chat progresses.
+  useEffect(() => {
+    messageCountRef.current = messages.length;
+    phaseRef.current = phase;
+    if (phase === "lead_capture" || phase === "complete") {
+      reachedLeadCaptureRef.current = true;
+    }
+    trackSessionUpdate({
+      message_count: messages.length,
+      reached_lead_capture: reachedLeadCaptureRef.current,
+      lead_captured: leadCapturedRef.current,
+      final_phase: phase,
+    });
+  }, [messages.length, phase]);
 
 
   async function sendToGeorgia(msgs: Message[], isGreeting = false) {
@@ -192,6 +225,8 @@ export default function DiscoveryEmbed() {
       const requestedGuide = Boolean(data.requestedGuide && data.guideUrl);
       setCompletionCta(requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : null);
       setPhase("complete");
+      leadCapturedRef.current = true;
+      trackSessionUpdate({ lead_captured: true, reached_lead_capture: true, final_phase: "complete" });
       setMessages((prev) => [
         ...prev,
         {

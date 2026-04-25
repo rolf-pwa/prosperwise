@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users, ExternalLink } from "lucide-react";
+import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users, ExternalLink, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, subDays, startOfDay, startOfWeek, eachDayOfInterval, eachWeekOfInterval } from "date-fns";
 
@@ -45,6 +45,21 @@ interface Contact {
   household_id: string | null;
 }
 
+interface GeorgiaSession {
+  id: string;
+  session_key: string;
+  source: string;
+  landing_path: string | null;
+  referrer: string | null;
+  started_at: string;
+  last_activity_at: string;
+  ended_at: string | null;
+  message_count: number;
+  reached_lead_capture: boolean;
+  lead_captured: boolean;
+  final_phase: string;
+}
+
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
   const [granularity, setGranularity] = useState<Granularity>("daily");
@@ -52,6 +67,7 @@ const Analytics = () => {
   const [updates, setUpdates] = useState<MarketingUpdate[]>([]);
   const [reads, setReads] = useState<ReadRecord[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [georgiaSessions, setGeorgiaSessions] = useState<GeorgiaSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [drillContact, setDrillContact] = useState<Contact | null>(null);
   const [drillUpdate, setDrillUpdate] = useState<MarketingUpdate | null>(null);
@@ -68,11 +84,13 @@ const Analytics = () => {
       supabase.from("marketing_updates").select("*").order("created_at", { ascending: false }),
       supabase.from("marketing_update_reads").select("*").gte("read_at", rangeStart).order("read_at", { ascending: false }),
       supabase.from("contacts").select("id, full_name, email, governance_status, household_id"),
-    ]).then(([loginsRes, updatesRes, readsRes, contactsRes]) => {
+      supabase.from("georgia_session_starts").select("*").gte("started_at", rangeStart).order("started_at", { ascending: false }),
+    ]).then(([loginsRes, updatesRes, readsRes, contactsRes, georgiaRes]) => {
       setLogins((loginsRes.data as any) || []);
       setUpdates(updatesRes.data || []);
       setReads(readsRes.data || []);
       setContacts(contactsRes.data || []);
+      setGeorgiaSessions((georgiaRes.data as any) || []);
       setLoading(false);
     });
   }, [rangeStart]);
@@ -595,6 +613,68 @@ const Analytics = () => {
                     ))}
                     {clientStats.length === 0 && (
                       <TableRow><TableCell colSpan={4} className="text-muted-foreground text-center">No activity in this period</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Georgia Chat Funnel + Abandoned Sessions */}
+            <Card>
+              <CardHeader className="flex flex-row items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                <CardTitle className="text-sm">Georgia Chat — Sessions & Abandonment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Sessions Started</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Reached Lead Form</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.filter((s) => s.reached_lead_capture).length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Lead Captured</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.filter((s) => s.lead_captured).length}</p>
+                  </div>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Abandoned</p>
+                    <p className="text-2xl font-bold">{georgiaSessions.filter((s) => !s.lead_captured).length}</p>
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Last Phase</TableHead>
+                      <TableHead>Msgs</TableHead>
+                      <TableHead>Last Activity</TableHead>
+                      <TableHead>Landing</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {georgiaSessions.filter((s) => !s.lead_captured).slice(0, 50).map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="text-xs">{format(new Date(s.started_at), "MMM d, h:mm a")}</TableCell>
+                        <TableCell><Badge variant="secondary">{s.source}</Badge></TableCell>
+                        <TableCell>
+                          <Badge variant={s.reached_lead_capture ? "default" : "secondary"}>
+                            {s.final_phase}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{s.message_count}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(s.last_activity_at), "MMM d, h:mm a")}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">{s.landing_path || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {georgiaSessions.filter((s) => !s.lead_captured).length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="text-muted-foreground text-center">No abandoned sessions in this period</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
