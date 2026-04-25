@@ -331,7 +331,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `${SOVEREIGN_ARCHITECT_SYSTEM_PROMPT}
+    const systemPrompt = `${SOVEREIGN_ARCHITECT_SYSTEM_PROMPT}${knowledgeBaseBlock}
 
 You are ProsperWise's charter architect. Draft the initial Sovereignty Charter using only the supplied contact profile, current financial structure, and resource materials.
 
