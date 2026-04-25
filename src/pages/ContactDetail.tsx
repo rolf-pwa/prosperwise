@@ -32,6 +32,7 @@ import { ProfessionalLinker } from "@/components/ProfessionalLinker";
 import { StabilizationMapButton } from "@/components/StabilizationMapButton";
 import { QuarterlySystemReviewButton } from "@/components/QuarterlySystemReviewButton";
 import { SovereigntyCharterButton } from "@/components/SovereigntyCharterButton";
+import { GenerateCharterDraftButton } from "@/components/GenerateCharterDraftButton";
 import { 
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, 
@@ -581,6 +582,7 @@ const ContactDetail = () => {
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 <SovereigntyCharterButton contactId={id!} />
+                <GenerateCharterDraftButton contactId={id!} />
                 <StabilizationMapButton contactId={id!} />
                 <QuarterlySystemReviewButton contactId={id!} />
               </CardContent>
