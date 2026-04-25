@@ -189,6 +189,9 @@ export default function Discovery() {
     const text = input.trim();
     if (!text || isLoading) return;
 
+    // First user message = real Georgia session start.
+    await ensureSessionStarted();
+
     const userMsg: Message = { role: "user", content: text };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
