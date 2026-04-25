@@ -225,6 +225,8 @@ export default function DiscoveryEmbed() {
       const requestedGuide = Boolean(data.requestedGuide && data.guideUrl);
       setCompletionCta(requestedGuide ? { label: "Open complimentary guide", href: data.guideUrl } : null);
       setPhase("complete");
+      leadCapturedRef.current = true;
+      trackSessionUpdate({ lead_captured: true, reached_lead_capture: true, final_phase: "complete" });
       setMessages((prev) => [
         ...prev,
         {
