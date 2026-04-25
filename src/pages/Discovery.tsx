@@ -116,6 +116,21 @@ export default function Discovery() {
     return detach;
   }, []);
 
+  // Keep funnel refs in sync and push debounced updates as the chat progresses.
+  useEffect(() => {
+    messageCountRef.current = messages.length;
+    phaseRef.current = phase;
+    if (phase === "lead_capture" || phase === "complete") {
+      reachedLeadCaptureRef.current = true;
+    }
+    trackSessionUpdate({
+      message_count: messages.length,
+      reached_lead_capture: reachedLeadCaptureRef.current,
+      lead_captured: leadCapturedRef.current,
+      final_phase: phase,
+    });
+  }, [messages.length, phase]);
+
 
   async function sendToGeorgia(msgs: Message[], isGreeting = false) {
     setIsLoading(true);
