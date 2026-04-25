@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users, ExternalLink } from "lucide-react";
+import { BarChart3, Eye, LogIn, Send, ChevronLeft, Users, ExternalLink, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, subDays, startOfDay, startOfWeek, eachDayOfInterval, eachWeekOfInterval } from "date-fns";
 
@@ -43,6 +43,21 @@ interface Contact {
   email: string | null;
   governance_status: string;
   household_id: string | null;
+}
+
+interface GeorgiaSession {
+  id: string;
+  session_key: string;
+  source: string;
+  landing_path: string | null;
+  referrer: string | null;
+  started_at: string;
+  last_activity_at: string;
+  ended_at: string | null;
+  message_count: number;
+  reached_lead_capture: boolean;
+  lead_captured: boolean;
+  final_phase: string;
 }
 
 const Analytics = () => {
