@@ -269,7 +269,7 @@ serve(async (req) => {
 
     const { data: config, error: configError } = await supabase
       .from("georgia_analytics_sync_configs")
-      .select("id, spreadsheet_id, worksheet_summary_name, worksheet_traffic_name")
+      .select("id, spreadsheet_id, worksheet_summary_name, worksheet_traffic_name, worksheet_abandoned_name")
       .eq("is_active", true)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -278,10 +278,12 @@ serve(async (req) => {
     if (configError) throw configError;
     if (!config) throw new Error("No active Georgia analytics sync configuration found");
 
+    const abandonedTitle = (config as any).worksheet_abandoned_name || "Abandoned Sessions";
+
     const starts = await fetchAllRows<SessionStartRow>((from, to) =>
       supabase
         .from("georgia_session_starts")
-        .select("session_key, source, landing_path, referrer, user_agent, started_at")
+        .select("session_key, source, landing_path, referrer, user_agent, started_at, ended_at, last_activity_at, message_count, reached_lead_capture, lead_captured, final_phase")
         .order("started_at", { ascending: true })
         .range(from, to)
     );
@@ -296,9 +298,18 @@ serve(async (req) => {
 
     const summaryRows = buildSummaryRows(starts, leads);
     const trafficRows = buildTrafficRows(starts);
+    const abandonedRows = buildAbandonedRows(starts);
 
-    await ensureSheets(config.spreadsheet_id, [config.worksheet_summary_name, config.worksheet_traffic_name]);
-    await writeSheetData(config.spreadsheet_id, config.worksheet_summary_name, config.worksheet_traffic_name, summaryRows, trafficRows);
+    await ensureSheets(config.spreadsheet_id, [config.worksheet_summary_name, config.worksheet_traffic_name, abandonedTitle]);
+    await writeSheetData(
+      config.spreadsheet_id,
+      config.worksheet_summary_name,
+      config.worksheet_traffic_name,
+      abandonedTitle,
+      summaryRows,
+      trafficRows,
+      abandonedRows,
+    );
 
     const syncedAt = new Date().toISOString();
     await supabase
@@ -311,6 +322,7 @@ serve(async (req) => {
       syncedAt,
       summaryRows: Math.max(summaryRows.length - 1, 0),
       trafficRows: Math.max(trafficRows.length - 1, 0),
+      abandonedRows: Math.max(abandonedRows.length - 1, 0),
       spreadsheetId: config.spreadsheet_id,
     }), {
       status: 200,
