@@ -785,6 +785,7 @@ export type Database = {
           last_synced_at: string | null
           spreadsheet_id: string
           updated_at: string
+          worksheet_abandoned_name: string
           worksheet_summary_name: string
           worksheet_traffic_name: string
         }
@@ -798,6 +799,7 @@ export type Database = {
           last_synced_at?: string | null
           spreadsheet_id: string
           updated_at?: string
+          worksheet_abandoned_name?: string
           worksheet_summary_name?: string
           worksheet_traffic_name?: string
         }
@@ -811,6 +813,7 @@ export type Database = {
           last_synced_at?: string | null
           spreadsheet_id?: string
           updated_at?: string
+          worksheet_abandoned_name?: string
           worksheet_summary_name?: string
           worksheet_traffic_name?: string
         }
