@@ -259,7 +259,7 @@ serve(async (req) => {
     if (charterError) throw charterError;
 
     const familyId = contact.family_id;
-    const [familyRes, vineyardRes, storehouseRes, rulesRes] = await Promise.all([
+    const [familyRes, vineyardRes, storehouseRes, rulesRes, kbRes] = await Promise.all([
       familyId
         ? admin.from("families").select("id, name, charter_document_url, total_family_assets, annual_savings, fee_tier").eq("id", familyId).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -268,12 +268,21 @@ serve(async (req) => {
       familyId
         ? admin.from("storehouse_rules").select("id, storehouse_label, storehouse_number, rule_type, rule_description, rule_value").eq("family_id", familyId).order("storehouse_number")
         : Promise.resolve({ data: [], error: null }),
+      admin.from("knowledge_base").select("title, category, content").eq("is_active", true).in("target", ["charter-draft", "both"]).order("category"),
     ]);
 
     if (familyRes.error) throw familyRes.error;
     if (vineyardRes.error) throw vineyardRes.error;
     if (storehouseRes.error) throw storehouseRes.error;
     if (rulesRes.error) throw rulesRes.error;
+    if (kbRes.error) throw kbRes.error;
+
+    const knowledgeBaseEntries = (kbRes.data || []) as Array<{ title: string; category: string; content: string }>;
+    const knowledgeBaseBlock = knowledgeBaseEntries.length
+      ? `\n\nADDITIONAL KNOWLEDGE BASE (editable in /knowledge-base, target = "charter-draft"):\n\n${knowledgeBaseEntries
+          .map((entry) => `### ${entry.title} [${entry.category}]\n${entry.content}`)
+          .join("\n\n")}`
+      : "";
 
     const vineyardAccounts = vineyardRes.data || [];
     const storehouses = storehouseRes.data || [];
