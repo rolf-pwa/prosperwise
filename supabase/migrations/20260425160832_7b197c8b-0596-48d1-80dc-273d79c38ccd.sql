@@ -1,0 +1,1 @@
+TRUNCATE TABLE public.georgia_session_starts;
