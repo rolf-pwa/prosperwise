@@ -253,8 +253,8 @@ const Portal = () => {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
 
-  // Inactivity timeout (5 minutes)
-  const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+  // Inactivity timeout (30 minutes)
+  const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLogout = useCallback(() => {
