@@ -9,7 +9,7 @@ const QUO_PHONE_NUMBER_RAW = Deno.env.get("QUO_DEFAULT_PHONE_NUMBER_ID") || "";
 const QUO_BASE_URL = "https://api.openphone.com/v1";
 
 const AFTER_HOURS_REPLY =
-  "Thanks for your message — you've reached us outside our business hours (Mon–Fri, 9am–5pm ET). " +
+  "Thanks for your message — you've reached us outside our business hours (Mon–Fri, 9am–5pm PT). " +
   "We'll respond as soon as we're back online. For sensitive or account-related matters, " +
   "please use the Ask for Help section in your Sovereign Portal.";
 
