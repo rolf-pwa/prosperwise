@@ -1018,6 +1018,26 @@ const ContactDetail = () => {
                     <span className="font-medium">{contact.address}</span>
                   </div>
                 )}
+                {resourceLinks.some((l) => l.url) && (
+                  <div className="pt-2 mt-2 border-t border-border/50 space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Apps</p>
+                    {resourceLinks.filter((l) => l.url).map((link) => {
+                      const Icon = link.icon;
+                      return (
+                        <a
+                          key={link.label}
+                          href={link.url!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          <span>{link.label}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
                 {!contact.email && !contact.phone && !contact.address && (
                   <p className="text-muted-foreground">No contact info on file.</p>
                 )}
