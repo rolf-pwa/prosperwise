@@ -1113,10 +1113,6 @@ const ContactDetail = () => {
                         google_drive_url: contact.google_drive_url,
                       }}
                     />
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
 
             {/* Professional Team */}
             <Card>
