@@ -305,6 +305,120 @@ serve(async (req) => {
       });
     }
 
+    // ---- createContactFromPhone (creates a fresh contact + back-links all matching messages/calls) ----
+    if (action === "createContactFromPhone") {
+      const { phone, firstName, lastName, email } = body;
+      if (!phone) {
+        return new Response(JSON.stringify({ error: "Missing phone" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const normalized = normalizePhone(phone);
+      const digits = normalized.replace(/\D/g, "").slice(-10);
+
+      const { data: contact, error: insertErr } = await adminClient
+        .from("contacts")
+        .insert({
+          first_name: firstName || "",
+          last_name: lastName || "Unknown",
+          phone: normalized,
+          email: email || null,
+        })
+        .select("id")
+        .single();
+      if (insertErr) throw insertErr;
+
+      // Back-link any messages/calls whose number ends with the same 10 digits
+      const { data: orphanMsgs } = await adminClient
+        .from("quo_messages").select("id, from_number, to_number, direction").is("contact_id", null);
+      const msgIds = (orphanMsgs || []).filter((m: any) => {
+        const cp = m.direction === "inbound" ? m.from_number : m.to_number;
+        return (cp || "").replace(/\D/g, "").slice(-10) === digits;
+      }).map((m: any) => m.id);
+      if (msgIds.length) {
+        await adminClient.from("quo_messages").update({ contact_id: contact.id }).in("id", msgIds);
+      }
+
+      const { data: orphanCalls } = await adminClient
+        .from("quo_calls").select("id, from_number, to_number, direction").is("contact_id", null);
+      const callIds = (orphanCalls || []).filter((c: any) => {
+        const cp = c.direction === "inbound" ? c.from_number : c.to_number;
+        return (cp || "").replace(/\D/g, "").slice(-10) === digits;
+      }).map((c: any) => c.id);
+      if (callIds.length) {
+        await adminClient.from("quo_calls").update({ contact_id: contact.id }).in("id", callIds);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        contactId: contact.id,
+        linkedMessages: msgIds.length,
+        linkedCalls: callIds.length,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ---- linkPhoneToContact (link orphan messages/calls to an existing contact) ----
+    if (action === "linkPhoneToContact") {
+      const { phone, contactId } = body;
+      if (!phone || !contactId) {
+        return new Response(JSON.stringify({ error: "Missing phone or contactId" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const digits = phone.replace(/\D/g, "").slice(-10);
+
+      // Optionally update the contact's phone if blank
+      const { data: existing } = await adminClient
+        .from("contacts").select("phone").eq("id", contactId).single();
+      if (existing && !existing.phone) {
+        await adminClient.from("contacts").update({ phone: normalizePhone(phone) }).eq("id", contactId);
+      }
+
+      const { data: orphanMsgs } = await adminClient
+        .from("quo_messages").select("id, from_number, to_number, direction").is("contact_id", null);
+      const msgIds = (orphanMsgs || []).filter((m: any) => {
+        const cp = m.direction === "inbound" ? m.from_number : m.to_number;
+        return (cp || "").replace(/\D/g, "").slice(-10) === digits;
+      }).map((m: any) => m.id);
+      if (msgIds.length) {
+        await adminClient.from("quo_messages").update({ contact_id: contactId }).in("id", msgIds);
+      }
+
+      const { data: orphanCalls } = await adminClient
+        .from("quo_calls").select("id, from_number, to_number, direction").is("contact_id", null);
+      const callIds = (orphanCalls || []).filter((c: any) => {
+        const cp = c.direction === "inbound" ? c.from_number : c.to_number;
+        return (cp || "").replace(/\D/g, "").slice(-10) === digits;
+      }).map((c: any) => c.id);
+      if (callIds.length) {
+        await adminClient.from("quo_calls").update({ contact_id: contactId }).in("id", callIds);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        linkedMessages: msgIds.length,
+        linkedCalls: callIds.length,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ---- searchContacts (lightweight typeahead for the link dialog) ----
+    if (action === "searchContacts") {
+      const { q } = body;
+      if (!q || q.length < 2) {
+        return new Response(JSON.stringify({ contacts: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data } = await supabase
+        .from("contacts")
+        .select("id, first_name, last_name, phone, email")
+        .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(10);
+      return new Response(JSON.stringify({ contacts: data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
