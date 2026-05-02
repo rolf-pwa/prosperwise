@@ -42,6 +42,7 @@ import StabilizationMapResolver from "./pages/StabilizationMapResolver";
 import QuarterlySystemReview from "./pages/QuarterlySystemReview";
 import QuarterlySystemReviewResolver from "./pages/QuarterlySystemReviewResolver";
 import SovereigntyCharter from "./pages/SovereigntyCharter";
+import Inbox from "./pages/Inbox";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/portal/:token" element={<Portal />} />
             <Route path="/google-callback" element={<ProtectedRoute><GoogleCallback /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
             <Route path="/holding-tank" element={<ProtectedRoute><HoldingTankPage /></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/onboarding/bulk" element={<ProtectedRoute><BulkOnboarding /></ProtectedRoute>} />
