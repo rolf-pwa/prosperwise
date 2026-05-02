@@ -20,6 +20,7 @@ interface QuoMessage {
   pii_blocked: boolean;
   from_number: string | null;
   to_number: string | null;
+  read_at: string | null;
 }
 
 interface QuoCall {
@@ -34,6 +35,7 @@ interface QuoCall {
   portal_visible: boolean;
   from_number: string | null;
   to_number: string | null;
+  read_at: string | null;
 }
 
 interface ContactLite {
@@ -66,8 +68,14 @@ export default function Inbox() {
     }
   };
 
+  const markAllRead = async () => {
+    try {
+      await supabase.functions.invoke("quo-service", { body: { action: "markRead", all: true } });
+    } catch {}
+  };
+
   useEffect(() => {
-    load();
+    load().then(() => markAllRead());
     const channel = supabase
       .channel("quo-inbox")
       .on("postgres_changes", { event: "*", schema: "public", table: "quo_messages" }, () => load())
@@ -198,7 +206,7 @@ function MessageCard({
   const isOut = m.direction === "outbound";
   const fallback = isOut ? m.to_number : m.from_number;
   return (
-    <Card className="p-4">
+    <Card className={`p-4 ${!m.read_at && m.direction === "inbound" ? "border-l-4 border-l-amber-500 bg-amber-500/5" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 text-xs text-muted-foreground">
@@ -242,7 +250,7 @@ function CallCard({
   const mins = Math.floor(c.duration_seconds / 60);
   const secs = c.duration_seconds % 60;
   return (
-    <Card className="p-4">
+    <Card className={`p-4 ${!c.read_at && c.direction === "inbound" ? "border-l-4 border-l-amber-500 bg-amber-500/5" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 text-xs text-muted-foreground">

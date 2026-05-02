@@ -70,7 +70,7 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/inbox", label: "Inbox", icon: InboxIcon },
+  { to: "/inbox", label: "Inbox", icon: InboxIcon, inboxBadge: true },
   { to: "/onboarding", label: "Onboarding", icon: PackagePlus },
   { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
@@ -111,6 +111,7 @@ export function AppSidebar() {
   const [pendingTasksCount, setPendingTasksCount] = useState<number | null>(null);
   const [pendingReviewCount, setPendingReviewCount] = useState<number | null>(null);
   const [openRequestsCount, setOpenRequestsCount] = useState<number | null>(null);
+  const [inboxUnreadCount, setInboxUnreadCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -143,12 +144,30 @@ export function AppSidebar() {
         setOpenRequestsCount(count ?? 0);
       } catch {}
     })();
+
+    const loadInboxUnread = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("quo-service", {
+          body: { action: "unreadCount" },
+        });
+        setInboxUnreadCount(data?.unread ?? 0);
+      } catch {}
+    };
+    loadInboxUnread();
+
+    const channel = supabase
+      .channel("sidebar-quo-unread")
+      .on("postgres_changes", { event: "*", schema: "public", table: "quo_messages" }, loadInboxUnread)
+      .on("postgres_changes", { event: "*", schema: "public", table: "quo_calls" }, loadInboxUnread)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const getBadgeCount = (item: any) => {
     if (item.tasksBadge && pendingTasksCount !== null && pendingTasksCount > 0) return pendingTasksCount;
     if (item.reviewBadge && pendingReviewCount !== null && pendingReviewCount > 0) return pendingReviewCount;
     if (item.requestsBadge && openRequestsCount !== null && openRequestsCount > 0) return openRequestsCount;
+    if (item.inboxBadge && inboxUnreadCount !== null && inboxUnreadCount > 0) return inboxUnreadCount;
     return null;
   };
 
