@@ -1,0 +1,270 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Loader2, Send, Phone, MessageSquare, Eye, EyeOff, RefreshCw } from "lucide-react";
+
+interface QuoCommunicationsProps {
+  contactId: string;
+  contactPhone: string | null;
+  contactName: string;
+}
+
+interface QuoMessage {
+  id: string;
+  direction: "inbound" | "outbound";
+  body: string;
+  status: string;
+  occurred_at: string;
+  portal_visible: boolean;
+  pii_blocked: boolean;
+  pii_block_reason: string | null;
+}
+
+interface QuoCall {
+  id: string;
+  direction: "inbound" | "outbound";
+  duration_seconds: number;
+  recording_url: string | null;
+  summary: string | null;
+  transcript: string | null;
+  next_steps: string | null;
+  occurred_at: string;
+  portal_visible: boolean;
+}
+
+export default function QuoCommunications({ contactId, contactPhone, contactName }: QuoCommunicationsProps) {
+  const [messages, setMessages] = useState<QuoMessage[]>([]);
+  const [calls, setCalls] = useState<QuoCall[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [msgRes, callRes] = await Promise.all([
+        supabase.functions.invoke("quo-service", {
+          body: { action: "listMessages", contactId },
+        }),
+        supabase.functions.invoke("quo-service", {
+          body: { action: "listCalls", contactId },
+        }),
+      ]);
+      setMessages(msgRes.data?.messages || []);
+      setCalls(callRes.data?.calls || []);
+    } catch (err: any) {
+      toast.error(`Load failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    const channel = supabase
+      .channel(`quo-${contactId}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "quo_messages", filter: `contact_id=eq.${contactId}` },
+        () => load())
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "quo_calls", filter: `contact_id=eq.${contactId}` },
+        () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactId]);
+
+  const sendSms = async () => {
+    if (!draft.trim()) return;
+    if (!contactPhone) {
+      toast.error("Contact has no phone number");
+      return;
+    }
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("quo-service", {
+        body: { action: "sendSms", contactId, to: contactPhone, content: draft.trim() },
+      });
+      if (error) throw error;
+      if (data?.blocked) {
+        toast.error(`PII Shield blocked: ${data.reason}`, {
+          description: "Use the Sovereign Portal or SideDrawer for sensitive details.",
+        });
+      } else {
+        toast.success("SMS sent");
+        setDraft("");
+      }
+      load();
+    } catch (err: any) {
+      toast.error(`Send failed: ${err.message}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const togglePortal = async (recordType: "message" | "call", recordId: string, current: boolean) => {
+    try {
+      const { error } = await supabase.functions.invoke("quo-service", {
+        body: { action: "togglePortalVisible", recordType, recordId, visible: !current },
+      });
+      if (error) throw error;
+      toast.success(current ? "Hidden from portal" : "Now visible in portal");
+      load();
+    } catch (err: any) {
+      toast.error(`Update failed: ${err.message}`);
+    }
+  };
+
+  const syncContact = async () => {
+    try {
+      const { error } = await supabase.functions.invoke("quo-service", {
+        body: { action: "syncContact", contactId },
+      });
+      if (error) throw error;
+      toast.success("Contact synced to Quo");
+    } catch (err: any) {
+      toast.error(`Sync failed: ${err.message}`);
+    }
+  };
+
+  // Merge into a single timeline
+  const timeline = [
+    ...messages.map((m) => ({ kind: "msg" as const, at: m.occurred_at, item: m })),
+    ...calls.map((c) => ({ kind: "call" as const, at: c.occurred_at, item: c })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  return (
+    <Card className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-amber-500" />
+          <h3 className="font-serif text-lg">Quo · SMS &amp; Voice</h3>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={syncContact} title="Push contact to Quo">
+            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Sync
+          </Button>
+          <Button size="sm" variant="ghost" onClick={load}>Refresh</Button>
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="space-y-2">
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={contactPhone
+            ? `Send SMS to ${contactName} · ${contactPhone}`
+            : "Contact has no phone number"}
+          disabled={!contactPhone || sending}
+          className="min-h-[80px]"
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            🛡️ PII Shield active — financial figures, account #s, and health terms will be blocked.
+          </p>
+          <Button onClick={sendSms} disabled={!draft.trim() || !contactPhone || sending} size="sm">
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+            Send SMS
+          </Button>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {!loading && timeline.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">No SMS or call history yet.</p>
+        )}
+        {timeline.map((entry) => entry.kind === "msg" ? (
+          <MessageRow key={`m-${entry.item.id}`} m={entry.item}
+            onToggle={() => togglePortal("message", entry.item.id, entry.item.portal_visible)} />
+        ) : (
+          <CallRow key={`c-${entry.item.id}`} c={entry.item}
+            onToggle={() => togglePortal("call", entry.item.id, entry.item.portal_visible)} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function MessageRow({ m, onToggle }: { m: QuoMessage; onToggle: () => void }) {
+  const isOut = m.direction === "outbound";
+  return (
+    <div className={`flex ${isOut ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[80%] rounded-lg p-3 text-sm ${
+        isOut ? "bg-amber-500/10 border border-amber-500/30" : "bg-muted"
+      }`}>
+        <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+          <MessageSquare className="h-3 w-3" />
+          <span>{isOut ? "Sent" : "Received"}</span>
+          <span>· {new Date(m.occurred_at).toLocaleString()}</span>
+          {m.pii_blocked && <Badge variant="destructive" className="text-[10px]">PII BLOCKED</Badge>}
+          {m.status && m.status !== "sent" && m.status !== "received" && (
+            <Badge variant="outline" className="text-[10px]">{m.status}</Badge>
+          )}
+        </div>
+        <p className="whitespace-pre-wrap">{m.body}</p>
+        {m.pii_blocked && m.pii_block_reason && (
+          <p className="text-xs text-destructive mt-1">Blocked: {m.pii_block_reason}</p>
+        )}
+        <div className="flex items-center gap-2 mt-2 text-xs">
+          <Switch checked={m.portal_visible} onCheckedChange={onToggle} />
+          {m.portal_visible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
+          <span className="text-muted-foreground">
+            {m.portal_visible ? "Visible in client portal" : "Staff only"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CallRow({ c, onToggle }: { c: QuoCall; onToggle: () => void }) {
+  const mins = Math.floor(c.duration_seconds / 60);
+  const secs = c.duration_seconds % 60;
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 text-sm space-y-2">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Phone className="h-3 w-3 text-amber-500" />
+        <span>{c.direction === "inbound" ? "Incoming call" : "Outgoing call"}</span>
+        <span>· {mins}m {secs}s</span>
+        <span>· {new Date(c.occurred_at).toLocaleString()}</span>
+      </div>
+      {c.summary && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-1">AI Summary</p>
+          <p className="whitespace-pre-wrap">{c.summary}</p>
+        </div>
+      )}
+      {c.next_steps && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-1">Next Steps</p>
+          <p className="whitespace-pre-wrap text-amber-600 dark:text-amber-400">{c.next_steps}</p>
+        </div>
+      )}
+      {c.transcript && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground">View transcript</summary>
+          <pre className="whitespace-pre-wrap mt-2 max-h-60 overflow-y-auto">{c.transcript}</pre>
+        </details>
+      )}
+      {c.recording_url && (
+        <a href={c.recording_url} target="_blank" rel="noopener noreferrer"
+          className="text-xs text-amber-500 hover:underline">▶ Listen to recording</a>
+      )}
+      <div className="flex items-center gap-2 text-xs pt-1 border-t border-border">
+        <Switch checked={c.portal_visible} onCheckedChange={onToggle} />
+        {c.portal_visible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
+        <span className="text-muted-foreground">
+          {c.portal_visible ? "Visible in client portal" : "Staff only"}
+        </span>
+      </div>
+    </div>
+  );
+}
