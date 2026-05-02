@@ -43,6 +43,7 @@ const ContactForm = () => {
   const [saving, setSaving] = useState(false);
   const [statementFiles, setStatementFiles] = useState<File[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
+  const [emailNotifEnabled, setEmailNotifEnabled] = useState(true);
 
   const [form, setForm] = useState({
     first_name: searchParams.get("first_name") || "",
