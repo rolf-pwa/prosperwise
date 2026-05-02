@@ -13,7 +13,7 @@ import {
   ArrowLeft, Bell, BellOff, Trash2, Clock, AlertCircle, Shield, 
   ExternalLink, Bot, Grape, FileUp, Loader2, Building2, Users, Plus, X,
   Folder, FolderOpen, CheckSquare, ShieldCheck, Landmark, ChevronDown, ListChecks,
-  Mail, Phone, MapPin
+  Mail, Phone, MapPin, Home
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
@@ -556,35 +556,6 @@ const ContactDetail = () => {
               </Card>
             )}
 
-            {/* Compact Contact Info Strip */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                  {contact.email && (
-                    <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 hover:underline">
-                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{contact.email}</span>
-                    </a>
-                  )}
-                  {contact.phone && (
-                    <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 hover:underline">
-                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{contact.phone}</span>
-                    </a>
-                  )}
-                  {contact.address && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{contact.address}</span>
-                    </span>
-                  )}
-                  {!contact.email && !contact.phone && !contact.address && (
-                    <span className="text-muted-foreground">No contact info on file.</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Calendar (placed where Workbench used to live) */}
             <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
 
@@ -1004,17 +975,36 @@ const ContactDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-4">
-            {/* Family Link */}
-            {familyName && contact.family_id && (
-              <Link
-                to="/families"
-                className="flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50"
-              >
-                <Users className="h-4 w-4 text-sanctuary-bronze" />
-                <span>{familyName}</span>
-                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
-              </Link>
-            )}
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Contact Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {contact.email && (
+                  <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:underline">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium break-all">{contact.email}</span>
+                  </a>
+                )}
+                {contact.phone && (
+                  <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:underline">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{contact.phone}</span>
+                  </a>
+                )}
+                {contact.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="font-medium">{contact.address}</span>
+                  </div>
+                )}
+                {!contact.email && !contact.phone && !contact.address && (
+                  <p className="text-muted-foreground">No contact info on file.</p>
+                )}
+              </CardContent>
+            </Card>
+
 
             {/* AI Assistant (collapsible) */}
             <Collapsible defaultOpen={false}>
@@ -1101,34 +1091,56 @@ const ContactDetail = () => {
                 </div>
               </CardContent>
             </Card>
-            {/* Household Members */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Household Members</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {householdMembers.length > 0 ? (
-                  <ul className="space-y-1 text-sm">
-                    {householdMembers.map((hm) => (
-                      <li key={hm.id}>
-                        <Link
-                          to={`/contacts/${hm.id}`}
-                          className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
-                        >
-                          <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
-                          <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No household members.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
+            {/* Family & Household */}
+            {(familyName || householdLabel || householdMembers.length > 0) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4 text-sanctuary-bronze" />
+                    Family
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {familyName && contact.family_id && (
+                    <Link
+                      to="/families"
+                      className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                    >
+                      <span className="flex-1">{familyName}</span>
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    </Link>
+                  )}
+                  {householdLabel && contact.household_id && (
+                    <Link
+                      to={`/households/${contact.household_id}`}
+                      className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                    >
+                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="flex-1">{householdLabel}</span>
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    </Link>
+                  )}
+                  {householdMembers.length > 0 && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Household Members</p>
+                      <ul className="space-y-1 text-sm">
+                        {householdMembers.map((hm) => (
+                          <li key={hm.id}>
+                            <Link
+                              to={`/contacts/${hm.id}`}
+                              className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                            >
+                              <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
+                              <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             {/* Professional Team */}
             <Card>
               <CardHeader>
