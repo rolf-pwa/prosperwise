@@ -88,10 +88,10 @@ export function PortalMessages({ portalToken, contactName }: PortalMessagesProps
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Please use this number to send a quick text for non-support related messages. Note that
-        this is not a secure connection, so please do not send confidential or sensitive information
-        like account numbers or health details. For those items, please use the <strong>Requests</strong>
-        tab in your portal instead, as texts are filtered for privacy.
+        Please send a quick text for non-support related messages. Note that this is not a secure
+        connection, so please do not send confidential or sensitive information like account numbers
+        or health details. For those items, please <strong>Ask for Help</strong> instead, as these
+        messages are filtered for privacy, and will not be received.
       </p>
 
       {/* Thread */}
