@@ -1021,27 +1021,30 @@ const ContactDetail = () => {
                 {!contact.email && !contact.phone && !contact.address && (
                   <p className="text-muted-foreground">No contact info on file.</p>
                 )}
-                <div className="pt-2 mt-2 border-t border-border/50 flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/contacts/${id}/edit`)}
-                    className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
-                  >
-                    Edit Contact
-                  </button>
-                  <ContactMerge
-                    contactId={id!}
-                    contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
-                    onMerged={fetchData}
-                    trigger={
-                      <button
-                        type="button"
-                        className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
-                      >
-                        Merge Contact
-                      </button>
-                    }
-                  />
+                <div className="pt-2 mt-2 border-t border-border/50 space-y-2">
+                  <PortalMagicLinkButton contactId={id!} />
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/contacts/${id}/edit`)}
+                      className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                    >
+                      Edit Contact
+                    </button>
+                    <ContactMerge
+                      contactId={id!}
+                      contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                      onMerged={fetchData}
+                      trigger={
+                        <button
+                          type="button"
+                          className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                        >
+                          Merge Contact
+                        </button>
+                      }
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
