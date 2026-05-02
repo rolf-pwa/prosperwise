@@ -157,11 +157,9 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
               <p className="text-sm text-muted-foreground italic">No SMS or call history yet.</p>
             )}
             {timeline.map((entry) => entry.kind === "msg" ? (
-              <MessageRow key={`m-${entry.item.id}`} m={entry.item}
-                onToggle={() => togglePortal("message", entry.item.id, entry.item.portal_visible)} />
+              <MessageRow key={`m-${entry.item.id}`} m={entry.item} />
             ) : (
-              <CallRow key={`c-${entry.item.id}`} c={entry.item}
-                onToggle={() => togglePortal("call", entry.item.id, entry.item.portal_visible)} />
+              <CallRow key={`c-${entry.item.id}`} c={entry.item} />
             ))}
           </div>
 
