@@ -24,10 +24,8 @@ import {
   Cpu,
   TrendingUp,
   BookOpen,
-  PenLine,
   Anchor,
   PackagePlus,
-  NotebookPen,
   BarChart3,
   Inbox as InboxIcon,
 } from "lucide-react";
