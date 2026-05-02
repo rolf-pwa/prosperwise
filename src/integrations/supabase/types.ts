@@ -1646,6 +1646,7 @@ export type Database = {
           portal_visible: boolean
           quo_call_id: string | null
           quo_user_id: string | null
+          read_at: string | null
           recording_url: string | null
           status: string
           summary: string | null
@@ -1665,6 +1666,7 @@ export type Database = {
           portal_visible?: boolean
           quo_call_id?: string | null
           quo_user_id?: string | null
+          read_at?: string | null
           recording_url?: string | null
           status?: string
           summary?: string | null
@@ -1684,6 +1686,7 @@ export type Database = {
           portal_visible?: boolean
           quo_call_id?: string | null
           quo_user_id?: string | null
+          read_at?: string | null
           recording_url?: string | null
           status?: string
           summary?: string | null
@@ -1754,6 +1757,7 @@ export type Database = {
           portal_visible: boolean
           quo_message_id: string | null
           quo_user_id: string | null
+          read_at: string | null
           sent_by: string | null
           status: string
           to_number: string
@@ -1773,6 +1777,7 @@ export type Database = {
           portal_visible?: boolean
           quo_message_id?: string | null
           quo_user_id?: string | null
+          read_at?: string | null
           sent_by?: string | null
           status?: string
           to_number: string
@@ -1792,6 +1797,7 @@ export type Database = {
           portal_visible?: boolean
           quo_message_id?: string | null
           quo_user_id?: string | null
+          read_at?: string | null
           sent_by?: string | null
           status?: string
           to_number?: string
