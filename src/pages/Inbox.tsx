@@ -62,6 +62,7 @@ export default function Inbox() {
   const [messages, setMessages] = useState<QuoMessage[]>([]);
   const [calls, setCalls] = useState<QuoCall[]>([]);
   const [contacts, setContacts] = useState<Record<string, ContactLite>>({});
+  const [archive, setArchive] = useState<Record<string, string | null>>({}); // threadKey -> last_message_at (or null)
   const [loading, setLoading] = useState(true);
 
   // Reply state — keyed by phone number (the counterparty)
@@ -83,6 +84,9 @@ export default function Inbox() {
       setMessages(data?.messages || []);
       setCalls(data?.calls || []);
       setContacts(data?.contacts || {});
+      const archMap: Record<string, string | null> = {};
+      for (const a of data?.archive || []) archMap[a.thread_key] = a.last_message_at || null;
+      setArchive(archMap);
     } catch (err: any) {
       toast.error(`Inbox load failed: ${err.message}`);
     } finally {
