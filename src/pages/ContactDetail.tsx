@@ -1036,7 +1036,6 @@ const ContactDetail = () => {
                     })}
                   </div>
                 )}
-                )}
                 {!contact.email && !contact.phone && !contact.address && (
                   <p className="text-muted-foreground">No contact info on file.</p>
                 )}
