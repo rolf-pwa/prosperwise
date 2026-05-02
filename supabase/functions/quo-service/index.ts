@@ -198,9 +198,10 @@ serve(async (req) => {
     // ---- inbox (global, all contacts) ----
     if (action === "inbox") {
       const { limit = 100 } = body;
-      const [msgRes, callRes] = await Promise.all([
+      const [msgRes, callRes, archRes] = await Promise.all([
         supabase.from("quo_messages").select("*").order("occurred_at", { ascending: false }).limit(limit),
         supabase.from("quo_calls").select("*").order("occurred_at", { ascending: false }).limit(limit),
+        supabase.from("quo_inbox_archive").select("thread_key, last_message_at"),
       ]);
       if (msgRes.error) throw msgRes.error;
       if (callRes.error) throw callRes.error;
@@ -222,7 +223,45 @@ serve(async (req) => {
         messages: msgRes.data || [],
         calls: callRes.data || [],
         contacts: contactsById,
+        archive: archRes.data || [],
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ---- archiveThread / unarchiveThread ----
+    if (action === "archiveThread") {
+      const { threadKey, contactId, phoneDigits, lastMessageAt } = body;
+      if (!threadKey) {
+        return new Response(JSON.stringify({ error: "Missing threadKey" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await adminClient.from("quo_inbox_archive").upsert({
+        thread_key: threadKey,
+        contact_id: contactId || null,
+        phone_digits: phoneDigits || null,
+        last_message_at: lastMessageAt || null,
+        archived_by: userId,
+        archived_at: new Date().toISOString(),
+      }, { onConflict: "thread_key" });
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "unarchiveThread") {
+      const { threadKey } = body;
+      if (!threadKey) {
+        return new Response(JSON.stringify({ error: "Missing threadKey" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await adminClient
+        .from("quo_inbox_archive").delete().eq("thread_key", threadKey);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ---- unreadCount (lightweight badge query) ----
