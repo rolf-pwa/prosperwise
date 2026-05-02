@@ -401,13 +401,22 @@ function ThreadCard({
   replyTo, replyBody, setReplyBody, sending, sendReply,
 }: { thread: ThreadGroup; defaultOpen?: boolean; archivedView?: boolean } & CardSharedProps) {
   const [open, setOpen] = useState(!!defaultOpen || (thread.unread > 0 && !archivedView));
+  // Newest-first for the collapsed preview
   const sortedEntries = useMemo(
     () => [...thread.entries].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
+    [thread.entries],
+  );
+  // Oldest-first chronological order for the chat bubble view
+  const chronologicalEntries = useMemo(
+    () => [...thread.entries].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
     [thread.entries],
   );
   const latest = sortedEntries[0];
   const isOrphan = !thread.contactId && !!thread.counterparty;
   const name = contactName(thread.contactId, thread.counterparty);
+
+  // Auto-open the composer for this thread when expanded
+  const composerOpen = !!thread.counterparty && replyTo === thread.counterparty;
 
   const preview = latest.kind === "msg"
     ? latest.item.body
