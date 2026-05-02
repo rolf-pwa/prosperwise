@@ -79,12 +79,22 @@ export function PortalMagicLinkButton({ contactId }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-1">
-      <Button variant="outline" size="sm" onClick={viewPortal} disabled={viewLoading}>
-        {viewLoading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Eye className="mr-1 h-3.5 w-3.5" />}
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={viewPortal}
+        disabled={viewLoading}
+        className="inline-flex items-center gap-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors disabled:opacity-50"
+      >
+        {viewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
         View Portal
-      </Button>
-      <Button variant="ghost" size="sm" onClick={generateLink} disabled={loading}>
+      </button>
+      <button
+        type="button"
+        onClick={generateLink}
+        disabled={loading}
+        className="inline-flex items-center gap-1.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors disabled:opacity-50"
+      >
         {loading ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : copied ? (
@@ -92,7 +102,8 @@ export function PortalMagicLinkButton({ contactId }: Props) {
         ) : (
           <Link2 className="h-3.5 w-3.5" />
         )}
-      </Button>
+        {copied ? "Link Copied" : "Copy Portal Link"}
+      </button>
     </div>
   );
 }
