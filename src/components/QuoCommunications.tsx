@@ -132,11 +132,11 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
     }
   };
 
-  // Merge into a single timeline
+  // Merge into a single chronological timeline (oldest first, like a chat)
   const timeline = [
     ...messages.map((m) => ({ kind: "msg" as const, at: m.occurred_at, item: m })),
     ...calls.map((c) => ({ kind: "call" as const, at: c.occurred_at, item: c })),
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
   return (
     <Card className="p-4 space-y-4">
@@ -153,30 +153,8 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
         </div>
       </div>
 
-      {/* Composer */}
-      <div className="space-y-2">
-        <Textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={contactPhone
-            ? `Send SMS to ${contactName} · ${contactPhone}`
-            : "Contact has no phone number"}
-          disabled={!contactPhone || sending}
-          className="min-h-[80px]"
-        />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            🛡️ PII Shield active — financial figures, account #s, and health terms will be blocked.
-          </p>
-          <Button onClick={sendSms} disabled={!draft.trim() || !contactPhone || sending} size="sm">
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
-            Send SMS
-          </Button>
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+      {/* Chat thread */}
+      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 border-t border-border pt-3">
         {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
         {!loading && timeline.length === 0 && (
           <p className="text-sm text-muted-foreground italic">No SMS or call history yet.</p>
@@ -188,6 +166,28 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
           <CallRow key={`c-${entry.item.id}`} c={entry.item}
             onToggle={() => togglePortal("call", entry.item.id, entry.item.portal_visible)} />
         ))}
+      </div>
+
+      {/* Composer at bottom (chat-style) */}
+      <div className="space-y-2 border-t border-border pt-3">
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={contactPhone
+            ? `Message ${contactName} · ${contactPhone}`
+            : "Contact has no phone number"}
+          disabled={!contactPhone || sending}
+          className="min-h-[70px]"
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            🛡️ PII Shield active — financial figures, account #s, and health terms will be blocked.
+          </p>
+          <Button onClick={sendSms} disabled={!draft.trim() || !contactPhone || sending} size="sm">
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+            Send SMS
+          </Button>
+        </div>
       </div>
     </Card>
   );
