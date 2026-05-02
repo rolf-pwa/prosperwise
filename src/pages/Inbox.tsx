@@ -461,10 +461,20 @@ function ThreadCard({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); archivedView ? onUnarchive(thread) : onArchive(thread); }}
-          className="px-3 flex items-center justify-center text-muted-foreground hover:text-amber-500 hover:bg-muted/50 border-l border-border"
+          className="px-4 flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 border-l border-border transition-colors"
           title={archivedView ? "Restore to inbox" : "Archive thread (still visible on contact + portal)"}
         >
-          {archivedView ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          {archivedView ? (
+            <>
+              <ArchiveRestore className="h-4 w-4" />
+              <span className="hidden sm:inline">Restore</span>
+            </>
+          ) : (
+            <>
+              <Archive className="h-4 w-4" />
+              <span className="hidden sm:inline">Archive</span>
+            </>
+          )}
         </button>
       </div>
 
