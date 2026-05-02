@@ -13,6 +13,7 @@ import { PortalTasks } from "@/components/portal/PortalTasks";
 import { PortalUpdates, useUnreadUpdateCount } from "@/components/portal/PortalUpdates";
 import { PortalGeorgiaChat } from "@/components/portal/PortalGeorgiaChat";
 import { PortalNotificationBell } from "@/components/portal/PortalNotificationBell";
+import { PortalMessages } from "@/components/portal/PortalMessages";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
