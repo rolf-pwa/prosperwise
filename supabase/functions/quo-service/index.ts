@@ -323,7 +323,6 @@ serve(async (req) => {
           last_name: lastName || "Unknown",
           phone: normalized,
           email: email || null,
-          source: "quo_inbox",
         })
         .select("id")
         .single();
