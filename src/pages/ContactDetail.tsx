@@ -975,122 +975,6 @@ const ContactDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-4">
-            {/* Contact Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Contact Info</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {contact.email && (
-                  <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:underline">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="font-medium break-all">{contact.email}</span>
-                  </a>
-                )}
-                {contact.phone && (
-                  <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:underline">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="font-medium">{contact.phone}</span>
-                  </a>
-                )}
-                {contact.address && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                    <span className="font-medium">{contact.address}</span>
-                  </div>
-                )}
-                {!contact.email && !contact.phone && !contact.address && (
-                  <p className="text-muted-foreground">No contact info on file.</p>
-                )}
-              </CardContent>
-            </Card>
-
-
-            {/* AI Assistant (collapsible) */}
-            <Collapsible defaultOpen={false}>
-              <Card>
-                <CollapsibleTrigger className="w-full group">
-                  <CardHeader className="flex flex-row items-center justify-between py-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Bot className="h-4 w-4 text-sanctuary-bronze" />
-                      AI Assistant
-                    </CardTitle>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <SovereigntyAssistant
-                      variant="embedded"
-                      contactId={id}
-                      contactContext={{
-                        id: contact.id,
-                        name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
-                        email: contact.email,
-                        phone: contact.phone,
-                        governance_status: contact.governance_status,
-                        fiduciary_entity: contact.fiduciary_entity,
-                        vineyard_ebitda: contact.vineyard_ebitda,
-                        vineyard_operating_income: contact.vineyard_operating_income,
-                        vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
-                        storehouses: storehouses.map((s) => ({
-                          number: s.storehouse_number,
-                          label: s.label,
-                          asset_type: s.asset_type,
-                          risk_cap: s.risk_cap,
-                          charter_alignment: s.charter_alignment,
-                        })),
-                        quiet_period_start_date: contact.quiet_period_start_date,
-                        asana_url: contact.asana_url,
-                        google_drive_url: contact.google_drive_url,
-                      }}
-                    />
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">App Links</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
-                    if (internal && url) {
-                      return (
-                        <Link
-                          key={label}
-                          to={url}
-                          className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                        >
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                          <span className="flex-1">{label}</span>
-                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                        </Link>
-                      );
-                    }
-
-                    return (
-                      <a
-                        key={label}
-                        href={url || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                          url ? "bg-muted/50 hover:bg-muted" : "cursor-not-allowed bg-muted/20 text-muted-foreground opacity-60"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="flex-1">{label}</span>
-                        {url && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
-                      </a>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
             {/* Family > Household > Members (nested collapsibles) */}
             {(familyName || householdLabel || householdMembers.length > 0) && (
               <Card>
@@ -1164,6 +1048,111 @@ const ContactDetail = () => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Contact Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {contact.email && (
+                  <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:underline">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium break-all">{contact.email}</span>
+                  </a>
+                )}
+                {contact.phone && (
+                  <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:underline">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{contact.phone}</span>
+                  </a>
+                )}
+                {contact.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="font-medium">{contact.address}</span>
+                  </div>
+                )}
+                {!contact.email && !contact.phone && !contact.address && (
+                  <p className="text-muted-foreground">No contact info on file.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* App Links + AI Assistant */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">App Links</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
+                  if (internal && url) {
+                    return (
+                      <Link
+                        key={label}
+                        to={url}
+                        className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1">{label}</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </Link>
+                    );
+                  }
+                  return (
+                    <a
+                      key={label}
+                      href={url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                        url ? "bg-muted/50 hover:bg-muted" : "cursor-not-allowed bg-muted/20 text-muted-foreground opacity-60"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">{label}</span>
+                      {url && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
+                    </a>
+                  );
+                })}
+
+                {/* AI Assistant nested */}
+                <Collapsible defaultOpen={false}>
+                  <CollapsibleTrigger className="group flex w-full items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
+                    <Bot className="h-4 w-4 text-sanctuary-bronze" />
+                    <span className="flex-1 text-left">AI Assistant</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3">
+                    <SovereigntyAssistant
+                      variant="embedded"
+                      contactId={id}
+                      contactContext={{
+                        id: contact.id,
+                        name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+                        email: contact.email,
+                        phone: contact.phone,
+                        governance_status: contact.governance_status,
+                        fiduciary_entity: contact.fiduciary_entity,
+                        vineyard_ebitda: contact.vineyard_ebitda,
+                        vineyard_operating_income: contact.vineyard_operating_income,
+                        vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
+                        storehouses: storehouses.map((s) => ({
+                          number: s.storehouse_number,
+                          label: s.label,
+                          asset_type: s.asset_type,
+                          risk_cap: s.risk_cap,
+                          charter_alignment: s.charter_alignment,
+                        })),
+                        quiet_period_start_date: contact.quiet_period_start_date,
+                        asana_url: contact.asana_url,
+                        google_drive_url: contact.google_drive_url,
+                      }}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              </CardContent>
+            </Card>
 
             {/* Professional Team */}
             <Card>
