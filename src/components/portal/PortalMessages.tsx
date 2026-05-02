@@ -84,12 +84,14 @@ export function PortalMessages({ portalToken, contactName }: PortalMessagesProps
     <Card className="p-4 space-y-4">
       <div className="flex items-center gap-2">
         <MessageSquare className="h-4 w-4 text-accent" />
-        <h3 className="font-serif text-lg">Text Messages</h3>
+        <h3 className="font-serif text-lg">Direct Messages</h3>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Send a quick text to your Personal CFO team. For sensitive details (account numbers,
-        figures, health), please use <strong>Requests</strong> instead — texts are filtered for privacy.
+        Please use this number to send a quick text for non-support related messages. Note that
+        this is not a secure connection, so please do not send confidential or sensitive information
+        like account numbers or health details. For those items, please use the <strong>Requests</strong>
+        tab in your portal instead, as texts are filtered for privacy.
       </p>
 
       {/* Thread */}
