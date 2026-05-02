@@ -13,6 +13,7 @@ import { PortalTasks } from "@/components/portal/PortalTasks";
 import { PortalUpdates, useUnreadUpdateCount } from "@/components/portal/PortalUpdates";
 import { PortalGeorgiaChat } from "@/components/portal/PortalGeorgiaChat";
 import { PortalNotificationBell } from "@/components/portal/PortalNotificationBell";
+import { PortalMessages } from "@/components/portal/PortalMessages";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -986,6 +987,14 @@ const Portal = () => {
                 <Calendar className="h-4 w-4" />
                 Meetings
               </TabsTrigger>
+              {isSelf &&
+                contact.governance_status === "sovereign" &&
+                contact.fiduciary_entity === "pwa" && (
+                  <TabsTrigger value="messages" className="flex-1 gap-1.5">
+                    <MessageCircle className="h-4 w-4" />
+                    Messages
+                  </TabsTrigger>
+                )}
               <TabsTrigger value="reviews" className="flex-1 gap-1.5">
                 <FileBarChart className="h-4 w-4" />
                 Reviews
@@ -1067,6 +1076,18 @@ const Portal = () => {
                 </div>
               )}
             </TabsContent>
+
+            {/* Messages Tab — Sovereign + PWA only */}
+            {isSelf &&
+              contact.governance_status === "sovereign" &&
+              contact.fiduciary_entity === "pwa" && (
+                <TabsContent value="messages" className="mt-4">
+                  <PortalMessages
+                    portalToken={portalToken}
+                    contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                  />
+                </TabsContent>
+              )}
 
             {/* Reviews Tab */}
             <TabsContent value="reviews" className="mt-4">
