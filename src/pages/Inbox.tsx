@@ -401,13 +401,22 @@ function ThreadCard({
   replyTo, replyBody, setReplyBody, sending, sendReply,
 }: { thread: ThreadGroup; defaultOpen?: boolean; archivedView?: boolean } & CardSharedProps) {
   const [open, setOpen] = useState(!!defaultOpen || (thread.unread > 0 && !archivedView));
+  // Newest-first for the collapsed preview
   const sortedEntries = useMemo(
     () => [...thread.entries].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
+    [thread.entries],
+  );
+  // Oldest-first chronological order for the chat bubble view
+  const chronologicalEntries = useMemo(
+    () => [...thread.entries].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
     [thread.entries],
   );
   const latest = sortedEntries[0];
   const isOrphan = !thread.contactId && !!thread.counterparty;
   const name = contactName(thread.contactId, thread.counterparty);
+
+  // Auto-open the composer for this thread when expanded
+  const composerOpen = !!thread.counterparty && replyTo === thread.counterparty;
 
   const preview = latest.kind === "msg"
     ? latest.item.body
@@ -479,23 +488,157 @@ function ThreadCard({
       </div>
 
       {open && (
-        <div className="border-t border-border bg-background/40 p-3 space-y-2">
-          {sortedEntries.map((entry) =>
-            entry.kind === "msg"
-              ? <MessageCard key={`m-${entry.item.id}`} m={entry.item}
-                  contactName={contactName} onToggle={onToggle} onReplyOpen={onReplyOpen} onResolve={onResolve}
-                  onArchive={onArchive} onUnarchive={onUnarchive}
-                  replyTo={replyTo} replyBody={replyBody} setReplyBody={setReplyBody}
-                  sending={sending} sendReply={sendReply} />
-              : <CallCard key={`c-${entry.item.id}`} c={entry.item}
-                  contactName={contactName} onToggle={onToggle} onReplyOpen={onReplyOpen} onResolve={onResolve}
-                  onArchive={onArchive} onUnarchive={onUnarchive}
-                  replyTo={replyTo} replyBody={replyBody} setReplyBody={setReplyBody}
-                  sending={sending} sendReply={sendReply} />
+        <div className="border-t border-border bg-background/40">
+          {/* Orphan resolve banner */}
+          {isOrphan && thread.counterparty && (
+            <div className="px-3 pt-3">
+              <ResolveBar phone={thread.counterparty} onResolve={onResolve} />
+            </div>
+          )}
+
+          {/* Chat bubble thread */}
+          <div className="p-3 space-y-2 max-h-[480px] overflow-y-auto">
+            {chronologicalEntries.map((entry) =>
+              entry.kind === "msg" ? (
+                <ChatBubble
+                  key={`m-${entry.item.id}`}
+                  kind="msg"
+                  isOut={entry.item.direction === "outbound"}
+                  occurredAt={entry.at}
+                  isUnread={!entry.item.read_at && entry.item.direction === "inbound"}
+                  portalVisible={entry.item.portal_visible}
+                  onTogglePortal={() => onToggle("message", entry.item.id, entry.item.portal_visible)}
+                  body={entry.item.body}
+                  piiBlocked={entry.item.pii_blocked}
+                />
+              ) : (
+                <ChatBubble
+                  key={`c-${entry.item.id}`}
+                  kind="call"
+                  isOut={entry.item.direction === "outbound"}
+                  occurredAt={entry.at}
+                  isUnread={!entry.item.read_at && entry.item.direction === "inbound"}
+                  portalVisible={entry.item.portal_visible}
+                  onTogglePortal={() => onToggle("call", entry.item.id, entry.item.portal_visible)}
+                  call={entry.item}
+                />
+              )
+            )}
+          </div>
+
+          {/* Persistent composer (chat-style) */}
+          {thread.counterparty && !archivedView && (
+            <ChatComposer
+              to={thread.counterparty}
+              contactId={thread.contactId}
+              isActive={composerOpen}
+              onActivate={() => onReplyOpen(thread.counterparty!)}
+              replyBody={replyBody}
+              setReplyBody={setReplyBody}
+              sending={sending}
+              sendReply={sendReply}
+            />
           )}
         </div>
       )}
     </Card>
+  );
+}
+
+function ChatBubble({
+  kind, isOut, occurredAt, isUnread, portalVisible, onTogglePortal, body, piiBlocked, call,
+}: {
+  kind: "msg" | "call";
+  isOut: boolean;
+  occurredAt: string;
+  isUnread: boolean;
+  portalVisible: boolean;
+  onTogglePortal: () => void;
+  body?: string;
+  piiBlocked?: boolean;
+  call?: QuoCall;
+}) {
+  const align = isOut ? "justify-end" : "justify-start";
+  const bubble = isOut
+    ? "bg-amber-500/10 border border-amber-500/30"
+    : "bg-muted border border-border";
+  return (
+    <div className={`flex ${align}`}>
+      <div className={`max-w-[80%] rounded-lg p-3 text-sm ${bubble} ${isUnread ? "ring-1 ring-amber-500/40" : ""}`}>
+        <div className="flex items-center gap-2 mb-1 text-[11px] text-muted-foreground">
+          {kind === "msg" ? <MessageSquare className="h-3 w-3" /> : <Phone className="h-3 w-3 text-amber-500" />}
+          <span>{isOut ? "Sent" : "Received"}</span>
+          <span>· {new Date(occurredAt).toLocaleString()}</span>
+          {piiBlocked && <Badge variant="destructive" className="text-[10px]">BLOCKED</Badge>}
+        </div>
+        {kind === "msg" ? (
+          <p className="whitespace-pre-wrap">{body}</p>
+        ) : call ? (
+          <div className="space-y-1">
+            <p className="font-medium">
+              {isOut ? "Outgoing" : "Incoming"} call · {Math.floor(call.duration_seconds / 60)}m {call.duration_seconds % 60}s
+            </p>
+            {call.summary && <p className="whitespace-pre-wrap text-foreground/90">{call.summary}</p>}
+            {call.next_steps && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                <span className="font-semibold">Next: </span>{call.next_steps}
+              </p>
+            )}
+            {call.recording_url && (
+              <a href={call.recording_url} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-amber-500 hover:underline inline-block">
+                ▶ Listen to recording
+              </a>
+            )}
+          </div>
+        ) : null}
+        <div className="flex items-center gap-1 mt-1.5 -mb-1 text-[10px] text-muted-foreground">
+          <button
+            onClick={onTogglePortal}
+            className="flex items-center gap-1 hover:text-foreground"
+            title={portalVisible ? "Hide from portal" : "Show in portal"}
+          >
+            {portalVisible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3" />}
+            <span>{portalVisible ? "In portal" : "Staff only"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatComposer({
+  to, contactId, isActive, onActivate, replyBody, setReplyBody, sending, sendReply,
+}: {
+  to: string; contactId: string | null;
+  isActive: boolean; onActivate: () => void;
+  replyBody: string; setReplyBody: (v: string) => void;
+  sending: boolean; sendReply: (to: string, contactId: string | null) => void;
+}) {
+  return (
+    <div className="border-t border-border bg-card/60 p-3 space-y-2">
+      <Textarea
+        value={isActive ? replyBody : ""}
+        onFocus={() => { if (!isActive) onActivate(); }}
+        onChange={(e) => { if (!isActive) onActivate(); setReplyBody(e.target.value); }}
+        placeholder={`Message ${to}…`}
+        className="min-h-[60px] text-sm"
+        disabled={sending}
+      />
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted-foreground">
+          🛡️ PII Shield active — financial, account, and health terms blocked.
+        </p>
+        <Button
+          size="sm"
+          onClick={() => sendReply(to, contactId)}
+          disabled={!isActive || !replyBody.trim() || sending}
+        >
+          {sending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+          Send
+        </Button>
+      </div>
+    </div>
   );
 }
 
