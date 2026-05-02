@@ -1077,6 +1077,18 @@ const Portal = () => {
               )}
             </TabsContent>
 
+            {/* Messages Tab — Sovereign + PWA only */}
+            {isSelf &&
+              contact.governance_status === "sovereign" &&
+              contact.fiduciary_entity === "pwa" && (
+                <TabsContent value="messages" className="mt-4">
+                  <PortalMessages
+                    portalToken={portalToken}
+                    contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                  />
+                </TabsContent>
+              )}
+
             {/* Reviews Tab */}
             <TabsContent value="reviews" className="mt-4">
               {!isSelf ? (
