@@ -72,7 +72,7 @@ const topItems = [
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
 ];
 
-const bottomItems = [
+const marketingItems = [
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
@@ -314,11 +314,27 @@ export function AppSidebar() {
             </Collapsible>
           )}
 
-          {bottomItems.map(({ to, label, icon: Icon, ...rest }: any) => {
-            const active = location.pathname === to || location.pathname.startsWith(to + "/");
-            const badge = getBadgeCount({ ...rest });
-            return renderNavLink(to, label, Icon, badge, active, collapsed);
-          })}
+          {/* Marketing group: Marketing Updates, Analytics */}
+          {collapsed ? (
+            marketingItems.map(({ to, label, icon: Icon }) => {
+              const active = location.pathname === to || location.pathname.startsWith(to + "/");
+              return renderNavLink(to, label, Icon, null, active, collapsed);
+            })
+          ) : (
+            <Collapsible defaultOpen={marketingItems.some(({ to }) => location.pathname === to || location.pathname.startsWith(to + "/"))}>
+              <CollapsibleTrigger className="flex w-full items-center gap-4 rounded-lg px-5 py-3 text-[15px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <Megaphone className="h-5 w-5 shrink-0" />
+                <span className="flex-1 text-left">Marketing</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5 pl-4">
+                {marketingItems.map(({ to, label, icon: Icon }) => {
+                  const active = location.pathname === to || location.pathname.startsWith(to + "/");
+                  return renderNavLink(to, label, Icon, null, active, false, true);
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
           <Separator className="my-4 bg-border" />
 
