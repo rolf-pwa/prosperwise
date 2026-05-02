@@ -72,7 +72,7 @@ const topItems = [
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
 ];
 
-const bottomItems = [
+const marketingItems = [
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
