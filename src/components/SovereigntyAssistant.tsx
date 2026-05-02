@@ -163,7 +163,7 @@ export function SovereigntyAssistant({
 
       <CardContent className="p-0">
         {/* Chat messages */}
-        <ScrollArea className={isEmbedded ? "h-[400px]" : "h-[500px]"}>
+        <ScrollArea className={isEmbedded ? "h-[240px]" : "h-[500px]"}>
           <div className="space-y-4 p-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
