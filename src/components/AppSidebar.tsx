@@ -66,17 +66,15 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
   );
 }
 
-const navItems = [
+const topItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inbox", label: "Inbox", icon: InboxIcon, inboxBadge: true },
-  { to: "/onboarding", label: "Onboarding", icon: PackagePlus },
-  { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
-  { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
+];
+
+const bottomItems = [
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/workbench", label: "Workbench", icon: Cpu },
-  { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
 
 const directoryItems = [
@@ -89,6 +87,14 @@ const directoryItems = [
 const growthItems = [
   { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
   { to: "/leads", label: "Leads", icon: UserPlus },
+  { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
+];
+
+const adminItems = [
+  { to: "/onboarding", label: "Onboarding", icon: PackagePlus },
+  { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
+  { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+  { to: "/workbench", label: "Workbench", icon: Cpu },
 ];
 
 const externalLinks = [
@@ -234,13 +240,13 @@ export function AppSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 space-y-1 px-2 pt-8 overflow-y-auto">
-          {navItems.slice(0, 2).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {topItems.map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
           })}
 
-          {/* Growth group: Pipeline, Leads */}
+          {/* Growth group: Pipeline, Leads, Holding Tank */}
           {collapsed ? (
             growthItems.map(({ to, label, icon: Icon }) => {
               const active = location.pathname === to || location.pathname.startsWith(to + "/");
@@ -284,7 +290,31 @@ export function AppSidebar() {
             </Collapsible>
           )}
 
-          {navItems.slice(2).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {/* Admin group: Onboarding, Review Queue, Knowledge Base, Workbench */}
+          {collapsed ? (
+            adminItems.map(({ to, label, icon: Icon, ...rest }: any) => {
+              const active = location.pathname === to || location.pathname.startsWith(to + "/");
+              const badge = getBadgeCount({ ...rest });
+              return renderNavLink(to, label, Icon, badge, active, collapsed);
+            })
+          ) : (
+            <Collapsible defaultOpen={adminItems.some(({ to }) => location.pathname === to || location.pathname.startsWith(to + "/"))}>
+              <CollapsibleTrigger className="flex w-full items-center gap-4 rounded-lg px-5 py-3 text-[15px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <ShieldCheck className="h-5 w-5 shrink-0" />
+                <span className="flex-1 text-left">Admin</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5 pl-4">
+                {adminItems.map(({ to, label, icon: Icon, ...rest }: any) => {
+                  const active = location.pathname === to || location.pathname.startsWith(to + "/");
+                  const badge = getBadgeCount({ ...rest });
+                  return renderNavLink(to, label, Icon, badge, active, false, true);
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
+          {bottomItems.map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
