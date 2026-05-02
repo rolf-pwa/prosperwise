@@ -139,6 +139,7 @@ const ContactForm = () => {
         google_drive_url: data.google_drive_url || "",
         charter_url: (data as any).charter_url || "",
       });
+      setEmailNotifEnabled(data.email_notifications_enabled !== false);
       setHouseholdMembers(
         (householdRes.data || []).map((r: any) => ({
           relationship_id: r.id,
