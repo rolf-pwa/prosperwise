@@ -185,7 +185,7 @@ export default function Inbox() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Inbox</h1>
               <p className="text-sm text-muted-foreground">
-                Unified Quo SMS &amp; voice timeline across all contacts
+                Unified SMS &amp; voice timeline across all contacts
               </p>
             </div>
           </div>
