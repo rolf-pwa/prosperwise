@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Loader2, Send, Phone, MessageSquare, Eye, EyeOff, RefreshCw, ChevronDown } from "lucide-react";
+import { Loader2, Send, Phone, MessageSquare, RefreshCw, ChevronDown } from "lucide-react";
 
 interface QuoCommunicationsProps {
   contactId: string;
@@ -109,19 +108,6 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
     }
   };
 
-  const togglePortal = async (recordType: "message" | "call", recordId: string, current: boolean) => {
-    try {
-      const { error } = await supabase.functions.invoke("quo-service", {
-        body: { action: "togglePortalVisible", recordType, recordId, visible: !current },
-      });
-      if (error) throw error;
-      toast.success(current ? "Hidden from portal" : "Now visible in portal");
-      load();
-    } catch (err: any) {
-      toast.error(`Update failed: ${err.message}`);
-    }
-  };
-
   const syncContact = async () => {
     try {
       const { error } = await supabase.functions.invoke("quo-service", {
@@ -170,11 +156,9 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
               <p className="text-sm text-muted-foreground italic">No SMS or call history yet.</p>
             )}
             {timeline.map((entry) => entry.kind === "msg" ? (
-              <MessageRow key={`m-${entry.item.id}`} m={entry.item}
-                onToggle={() => togglePortal("message", entry.item.id, entry.item.portal_visible)} />
+              <MessageRow key={`m-${entry.item.id}`} m={entry.item} />
             ) : (
-              <CallRow key={`c-${entry.item.id}`} c={entry.item}
-                onToggle={() => togglePortal("call", entry.item.id, entry.item.portal_visible)} />
+              <CallRow key={`c-${entry.item.id}`} c={entry.item} />
             ))}
           </div>
 
@@ -205,7 +189,7 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
   );
 }
 
-function MessageRow({ m, onToggle }: { m: QuoMessage; onToggle: () => void }) {
+function MessageRow({ m }: { m: QuoMessage; onToggle?: () => void }) {
   const isOut = m.direction === "outbound";
   return (
     <div className={`flex ${isOut ? "justify-end" : "justify-start"}`}>
@@ -225,19 +209,12 @@ function MessageRow({ m, onToggle }: { m: QuoMessage; onToggle: () => void }) {
         {m.pii_blocked && m.pii_block_reason && (
           <p className="text-xs text-destructive mt-1">Blocked: {m.pii_block_reason}</p>
         )}
-        <div className="flex items-center gap-2 mt-2 text-xs">
-          <Switch checked={m.portal_visible} onCheckedChange={onToggle} />
-          {m.portal_visible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
-          <span className="text-muted-foreground">
-            {m.portal_visible ? "Visible in client portal" : "Staff only"}
-          </span>
-        </div>
       </div>
     </div>
   );
 }
 
-function CallRow({ c, onToggle }: { c: QuoCall; onToggle: () => void }) {
+function CallRow({ c }: { c: QuoCall; onToggle?: () => void }) {
   const mins = Math.floor(c.duration_seconds / 60);
   const secs = c.duration_seconds % 60;
   return (
@@ -270,13 +247,6 @@ function CallRow({ c, onToggle }: { c: QuoCall; onToggle: () => void }) {
         <a href={c.recording_url} target="_blank" rel="noopener noreferrer"
           className="text-xs text-amber-500 hover:underline">▶ Listen to recording</a>
       )}
-      <div className="flex items-center gap-2 text-xs pt-1 border-t border-border">
-        <Switch checked={c.portal_visible} onCheckedChange={onToggle} />
-        {c.portal_visible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
-        <span className="text-muted-foreground">
-          {c.portal_visible ? "Visible in client portal" : "Staff only"}
-        </span>
-      </div>
     </div>
   );
 }
