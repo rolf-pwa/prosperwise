@@ -229,6 +229,11 @@ serve(async (req) => {
           portal_visible: false,
           occurred_at: data?.createdAt || new Date().toISOString(),
         }, { onConflict: "quo_message_id" });
+
+        // After-hours auto-reply (Mon–Fri 9am–5pm ET)
+        if (isAfterHoursEastern() && fromNum) {
+          await sendAutoReply(admin, fromNum);
+        }
       } else {
         // delivered → update status
         if (data?.id) {
