@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Loader2, MessageSquare, Phone, RefreshCw, Eye, EyeOff,
-  Inbox as InboxIcon, UserPlus, Link2, Send, AlertCircle,
+  Inbox as InboxIcon, UserPlus, Link2, Send, AlertCircle, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
