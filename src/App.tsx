@@ -30,12 +30,9 @@ import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
 import SideDrawer from "./pages/SideDrawer";
 import KnowledgeBase from "./pages/KnowledgeBase";
-import ContentHub from "./pages/ContentHub";
-import ContentEditor from "./pages/ContentEditor";
 import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
 import BulkOnboarding from "./pages/BulkOnboarding";
-import Recaps from "./pages/Recaps";
 import Analytics from "./pages/Analytics";
 import StabilizationMap from "./pages/StabilizationMap";
 import StabilizationMapResolver from "./pages/StabilizationMapResolver";
@@ -85,9 +82,6 @@ const App = () => (
             <Route path="/contacts/:id/edit" element={<ProtectedRoute><ContactForm /></ProtectedRoute>} />
             <Route path="/sidedrawer/:contactId" element={<ProtectedRoute><SideDrawer /></ProtectedRoute>} />
             <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
-            <Route path="/content-hub" element={<ProtectedRoute><ContentHub /></ProtectedRoute>} />
-            <Route path="/content-hub/:id" element={<ProtectedRoute><ContentEditor /></ProtectedRoute>} />
-            <Route path="/recaps" element={<ProtectedRoute><Recaps /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/stabilization-map/lead/:leadId" element={<ProtectedRoute><StabilizationMapResolver /></ProtectedRoute>} />
             <Route path="/stabilization-map/contact/:contactId" element={<ProtectedRoute><StabilizationMapResolver /></ProtectedRoute>} />
