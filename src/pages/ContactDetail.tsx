@@ -1070,6 +1070,8 @@ const ContactDetail = () => {
                   </div>
                 </div>
               </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
 
             {/* AI Assistant */}
