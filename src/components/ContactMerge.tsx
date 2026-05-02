@@ -25,6 +25,7 @@ interface ContactMergeProps {
   contactId: string;
   contactName: string;
   onMerged: () => void;
+  trigger?: React.ReactNode;
 }
 
 interface ContactOption {
@@ -35,7 +36,7 @@ interface ContactOption {
   household_id: string | null;
 }
 
-export function ContactMerge({ contactId, contactName, onMerged }: ContactMergeProps) {
+export function ContactMerge({ contactId, contactName, onMerged, trigger }: ContactMergeProps) {
   const [open, setOpen] = useState(false);
   const [contacts, setContacts] = useState<ContactOption[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -99,10 +100,12 @@ export function ContactMerge({ contactId, contactName, onMerged }: ContactMergeP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Merge className="h-4 w-4" />
-          Merge
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <Merge className="h-4 w-4" />
+            Merge
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
