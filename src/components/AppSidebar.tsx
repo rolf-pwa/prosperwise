@@ -219,7 +219,7 @@ export function AppSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 space-y-1 px-2 pt-8 overflow-y-auto">
-          {navItems.slice(0, 1).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {navItems.slice(0, 2).map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
@@ -269,7 +269,7 @@ export function AppSidebar() {
             </Collapsible>
           )}
 
-          {navItems.slice(1).map(({ to, label, icon: Icon, ...rest }: any) => {
+          {navItems.slice(2).map(({ to, label, icon: Icon, ...rest }: any) => {
             const active = location.pathname === to || location.pathname.startsWith(to + "/");
             const badge = getBadgeCount({ ...rest });
             return renderNavLink(to, label, Icon, badge, active, collapsed);
