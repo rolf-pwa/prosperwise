@@ -34,10 +34,10 @@ function normalizePhone(phone: string): string {
   return phone.startsWith("+") ? phone : `+${digits}`;
 }
 
-// Determine if a moment falls outside Mon–Fri 9am–5pm America/Toronto (Eastern).
-function isAfterHoursEastern(now: Date = new Date()): boolean {
+// Determine if a moment falls outside Mon–Fri 9am–5pm America/Los_Angeles (Pacific).
+function isAfterHoursPacific(now: Date = new Date()): boolean {
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Toronto",
+    timeZone: "America/Los_Angeles",
     weekday: "short",
     hour: "numeric",
     hour12: false,
