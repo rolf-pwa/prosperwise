@@ -109,19 +109,6 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
     }
   };
 
-  const togglePortal = async (recordType: "message" | "call", recordId: string, current: boolean) => {
-    try {
-      const { error } = await supabase.functions.invoke("quo-service", {
-        body: { action: "togglePortalVisible", recordType, recordId, visible: !current },
-      });
-      if (error) throw error;
-      toast.success(current ? "Hidden from portal" : "Now visible in portal");
-      load();
-    } catch (err: any) {
-      toast.error(`Update failed: ${err.message}`);
-    }
-  };
-
   const syncContact = async () => {
     try {
       const { error } = await supabase.functions.invoke("quo-service", {
