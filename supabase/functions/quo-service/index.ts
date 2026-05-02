@@ -134,6 +134,7 @@ serve(async (req) => {
         sent_by: userId,
         portal_visible: false,
         occurred_at: msg?.createdAt || new Date().toISOString(),
+        read_at: new Date().toISOString(),
       });
 
       return new Response(JSON.stringify({ success: true, message: msg }), {
