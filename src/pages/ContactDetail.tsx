@@ -556,13 +556,14 @@ const ContactDetail = () => {
               </Card>
             )}
 
-            {/* Calendar (placed where Workbench used to live) */}
-            <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
-
             {/* Main Tabs */}
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
+                <TabsTrigger value="meetings" className="flex-1">
+                  <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                  Meetings
+                </TabsTrigger>
                 <TabsTrigger value="actions" className="flex-1">
                   <ListChecks className="mr-1.5 h-3.5 w-3.5" />
                   Action Items
@@ -581,6 +582,11 @@ const ContactDetail = () => {
                   contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
                 />
                 <ContactEmails contactEmail={contact.email} />
+              </TabsContent>
+
+              {/* Meetings Tab */}
+              <TabsContent value="meetings" className="space-y-6 mt-4">
+                <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
               </TabsContent>
 
               {/* Action Items Tab */}
