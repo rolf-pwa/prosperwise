@@ -4,6 +4,109 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // PUBLIC endpoint — Quo posts here. HMAC signature is the only auth.
 
 const QUO_SIGNING_SECRET = Deno.env.get("QUO_WEBHOOK_SIGNING_SECRET")!;
+const QUO_API_KEY = Deno.env.get("QUO_API_KEY")!;
+const QUO_PHONE_NUMBER_RAW = Deno.env.get("QUO_DEFAULT_PHONE_NUMBER_ID") || "";
+const QUO_BASE_URL = "https://api.openphone.com/v1";
+
+const AFTER_HOURS_REPLY =
+  "Thanks for your message — you've reached us outside our business hours (Mon–Fri, 9am–5pm ET). " +
+  "We'll respond as soon as we're back online. For sensitive or account-related matters, " +
+  "please use the Ask for Help section in your Sovereign Portal.";
+
+const AUTO_REPLY_COOLDOWN_HOURS = 12;
+
+function resolveQuoFrom(raw: string): string {
+  if (!raw) return raw;
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("PN")) return trimmed;
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return trimmed.startsWith("+") ? trimmed : `+${digits}`;
+}
+const QUO_PHONE_NUMBER_ID = resolveQuoFrom(QUO_PHONE_NUMBER_RAW);
+
+function normalizePhone(phone: string): string {
+  if (!phone) return phone;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return phone.startsWith("+") ? phone : `+${digits}`;
+}
+
+// Determine if a moment falls outside Mon–Fri 9am–5pm America/Toronto (Eastern).
+function isAfterHoursEastern(now: Date = new Date()): boolean {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Toronto",
+    weekday: "short",
+    hour: "numeric",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const weekday = parts.find((p) => p.type === "weekday")?.value || "";
+  const hourStr = parts.find((p) => p.type === "hour")?.value || "0";
+  let hour = parseInt(hourStr, 10);
+  if (hour === 24) hour = 0; // hour12:false sometimes emits "24"
+  const isWeekend = weekday === "Sat" || weekday === "Sun";
+  const inBusinessWindow = !isWeekend && hour >= 9 && hour < 17;
+  return !inBusinessWindow;
+}
+
+async function sendAutoReply(admin: any, toNumber: string): Promise<void> {
+  if (!QUO_API_KEY || !QUO_PHONE_NUMBER_ID || !toNumber) return;
+  const toNum = normalizePhone(toNumber);
+
+  // Cooldown — don't auto-reply if any outbound (auto or manual) was sent recently
+  const cutoff = new Date(Date.now() - AUTO_REPLY_COOLDOWN_HOURS * 60 * 60 * 1000).toISOString();
+  const { data: recent } = await admin
+    .from("quo_messages")
+    .select("id")
+    .eq("direction", "outbound")
+    .eq("to_number", toNum)
+    .gte("occurred_at", cutoff)
+    .limit(1);
+  if (recent && recent.length > 0) {
+    console.log("[quo-webhook] auto-reply skipped — recent outbound exists for", toNum);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${QUO_BASE_URL}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": QUO_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: QUO_PHONE_NUMBER_ID,
+        to: [toNum],
+        content: AFTER_HOURS_REPLY,
+      }),
+    });
+    const text = await res.text();
+    let result: any = {};
+    try { result = text ? JSON.parse(text) : {}; } catch { /* ignore */ }
+    if (!res.ok) {
+      console.error("[quo-webhook] auto-reply send failed", res.status, text);
+      return;
+    }
+    const msg = result?.data || result;
+    await admin.from("quo_messages").insert({
+      quo_message_id: msg?.id || null,
+      contact_id: null,
+      direction: "outbound",
+      from_number: msg?.from || QUO_PHONE_NUMBER_ID,
+      to_number: toNum,
+      body: AFTER_HOURS_REPLY,
+      status: msg?.status || "sent",
+      portal_visible: true,
+      occurred_at: msg?.createdAt || new Date().toISOString(),
+      read_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error("[quo-webhook] auto-reply error", e);
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
