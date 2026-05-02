@@ -996,9 +996,12 @@ const ContactDetail = () => {
 
             {/* Contact Info */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Contact Info</CardTitle>
-              </CardHeader>
+              <Collapsible defaultOpen={false}>
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-6 hover:opacity-80 group">
+                  <CardTitle className="text-base">Contact Info</CardTitle>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
               <CardContent className="space-y-2 text-sm">
                 {contact.email && (
                   <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:underline">
