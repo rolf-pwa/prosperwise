@@ -226,7 +226,7 @@ serve(async (req) => {
           status: data?.status || "received",
           media_urls: data?.media || [],
           quo_user_id: data?.userId || null,
-          portal_visible: false,
+          portal_visible: true,
           occurred_at: data?.createdAt || new Date().toISOString(),
         }, { onConflict: "quo_message_id" });
 
