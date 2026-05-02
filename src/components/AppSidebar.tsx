@@ -66,17 +66,15 @@ export function SidebarCollapseProvider({ children }: { children: React.ReactNod
   );
 }
 
-const navItems = [
+const topItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inbox", label: "Inbox", icon: InboxIcon, inboxBadge: true },
-  { to: "/onboarding", label: "Onboarding", icon: PackagePlus },
-  { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
   { to: "/requests", label: "Client Requests", icon: ClipboardList, requestsBadge: true },
-  { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
+];
+
+const bottomItems = [
   { to: "/marketing-updates", label: "Marketing Updates", icon: Megaphone },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/workbench", label: "Workbench", icon: Cpu },
-  { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
 
 const directoryItems = [
@@ -89,6 +87,14 @@ const directoryItems = [
 const growthItems = [
   { to: "/pipeline", label: "Pipeline", icon: TrendingUp },
   { to: "/leads", label: "Leads", icon: UserPlus },
+  { to: "/holding-tank", label: "Holding Tank", icon: Anchor },
+];
+
+const adminItems = [
+  { to: "/onboarding", label: "Onboarding", icon: PackagePlus },
+  { to: "/review-queue", label: "Review Queue", icon: ClipboardCheck, reviewBadge: true },
+  { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+  { to: "/workbench", label: "Workbench", icon: Cpu },
 ];
 
 const externalLinks = [
