@@ -17,9 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, X, Plus, Search } from "lucide-react";
+import { ArrowLeft, X, Plus, Search, Bell, BellOff, Trash2 } from "lucide-react";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { StatementUpload } from "@/components/StatementUpload";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 interface LinkedMember {
   relationship_id?: string;
