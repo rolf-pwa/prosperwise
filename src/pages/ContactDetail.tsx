@@ -1023,6 +1023,51 @@ const ContactDetail = () => {
               </Link>
             )}
 
+            {/* AI Assistant (collapsible) */}
+            <Collapsible defaultOpen={false}>
+              <Card>
+                <CollapsibleTrigger className="w-full group">
+                  <CardHeader className="flex flex-row items-center justify-between py-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Bot className="h-4 w-4 text-sanctuary-bronze" />
+                      AI Assistant
+                    </CardTitle>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <SovereigntyAssistant
+                      variant="embedded"
+                      contactId={id}
+                      contactContext={{
+                        id: contact.id,
+                        name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+                        email: contact.email,
+                        phone: contact.phone,
+                        governance_status: contact.governance_status,
+                        fiduciary_entity: contact.fiduciary_entity,
+                        vineyard_ebitda: contact.vineyard_ebitda,
+                        vineyard_operating_income: contact.vineyard_operating_income,
+                        vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
+                        storehouses: storehouses.map((s) => ({
+                          number: s.storehouse_number,
+                          label: s.label,
+                          asset_type: s.asset_type,
+                          risk_cap: s.risk_cap,
+                          charter_alignment: s.charter_alignment,
+                        })),
+                        quiet_period_start_date: contact.quiet_period_start_date,
+                        asana_url: contact.asana_url,
+                        google_drive_url: contact.google_drive_url,
+                      }}
+                    />
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">App Links</CardTitle>
