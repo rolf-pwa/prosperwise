@@ -13,7 +13,7 @@ import {
   ArrowLeft, Bell, BellOff, Trash2, Clock, AlertCircle, Shield, 
   ExternalLink, Bot, Grape, FileUp, Loader2, Building2, Users, Plus, X,
   Folder, FolderOpen, CheckSquare, ShieldCheck, Landmark, ChevronDown, ListChecks,
-  Mail, Phone, MapPin
+  Mail, Phone, MapPin, Home
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
