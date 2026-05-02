@@ -1148,6 +1148,49 @@ const Portal = () => {
           {/* Charter */}
           <PortalCharter charterUrl={charter?.draft_status === "ratified" ? (contact.charter_url || family?.charter_document_url) : null} />
 
+          {/* Quarterly Governance Reviews */}
+          {isSelf && quarterly_reviews.length > 0 && (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileBarChart className="h-4 w-4 text-accent" />
+                  <h3 className="text-sm font-semibold text-foreground font-serif">Reviews</h3>
+                </div>
+                <div className="space-y-1.5 pt-1">
+                  {quarterly_reviews.map((review) => {
+                    const member = household_members.find((m: any) => m.id === review.contact_id);
+                    const memberName = review.contact_id === contact.id
+                      ? `${contact.first_name} ${contact.last_name || ""}`.trim()
+                      : member ? `${member.first_name} ${member.last_name || ""}`.trim() : null;
+                    const href = review.signed_url || review.drive_url || "#";
+                    const dateLabel = review.review_date
+                      ? new Date(review.review_date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                      : null;
+                    return (
+                      <a
+                        key={review.id}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-2 hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                      >
+                        <FileBarChart className="h-3.5 w-3.5 text-accent mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{review.title}</p>
+                          {(dateLabel || memberName) && (
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {dateLabel}{dateLabel && memberName ? " · " : ""}{memberName}
+                            </p>
+                          )}
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Dynamic Quick Links */}
           {isSelf && <PortalDynamicLinks contact={contact} />}
 
