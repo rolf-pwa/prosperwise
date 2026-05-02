@@ -167,6 +167,63 @@ export default function Inbox() {
 
   const unmatchedTimeline = timeline.filter((e) => !e.item.contact_id);
 
+  // ---- Thread grouping ----
+  const last10 = (p: string | null | undefined) =>
+    (p || "").replace(/\D/g, "").slice(-10);
+
+  const threads = useMemo(() => {
+    const map = new Map<string, {
+      key: string;
+      contactId: string | null;
+      counterparty: string | null;
+      entries: TimelineEntry[];
+      lastAt: string;
+      unread: number;
+    }>();
+    for (const e of timeline) {
+      const isOut = e.item.direction === "outbound";
+      const cp = isOut
+        ? (e.kind === "msg" ? e.item.to_number : e.item.to_number)
+        : (e.kind === "msg" ? e.item.from_number : e.item.from_number);
+      const digits = last10(cp);
+      // Key by contact_id when known, otherwise by phone digits
+      const key = e.item.contact_id || (digits ? `phone:${digits}` : `unknown:${e.item.id}`);
+      const existing = map.get(key);
+      if (existing) {
+        existing.entries.push(e);
+        if (new Date(e.at) > new Date(existing.lastAt)) existing.lastAt = e.at;
+        if (!e.item.contact_id ? false : true) existing.contactId = existing.contactId || e.item.contact_id;
+        if (!existing.counterparty && cp) existing.counterparty = cp;
+        if (e.item.direction === "inbound" && !e.item.read_at) existing.unread++;
+      } else {
+        map.set(key, {
+          key,
+          contactId: e.item.contact_id,
+          counterparty: cp,
+          entries: [e],
+          lastAt: e.at,
+          unread: e.item.direction === "inbound" && !e.item.read_at ? 1 : 0,
+        });
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime(),
+    );
+  }, [timeline]);
+
+  const filterThreads = (mode: "all" | "sms" | "calls" | "unread" | "unmatched") => {
+    return threads
+      .map((t) => {
+        let entries = t.entries;
+        if (mode === "sms") entries = entries.filter((e) => e.kind === "msg");
+        if (mode === "calls") entries = entries.filter((e) => e.kind === "call");
+        if (mode === "unread") entries = entries.filter((e) => e.item.direction === "inbound" && !e.item.read_at);
+        if (mode === "unmatched") entries = entries.filter((e) => !e.item.contact_id);
+        return { ...t, entries };
+      })
+      .filter((t) => t.entries.length > 0);
+  };
+
   const cardProps = {
     contactName,
     onToggle: togglePortal,
@@ -185,7 +242,7 @@ export default function Inbox() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Inbox</h1>
               <p className="text-sm text-muted-foreground">
-                Unified SMS &amp; voice timeline across all contacts
+                Threaded SMS &amp; voice across all contacts
               </p>
             </div>
           </div>
@@ -196,9 +253,9 @@ export default function Inbox() {
 
         <Tabs defaultValue="all">
           <TabsList>
-            <TabsTrigger value="all">All ({timeline.length})</TabsTrigger>
-            <TabsTrigger value="sms">SMS ({messages.length})</TabsTrigger>
-            <TabsTrigger value="calls">Calls ({calls.length})</TabsTrigger>
+            <TabsTrigger value="all">All ({threads.length})</TabsTrigger>
+            <TabsTrigger value="sms">SMS</TabsTrigger>
+            <TabsTrigger value="calls">Calls</TabsTrigger>
             <TabsTrigger value="unread">Unread ({unreadCount})</TabsTrigger>
             <TabsTrigger value="unmatched" className="data-[state=active]:text-amber-500">
               Unmatched ({unmatchedTimeline.length})
@@ -206,28 +263,19 @@ export default function Inbox() {
           </TabsList>
 
           <TabsContent value="all" className="mt-4">
-            <TimelineList items={timeline} loading={loading} {...cardProps} />
+            <ThreadList threads={filterThreads("all")} loading={loading} {...cardProps} />
           </TabsContent>
           <TabsContent value="sms" className="mt-4">
-            <TimelineList
-              items={messages.map((m) => ({ kind: "msg" as const, at: m.occurred_at, item: m }))}
-              loading={loading} {...cardProps}
-            />
+            <ThreadList threads={filterThreads("sms")} loading={loading} {...cardProps} />
           </TabsContent>
           <TabsContent value="calls" className="mt-4">
-            <TimelineList
-              items={calls.map((c) => ({ kind: "call" as const, at: c.occurred_at, item: c }))}
-              loading={loading} {...cardProps}
-            />
+            <ThreadList threads={filterThreads("calls")} loading={loading} {...cardProps} />
           </TabsContent>
           <TabsContent value="unread" className="mt-4">
-            <TimelineList
-              items={timeline.filter((e) => e.item.direction === "inbound" && !e.item.read_at)}
-              loading={loading} {...cardProps}
-            />
+            <ThreadList threads={filterThreads("unread")} loading={loading} {...cardProps} defaultOpen />
           </TabsContent>
           <TabsContent value="unmatched" className="mt-4">
-            <TimelineList items={unmatchedTimeline} loading={loading} {...cardProps} />
+            <ThreadList threads={filterThreads("unmatched")} loading={loading} {...cardProps} />
           </TabsContent>
         </Tabs>
       </div>
@@ -254,9 +302,18 @@ interface CardSharedProps {
   sendReply: (to: string, contactId: string | null) => void;
 }
 
-function TimelineList({
-  items, loading, ...rest
-}: { items: TimelineEntry[]; loading: boolean } & CardSharedProps) {
+interface ThreadGroup {
+  key: string;
+  contactId: string | null;
+  counterparty: string | null;
+  entries: TimelineEntry[];
+  lastAt: string;
+  unread: number;
+}
+
+function ThreadList({
+  threads, loading, defaultOpen, ...rest
+}: { threads: ThreadGroup[]; loading: boolean; defaultOpen?: boolean } & CardSharedProps) {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -264,17 +321,93 @@ function TimelineList({
       </div>
     );
   }
-  if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground italic py-12 text-center">No activity yet.</p>;
+  if (threads.length === 0) {
+    return <p className="text-sm text-muted-foreground italic py-12 text-center">No conversations yet.</p>;
   }
   return (
     <div className="space-y-2">
-      {items.map((entry) =>
-        entry.kind === "msg"
-          ? <MessageCard key={`m-${entry.item.id}`} m={entry.item} {...rest} />
-          : <CallCard key={`c-${entry.item.id}`} c={entry.item} {...rest} />
-      )}
+      {threads.map((t) => (
+        <ThreadCard key={t.key} thread={t} defaultOpen={defaultOpen} {...rest} />
+      ))}
     </div>
+  );
+}
+
+function ThreadCard({
+  thread, defaultOpen, contactName, onToggle, onReplyOpen, onResolve,
+  replyTo, replyBody, setReplyBody, sending, sendReply,
+}: { thread: ThreadGroup; defaultOpen?: boolean } & CardSharedProps) {
+  const [open, setOpen] = useState(!!defaultOpen || thread.unread > 0);
+  const sortedEntries = useMemo(
+    () => [...thread.entries].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
+    [thread.entries],
+  );
+  const latest = sortedEntries[0];
+  const isOrphan = !thread.contactId && !!thread.counterparty;
+  const name = contactName(thread.contactId, thread.counterparty);
+
+  const preview = latest.kind === "msg"
+    ? latest.item.body
+    : (latest.item.summary || `${latest.item.direction === "outbound" ? "Outgoing" : "Incoming"} call · ${Math.floor(latest.item.duration_seconds / 60)}m ${latest.item.duration_seconds % 60}s`);
+
+  return (
+    <Card className={`overflow-hidden ${thread.unread > 0 ? "border-l-4 border-l-amber-500" : ""}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 text-left"
+      >
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {thread.contactId ? (
+              <Link to={`/contacts/${thread.contactId}`} onClick={(e) => e.stopPropagation()}
+                className="font-medium text-foreground hover:underline truncate">
+                {name}
+              </Link>
+            ) : (
+              <span className="font-medium text-foreground truncate">{name}</span>
+            )}
+            {isOrphan && (
+              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500">
+                <AlertCircle className="h-2.5 w-2.5 mr-0.5" /> Unknown
+              </Badge>
+            )}
+            {thread.unread > 0 && (
+              <Badge className="text-[10px] bg-amber-500 text-amber-950 hover:bg-amber-500">
+                {thread.unread} new
+              </Badge>
+            )}
+            <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
+              {new Date(thread.lastAt).toLocaleString()}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
+            {latest.item.direction === "outbound" ? "You: " : ""}{preview}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {thread.entries.length} {thread.entries.length === 1 ? "message" : "messages"}
+            {thread.counterparty && ` · ${thread.counterparty}`}
+          </p>
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t border-border bg-background/40 p-3 space-y-2">
+          {sortedEntries.map((entry) =>
+            entry.kind === "msg"
+              ? <MessageCard key={`m-${entry.item.id}`} m={entry.item}
+                  contactName={contactName} onToggle={onToggle} onReplyOpen={onReplyOpen} onResolve={onResolve}
+                  replyTo={replyTo} replyBody={replyBody} setReplyBody={setReplyBody}
+                  sending={sending} sendReply={sendReply} />
+              : <CallCard key={`c-${entry.item.id}`} c={entry.item}
+                  contactName={contactName} onToggle={onToggle} onReplyOpen={onReplyOpen} onResolve={onResolve}
+                  replyTo={replyTo} replyBody={replyBody} setReplyBody={setReplyBody}
+                  sending={sending} sendReply={sendReply} />
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
