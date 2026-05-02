@@ -987,6 +987,14 @@ const Portal = () => {
                 <Calendar className="h-4 w-4" />
                 Meetings
               </TabsTrigger>
+              {isSelf &&
+                contact.governance_status === "sovereign" &&
+                contact.fiduciary_entity === "pwa" && (
+                  <TabsTrigger value="messages" className="flex-1 gap-1.5">
+                    <MessageCircle className="h-4 w-4" />
+                    Messages
+                  </TabsTrigger>
+                )}
               <TabsTrigger value="reviews" className="flex-1 gap-1.5">
                 <FileBarChart className="h-4 w-4" />
                 Reviews
