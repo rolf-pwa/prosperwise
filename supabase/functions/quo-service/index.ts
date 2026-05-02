@@ -145,7 +145,7 @@ serve(async (req) => {
         body: content,
         status: msg?.status || "sent",
         sent_by: userId,
-        portal_visible: false,
+        portal_visible: true,
         occurred_at: msg?.createdAt || new Date().toISOString(),
         read_at: new Date().toISOString(),
       });
