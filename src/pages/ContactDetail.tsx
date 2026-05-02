@@ -456,58 +456,8 @@ const ContactDetail = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <PortalMagicLinkButton contactId={id!} />
-            <Button
-              variant="outline"
-              size="icon"
-              title={contact.email_notifications_enabled !== false ? "Email notifications on" : "Email notifications off"}
-              onClick={async () => {
-                const newVal = contact.email_notifications_enabled === false;
-                await supabase.from("contacts").update({ email_notifications_enabled: newVal }).eq("id", id);
-                setContact((prev: any) => prev ? { ...prev, email_notifications_enabled: newVal } : prev);
-                toast.success(newVal ? "Notifications enabled" : "Notifications disabled");
-              }}
-            >
-              {contact.email_notifications_enabled !== false ? (
-                <Bell className="h-4 w-4" />
-              ) : (
-                <BellOff className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="icon" className="text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete contact</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete {contact.first_name} {contact.last_name} and all associated relationships. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={async () => {
-                      const { error } = await supabase.from("contacts").delete().eq("id", id!);
-                      if (error) {
-                        toast.error("Failed to delete contact.");
-                      } else {
-                        toast.success("Contact deleted.");
-                        navigate("/contacts");
-                      }
-                    }}
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          <div className="flex flex-wrap items-center gap-2" />
+
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -1071,76 +1021,48 @@ const ContactDetail = () => {
                 {!contact.email && !contact.phone && !contact.address && (
                   <p className="text-muted-foreground">No contact info on file.</p>
                 )}
-                <div className="pt-2 mt-2 border-t border-border/50 flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/contacts/${id}/edit`)}
-                    className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
-                  >
-                    Edit Contact
-                  </button>
-                  <ContactMerge
-                    contactId={id!}
-                    contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
-                    onMerged={fetchData}
-                    trigger={
-                      <button
-                        type="button"
-                        className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
-                      >
-                        Merge Contact
-                      </button>
-                    }
-                  />
+                <div className="pt-2 mt-2 border-t border-border/50 space-y-2">
+                  <PortalMagicLinkButton contactId={id!} />
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/contacts/${id}/edit`)}
+                      className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                    >
+                      Edit Contact
+                    </button>
+                    <ContactMerge
+                      contactId={id!}
+                      contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                      onMerged={fetchData}
+                      trigger={
+                        <button
+                          type="button"
+                          className="text-left text-xs font-medium text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                        >
+                          Merge Contact
+                        </button>
+                      }
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* App Links + AI Assistant */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">App Links</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {resourceLinks.map(({ label, url, icon: Icon, internal }: any) => {
-                  if (internal && url) {
-                    return (
-                      <Link
-                        key={label}
-                        to={url}
-                        className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                      >
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="flex-1">{label}</span>
-                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                      </Link>
-                    );
-                  }
-                  return (
-                    <a
-                      key={label}
-                      href={url || "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                        url ? "bg-muted/50 hover:bg-muted" : "cursor-not-allowed bg-muted/20 text-muted-foreground opacity-60"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1">{label}</span>
-                      {url && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
-                    </a>
-                  );
-                })}
-
-                {/* AI Assistant nested */}
-                <Collapsible defaultOpen={false}>
-                  <CollapsibleTrigger className="group flex w-full items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
-                    <Bot className="h-4 w-4 text-sanctuary-bronze" />
-                    <span className="flex-1 text-left">AI Assistant</span>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-3">
+            {/* AI Assistant */}
+            <Collapsible defaultOpen={false}>
+              <Card>
+                <CollapsibleTrigger className="w-full group">
+                  <CardHeader className="flex flex-row items-center justify-between py-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Bot className="h-4 w-4 text-sanctuary-bronze" />
+                      AI Assistant
+                    </CardTitle>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
                     <SovereigntyAssistant
                       variant="embedded"
                       contactId={id}
@@ -1166,10 +1088,10 @@ const ContactDetail = () => {
                         google_drive_url: contact.google_drive_url,
                       }}
                     />
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
 
             {/* Professional Team */}
             <Card>

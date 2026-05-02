@@ -17,9 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, X, Plus, Search } from "lucide-react";
+import { ArrowLeft, X, Plus, Search, Bell, BellOff, Trash2 } from "lucide-react";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
 import { StatementUpload } from "@/components/StatementUpload";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 interface LinkedMember {
   relationship_id?: string;
@@ -38,6 +43,7 @@ const ContactForm = () => {
   const [saving, setSaving] = useState(false);
   const [statementFiles, setStatementFiles] = useState<File[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
+  const [emailNotifEnabled, setEmailNotifEnabled] = useState(true);
 
   const [form, setForm] = useState({
     first_name: searchParams.get("first_name") || "",
@@ -133,6 +139,7 @@ const ContactForm = () => {
         google_drive_url: data.google_drive_url || "",
         charter_url: (data as any).charter_url || "",
       });
+      setEmailNotifEnabled(data.email_notifications_enabled !== false);
       setHouseholdMembers(
         (householdRes.data || []).map((r: any) => ({
           relationship_id: r.id,
@@ -339,9 +346,58 @@ const ContactForm = () => {
               {isEdit ? "Edit Contact" : "New Contact"}
             </h1>
           </div>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving..." : isEdit ? "Update Contact" : "Create Contact"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isEdit && id && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title={emailNotifEnabled ? "Email notifications on" : "Email notifications off"}
+                  onClick={async () => {
+                    const newVal = !emailNotifEnabled;
+                    const { error } = await supabase.from("contacts").update({ email_notifications_enabled: newVal }).eq("id", id);
+                    if (error) { toast.error("Failed to update notifications."); return; }
+                    setEmailNotifEnabled(newVal);
+                    toast.success(newVal ? "Notifications enabled" : "Notifications disabled");
+                  }}
+                >
+                  {emailNotifEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete contact</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete {form.first_name} {form.last_name} and all associated relationships. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={async () => {
+                          const { error } = await supabase.from("contacts").delete().eq("id", id);
+                          if (error) { toast.error("Failed to delete contact."); }
+                          else { toast.success("Contact deleted."); navigate("/contacts"); }
+                        }}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : isEdit ? "Update Contact" : "Create Contact"}
+            </Button>
+          </div>
         </div>
 
         {/* Basic Info */}
