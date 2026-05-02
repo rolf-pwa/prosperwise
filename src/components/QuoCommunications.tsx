@@ -205,7 +205,7 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
   );
 }
 
-function MessageRow({ m, onToggle }: { m: QuoMessage; onToggle: () => void }) {
+function MessageRow({ m }: { m: QuoMessage; onToggle?: () => void }) {
   const isOut = m.direction === "outbound";
   return (
     <div className={`flex ${isOut ? "justify-end" : "justify-start"}`}>
@@ -225,19 +225,12 @@ function MessageRow({ m, onToggle }: { m: QuoMessage; onToggle: () => void }) {
         {m.pii_blocked && m.pii_block_reason && (
           <p className="text-xs text-destructive mt-1">Blocked: {m.pii_block_reason}</p>
         )}
-        <div className="flex items-center gap-2 mt-2 text-xs">
-          <Switch checked={m.portal_visible} onCheckedChange={onToggle} />
-          {m.portal_visible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
-          <span className="text-muted-foreground">
-            {m.portal_visible ? "Visible in client portal" : "Staff only"}
-          </span>
-        </div>
       </div>
     </div>
   );
 }
 
-function CallRow({ c, onToggle }: { c: QuoCall; onToggle: () => void }) {
+function CallRow({ c }: { c: QuoCall; onToggle?: () => void }) {
   const mins = Math.floor(c.duration_seconds / 60);
   const secs = c.duration_seconds % 60;
   return (
@@ -270,13 +263,6 @@ function CallRow({ c, onToggle }: { c: QuoCall; onToggle: () => void }) {
         <a href={c.recording_url} target="_blank" rel="noopener noreferrer"
           className="text-xs text-amber-500 hover:underline">▶ Listen to recording</a>
       )}
-      <div className="flex items-center gap-2 text-xs pt-1 border-t border-border">
-        <Switch checked={c.portal_visible} onCheckedChange={onToggle} />
-        {c.portal_visible ? <Eye className="h-3 w-3 text-amber-500" /> : <EyeOff className="h-3 w-3 text-muted-foreground" />}
-        <span className="text-muted-foreground">
-          {c.portal_visible ? "Visible in client portal" : "Staff only"}
-        </span>
-      </div>
     </div>
   );
 }
