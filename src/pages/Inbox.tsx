@@ -215,8 +215,55 @@ export default function Inbox() {
     );
   }, [timeline]);
 
-  const filterThreads = (mode: "all" | "sms" | "calls" | "unread" | "unmatched") => {
-    return threads
+  // A thread is "archived" if its key is in the archive AND no newer message has arrived since
+  const isArchived = (t: { key: string; lastAt: string }) => {
+    if (!(t.key in archive)) return false;
+    const archivedAt = archive[t.key];
+    if (!archivedAt) return true;
+    return new Date(t.lastAt) <= new Date(archivedAt);
+  };
+
+  const archiveThread = async (t: ThreadGroup) => {
+    try {
+      const phoneDigits = t.key.startsWith("phone:") ? t.key.slice(6) : null;
+      await supabase.functions.invoke("quo-service", {
+        body: {
+          action: "archiveThread",
+          threadKey: t.key,
+          contactId: t.contactId,
+          phoneDigits,
+          lastMessageAt: t.lastAt,
+        },
+      });
+      setArchive((prev) => ({ ...prev, [t.key]: t.lastAt }));
+      toast.success("Thread archived — still visible on contact + portal");
+    } catch (err: any) {
+      toast.error(`Archive failed: ${err.message}`);
+    }
+  };
+
+  const unarchiveThread = async (t: ThreadGroup) => {
+    try {
+      await supabase.functions.invoke("quo-service", {
+        body: { action: "unarchiveThread", threadKey: t.key },
+      });
+      setArchive((prev) => {
+        const next = { ...prev };
+        delete next[t.key];
+        return next;
+      });
+      toast.success("Thread restored to inbox");
+    } catch (err: any) {
+      toast.error(`Restore failed: ${err.message}`);
+    }
+  };
+
+  const archivedThreads = useMemo(() => threads.filter(isArchived), [threads, archive]);
+  const activeThreads = useMemo(() => threads.filter((t) => !isArchived(t)), [threads, archive]);
+
+  const filterThreads = (mode: "all" | "sms" | "calls" | "unread" | "unmatched" | "archived") => {
+    const source = mode === "archived" ? archivedThreads : activeThreads;
+    return source
       .map((t) => {
         let entries = t.entries;
         if (mode === "sms") entries = entries.filter((e) => e.kind === "msg");
@@ -233,6 +280,8 @@ export default function Inbox() {
     onToggle: togglePortal,
     onReplyOpen: (phone: string) => { setReplyTo(phone); setReplyBody(""); },
     onResolve: openResolve,
+    onArchive: archiveThread,
+    onUnarchive: unarchiveThread,
     replyTo, replyBody, setReplyBody, sending,
     sendReply,
   };
