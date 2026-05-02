@@ -41,6 +41,7 @@ interface QuoCall {
 export default function QuoCommunications({ contactId, contactPhone, contactName }: QuoCommunicationsProps) {
   const [messages, setMessages] = useState<QuoMessage[]>([]);
   const [calls, setCalls] = useState<QuoCall[]>([]);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
