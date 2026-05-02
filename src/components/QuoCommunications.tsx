@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Loader2, Send, Phone, MessageSquare, Eye, EyeOff, RefreshCw, ChevronDown } from "lucide-react";
+import { Loader2, Send, Phone, MessageSquare, RefreshCw, ChevronDown } from "lucide-react";
 
 interface QuoCommunicationsProps {
   contactId: string;
