@@ -66,8 +66,14 @@ export default function Inbox() {
     }
   };
 
+  const markAllRead = async () => {
+    try {
+      await supabase.functions.invoke("quo-service", { body: { action: "markRead", all: true } });
+    } catch {}
+  };
+
   useEffect(() => {
-    load();
+    load().then(() => markAllRead());
     const channel = supabase
       .channel("quo-inbox")
       .on("postgres_changes", { event: "*", schema: "public", table: "quo_messages" }, () => load())
