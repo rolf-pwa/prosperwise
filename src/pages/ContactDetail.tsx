@@ -975,17 +975,36 @@ const ContactDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-4">
-            {/* Family Link */}
-            {familyName && contact.family_id && (
-              <Link
-                to="/families"
-                className="flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50"
-              >
-                <Users className="h-4 w-4 text-sanctuary-bronze" />
-                <span>{familyName}</span>
-                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
-              </Link>
-            )}
+            {/* Contact Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Contact Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {contact.email && (
+                  <a href={`mailto:${contact.email}`} className="flex items-center gap-2 hover:underline">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium break-all">{contact.email}</span>
+                  </a>
+                )}
+                {contact.phone && (
+                  <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:underline">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{contact.phone}</span>
+                  </a>
+                )}
+                {contact.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="font-medium">{contact.address}</span>
+                  </div>
+                )}
+                {!contact.email && !contact.phone && !contact.address && (
+                  <p className="text-muted-foreground">No contact info on file.</p>
+                )}
+              </CardContent>
+            </Card>
+
 
             {/* AI Assistant (collapsible) */}
             <Collapsible defaultOpen={false}>
