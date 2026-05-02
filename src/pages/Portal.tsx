@@ -995,10 +995,6 @@ const Portal = () => {
                     Messages
                   </TabsTrigger>
                 )}
-              <TabsTrigger value="reviews" className="flex-1 gap-1.5">
-                <FileBarChart className="h-4 w-4" />
-                Reviews
-              </TabsTrigger>
             </TabsList>
 
             {/* Action Items Tab */}
