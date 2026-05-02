@@ -995,10 +995,6 @@ const Portal = () => {
                     Messages
                   </TabsTrigger>
                 )}
-              <TabsTrigger value="reviews" className="flex-1 gap-1.5">
-                <FileBarChart className="h-4 w-4" />
-                Reviews
-              </TabsTrigger>
             </TabsList>
 
             {/* Action Items Tab */}
@@ -1089,65 +1085,6 @@ const Portal = () => {
                 </TabsContent>
               )}
 
-            {/* Reviews Tab */}
-            <TabsContent value="reviews" className="mt-4">
-              {!isSelf ? (
-                <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
-                  <FileBarChart className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">Reviews are only visible on your own view.</p>
-                </div>
-              ) : quarterly_reviews.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 mb-4">
-                    <FileBarChart className="h-7 w-7 text-accent" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground font-serif mb-2">Quarterly Governance Reviews</h3>
-                  <p className="text-sm text-muted-foreground max-w-md mb-1">
-                    Comprehensive AI-powered reviews of your financial territory.
-                  </p>
-                  <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent mt-3 border border-accent/20">
-                    Pinned automatically once your advisor saves a review
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileBarChart className="h-4 w-4 text-accent" />
-                    <h3 className="text-sm font-semibold text-foreground font-serif">Quarterly Governance Reviews</h3>
-                  </div>
-                  {quarterly_reviews.map((review) => {
-                    const member = household_members.find((m: any) => m.id === review.contact_id);
-                    const memberName = review.contact_id === contact.id
-                      ? `${contact.first_name} ${contact.last_name || ""}`.trim()
-                      : member ? `${member.first_name} ${member.last_name || ""}`.trim() : null;
-                    const href = review.signed_url || review.drive_url || "#";
-                    const dateLabel = review.review_date
-                      ? new Date(review.review_date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
-                      : null;
-                    return (
-                      <a
-                        key={review.id}
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 hover:border-accent/40 hover:bg-accent/5 transition-colors"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                          <FileBarChart className="h-5 w-5 text-accent" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{review.title}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                            {dateLabel && <span>{dateLabel}</span>}
-                            {memberName && <span>· {memberName}</span>}
-                          </div>
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -1210,6 +1147,49 @@ const Portal = () => {
 
           {/* Charter */}
           <PortalCharter charterUrl={charter?.draft_status === "ratified" ? (contact.charter_url || family?.charter_document_url) : null} />
+
+          {/* Quarterly Governance Reviews */}
+          {isSelf && quarterly_reviews.length > 0 && (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileBarChart className="h-4 w-4 text-accent" />
+                  <h3 className="text-sm font-semibold text-foreground font-serif">Reviews</h3>
+                </div>
+                <div className="space-y-1.5 pt-1">
+                  {quarterly_reviews.map((review) => {
+                    const member = household_members.find((m: any) => m.id === review.contact_id);
+                    const memberName = review.contact_id === contact.id
+                      ? `${contact.first_name} ${contact.last_name || ""}`.trim()
+                      : member ? `${member.first_name} ${member.last_name || ""}`.trim() : null;
+                    const href = review.signed_url || review.drive_url || "#";
+                    const dateLabel = review.review_date
+                      ? new Date(review.review_date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                      : null;
+                    return (
+                      <a
+                        key={review.id}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-2 hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                      >
+                        <FileBarChart className="h-3.5 w-3.5 text-accent mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{review.title}</p>
+                          {(dateLabel || memberName) && (
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {dateLabel}{dateLabel && memberName ? " · " : ""}{memberName}
+                            </p>
+                          )}
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Dynamic Quick Links */}
           {isSelf && <PortalDynamicLinks contact={contact} />}
