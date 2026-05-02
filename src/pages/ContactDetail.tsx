@@ -556,35 +556,6 @@ const ContactDetail = () => {
               </Card>
             )}
 
-            {/* Compact Contact Info Strip */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                  {contact.email && (
-                    <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 hover:underline">
-                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{contact.email}</span>
-                    </a>
-                  )}
-                  {contact.phone && (
-                    <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 hover:underline">
-                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{contact.phone}</span>
-                    </a>
-                  )}
-                  {contact.address && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{contact.address}</span>
-                    </span>
-                  )}
-                  {!contact.email && !contact.phone && !contact.address && (
-                    <span className="text-muted-foreground">No contact info on file.</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Calendar (placed where Workbench used to live) */}
             <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
 
