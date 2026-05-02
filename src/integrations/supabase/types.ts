@@ -1742,6 +1742,44 @@ export type Database = {
           },
         ]
       }
+      quo_inbox_archive: {
+        Row: {
+          archived_at: string
+          archived_by: string | null
+          contact_id: string | null
+          id: string
+          last_message_at: string | null
+          phone_digits: string | null
+          thread_key: string
+        }
+        Insert: {
+          archived_at?: string
+          archived_by?: string | null
+          contact_id?: string | null
+          id?: string
+          last_message_at?: string | null
+          phone_digits?: string | null
+          thread_key: string
+        }
+        Update: {
+          archived_at?: string
+          archived_by?: string | null
+          contact_id?: string | null
+          id?: string
+          last_message_at?: string | null
+          phone_digits?: string | null
+          thread_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quo_inbox_archive_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quo_messages: {
         Row: {
           body: string
