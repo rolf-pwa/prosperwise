@@ -9,7 +9,7 @@ const QUO_PHONE_NUMBER_RAW = Deno.env.get("QUO_DEFAULT_PHONE_NUMBER_ID") || "";
 const QUO_BASE_URL = "https://api.openphone.com/v1";
 
 const AFTER_HOURS_REPLY =
-  "Thanks for your message — you've reached us outside our business hours (Mon–Fri, 9am–5pm ET). " +
+  "Thanks for your message — you've reached us outside our business hours (Mon–Fri, 9am–5pm PT). " +
   "We'll respond as soon as we're back online. For sensitive or account-related matters, " +
   "please use the Ask for Help section in your Sovereign Portal.";
 
@@ -34,10 +34,10 @@ function normalizePhone(phone: string): string {
   return phone.startsWith("+") ? phone : `+${digits}`;
 }
 
-// Determine if a moment falls outside Mon–Fri 9am–5pm America/Toronto (Eastern).
-function isAfterHoursEastern(now: Date = new Date()): boolean {
+// Determine if a moment falls outside Mon–Fri 9am–5pm America/Los_Angeles (Pacific).
+function isAfterHoursPacific(now: Date = new Date()): boolean {
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Toronto",
+    timeZone: "America/Los_Angeles",
     weekday: "short",
     hour: "numeric",
     hour12: false,
@@ -230,8 +230,8 @@ serve(async (req) => {
           occurred_at: data?.createdAt || new Date().toISOString(),
         }, { onConflict: "quo_message_id" });
 
-        // After-hours auto-reply (Mon–Fri 9am–5pm ET)
-        if (isAfterHoursEastern() && fromNum) {
+        // After-hours auto-reply (Mon–Fri 9am–5pm PT)
+        if (isAfterHoursPacific() && fromNum) {
           await sendAutoReply(admin, fromNum);
         }
       } else {
