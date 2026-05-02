@@ -306,13 +306,14 @@ export default function Inbox() {
 
         <Tabs defaultValue="all">
           <TabsList>
-            <TabsTrigger value="all">All ({threads.length})</TabsTrigger>
+            <TabsTrigger value="all">All ({activeThreads.length})</TabsTrigger>
             <TabsTrigger value="sms">SMS</TabsTrigger>
             <TabsTrigger value="calls">Calls</TabsTrigger>
             <TabsTrigger value="unread">Unread ({unreadCount})</TabsTrigger>
             <TabsTrigger value="unmatched" className="data-[state=active]:text-amber-500">
-              Unmatched ({unmatchedTimeline.length})
+              Unmatched ({unmatchedTimeline.filter((e) => !isArchived({ key: e.item.contact_id || `phone:${last10(e.item.direction === "outbound" ? e.item.to_number : e.item.from_number)}`, lastAt: e.at })).length})
             </TabsTrigger>
+            <TabsTrigger value="archived">Archived ({archivedThreads.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-4">
@@ -329,6 +330,9 @@ export default function Inbox() {
           </TabsContent>
           <TabsContent value="unmatched" className="mt-4">
             <ThreadList threads={filterThreads("unmatched")} loading={loading} {...cardProps} />
+          </TabsContent>
+          <TabsContent value="archived" className="mt-4">
+            <ThreadList threads={filterThreads("archived")} loading={loading} {...cardProps} archivedView />
           </TabsContent>
         </Tabs>
       </div>
