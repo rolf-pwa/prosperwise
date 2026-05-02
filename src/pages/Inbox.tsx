@@ -14,6 +14,7 @@ import {
 import {
   Loader2, MessageSquare, Phone, RefreshCw, Eye, EyeOff,
   Inbox as InboxIcon, UserPlus, Link2, Send, AlertCircle, ChevronRight, ChevronDown,
+  Archive, ArchiveRestore,
 } from "lucide-react";
 import { toast } from "sonner";
 
