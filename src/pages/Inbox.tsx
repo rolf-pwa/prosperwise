@@ -20,6 +20,7 @@ interface QuoMessage {
   pii_blocked: boolean;
   from_number: string | null;
   to_number: string | null;
+  read_at: string | null;
 }
 
 interface QuoCall {
@@ -34,6 +35,7 @@ interface QuoCall {
   portal_visible: boolean;
   from_number: string | null;
   to_number: string | null;
+  read_at: string | null;
 }
 
 interface ContactLite {
