@@ -126,7 +126,7 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
         body: { action: "syncContact", contactId },
       });
       if (error) throw error;
-      toast.success("Contact synced to Quo");
+      toast.success("Contact synced");
     } catch (err: any) {
       toast.error(`Sync failed: ${err.message}`);
     }
@@ -143,10 +143,10 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-amber-500" />
-          <h3 className="font-serif text-lg">Quo · SMS &amp; Voice</h3>
+          <h3 className="font-serif text-lg">SMS &amp; Voice</h3>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={syncContact} title="Push contact to Quo">
+          <Button size="sm" variant="ghost" onClick={syncContact} title="Sync contact">
             <RefreshCw className="h-3.5 w-3.5 mr-1" /> Sync
           </Button>
           <Button size="sm" variant="ghost" onClick={load}>Refresh</Button>
