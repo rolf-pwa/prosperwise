@@ -353,6 +353,8 @@ interface CardSharedProps {
   onToggle: (recordType: "message" | "call", recordId: string, current: boolean) => void;
   onReplyOpen: (phone: string) => void;
   onResolve: (phone: string) => void;
+  onArchive: (t: ThreadGroup) => void;
+  onUnarchive: (t: ThreadGroup) => void;
   replyTo: string | null;
   replyBody: string;
   setReplyBody: (v: string) => void;
@@ -370,8 +372,8 @@ interface ThreadGroup {
 }
 
 function ThreadList({
-  threads, loading, defaultOpen, ...rest
-}: { threads: ThreadGroup[]; loading: boolean; defaultOpen?: boolean } & CardSharedProps) {
+  threads, loading, defaultOpen, archivedView, ...rest
+}: { threads: ThreadGroup[]; loading: boolean; defaultOpen?: boolean; archivedView?: boolean } & CardSharedProps) {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -380,22 +382,25 @@ function ThreadList({
     );
   }
   if (threads.length === 0) {
-    return <p className="text-sm text-muted-foreground italic py-12 text-center">No conversations yet.</p>;
+    return <p className="text-sm text-muted-foreground italic py-12 text-center">
+      {archivedView ? "No archived threads." : "No conversations yet."}
+    </p>;
   }
   return (
     <div className="space-y-2">
       {threads.map((t) => (
-        <ThreadCard key={t.key} thread={t} defaultOpen={defaultOpen} {...rest} />
+        <ThreadCard key={t.key} thread={t} defaultOpen={defaultOpen} archivedView={archivedView} {...rest} />
       ))}
     </div>
   );
 }
 
 function ThreadCard({
-  thread, defaultOpen, contactName, onToggle, onReplyOpen, onResolve,
+  thread, defaultOpen, archivedView, contactName, onToggle, onReplyOpen, onResolve,
+  onArchive, onUnarchive,
   replyTo, replyBody, setReplyBody, sending, sendReply,
-}: { thread: ThreadGroup; defaultOpen?: boolean } & CardSharedProps) {
-  const [open, setOpen] = useState(!!defaultOpen || thread.unread > 0);
+}: { thread: ThreadGroup; defaultOpen?: boolean; archivedView?: boolean } & CardSharedProps) {
+  const [open, setOpen] = useState(!!defaultOpen || (thread.unread > 0 && !archivedView));
   const sortedEntries = useMemo(
     () => [...thread.entries].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()),
     [thread.entries],
@@ -409,46 +414,59 @@ function ThreadCard({
     : (latest.item.summary || `${latest.item.direction === "outbound" ? "Outgoing" : "Incoming"} call · ${Math.floor(latest.item.duration_seconds / 60)}m ${latest.item.duration_seconds % 60}s`);
 
   return (
-    <Card className={`overflow-hidden ${thread.unread > 0 ? "border-l-4 border-l-amber-500" : ""}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 text-left"
-      >
-        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {thread.contactId ? (
-              <Link to={`/contacts/${thread.contactId}`} onClick={(e) => e.stopPropagation()}
-                className="font-medium text-foreground hover:underline truncate">
-                {name}
-              </Link>
-            ) : (
-              <span className="font-medium text-foreground truncate">{name}</span>
-            )}
-            {isOrphan && (
-              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500">
-                <AlertCircle className="h-2.5 w-2.5 mr-0.5" /> Unknown
-              </Badge>
-            )}
-            {thread.unread > 0 && (
-              <Badge className="text-[10px] bg-amber-500 text-amber-950 hover:bg-amber-500">
-                {thread.unread} new
-              </Badge>
-            )}
-            <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
-              {new Date(thread.lastAt).toLocaleString()}
-            </span>
+    <Card className={`overflow-hidden ${thread.unread > 0 && !archivedView ? "border-l-4 border-l-amber-500" : ""} ${archivedView ? "opacity-70" : ""}`}>
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex-1 flex items-center gap-3 p-3 hover:bg-muted/50 text-left min-w-0"
+        >
+          {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {thread.contactId ? (
+                <Link to={`/contacts/${thread.contactId}`} onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-foreground hover:underline truncate">
+                  {name}
+                </Link>
+              ) : (
+                <span className="font-medium text-foreground truncate">{name}</span>
+              )}
+              {isOrphan && (
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500">
+                  <AlertCircle className="h-2.5 w-2.5 mr-0.5" /> Unknown
+                </Badge>
+              )}
+              {thread.unread > 0 && !archivedView && (
+                <Badge className="text-[10px] bg-amber-500 text-amber-950 hover:bg-amber-500">
+                  {thread.unread} new
+                </Badge>
+              )}
+              {archivedView && (
+                <Badge variant="outline" className="text-[10px]">Archived</Badge>
+              )}
+              <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
+                {new Date(thread.lastAt).toLocaleString()}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {latest.item.direction === "outbound" ? "You: " : ""}{preview}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {thread.entries.length} {thread.entries.length === 1 ? "message" : "messages"}
+              {thread.counterparty && ` · ${thread.counterparty}`}
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {latest.item.direction === "outbound" ? "You: " : ""}{preview}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            {thread.entries.length} {thread.entries.length === 1 ? "message" : "messages"}
-            {thread.counterparty && ` · ${thread.counterparty}`}
-          </p>
-        </div>
-      </button>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); archivedView ? onUnarchive(thread) : onArchive(thread); }}
+          className="px-3 flex items-center justify-center text-muted-foreground hover:text-amber-500 hover:bg-muted/50 border-l border-border"
+          title={archivedView ? "Restore to inbox" : "Archive thread (still visible on contact + portal)"}
+        >
+          {archivedView ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+        </button>
+      </div>
 
       {open && (
         <div className="border-t border-border bg-background/40 p-3 space-y-2">
@@ -456,10 +474,12 @@ function ThreadCard({
             entry.kind === "msg"
               ? <MessageCard key={`m-${entry.item.id}`} m={entry.item}
                   contactName={contactName} onToggle={onToggle} onReplyOpen={onReplyOpen} onResolve={onResolve}
+                  onArchive={onArchive} onUnarchive={onUnarchive}
                   replyTo={replyTo} replyBody={replyBody} setReplyBody={setReplyBody}
                   sending={sending} sendReply={sendReply} />
               : <CallCard key={`c-${entry.item.id}`} c={entry.item}
                   contactName={contactName} onToggle={onToggle} onReplyOpen={onReplyOpen} onResolve={onResolve}
+                  onArchive={onArchive} onUnarchive={onUnarchive}
                   replyTo={replyTo} replyBody={replyBody} setReplyBody={setReplyBody}
                   sending={sending} sendReply={sendReply} />
           )}
