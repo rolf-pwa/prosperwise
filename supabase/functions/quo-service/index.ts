@@ -181,6 +181,36 @@ serve(async (req) => {
       });
     }
 
+    // ---- inbox (global, all contacts) ----
+    if (action === "inbox") {
+      const { limit = 100 } = body;
+      const [msgRes, callRes] = await Promise.all([
+        supabase.from("quo_messages").select("*").order("occurred_at", { ascending: false }).limit(limit),
+        supabase.from("quo_calls").select("*").order("occurred_at", { ascending: false }).limit(limit),
+      ]);
+      if (msgRes.error) throw msgRes.error;
+      if (callRes.error) throw callRes.error;
+
+      const contactIds = Array.from(new Set([
+        ...(msgRes.data || []).map((m: any) => m.contact_id).filter(Boolean),
+        ...(callRes.data || []).map((c: any) => c.contact_id).filter(Boolean),
+      ]));
+      let contactsById: Record<string, any> = {};
+      if (contactIds.length) {
+        const { data: contacts } = await adminClient
+          .from("contacts")
+          .select("id, first_name, last_name, phone")
+          .in("id", contactIds);
+        contactsById = Object.fromEntries((contacts || []).map((c: any) => [c.id, c]));
+      }
+
+      return new Response(JSON.stringify({
+        messages: msgRes.data || [],
+        calls: callRes.data || [],
+        contacts: contactsById,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ---- togglePortalVisible ----
     if (action === "togglePortalVisible") {
       const { recordType, recordId, visible } = body;
