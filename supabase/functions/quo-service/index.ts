@@ -19,8 +19,21 @@ function getCorsHeaders(req: Request) {
 }
 
 const QUO_API_KEY = Deno.env.get("QUO_API_KEY")!;
-const QUO_PHONE_NUMBER_ID = Deno.env.get("QUO_DEFAULT_PHONE_NUMBER_ID")!;
+const QUO_PHONE_NUMBER_RAW = Deno.env.get("QUO_DEFAULT_PHONE_NUMBER_ID")!;
 const QUO_BASE_URL = "https://api.openphone.com/v1";
+
+// Quo `from` must be either a phone-number ID (PN...) or E.164 (+17787215208).
+// The secret may have been stored as a formatted number — coerce it.
+function resolveQuoFrom(raw: string): string {
+  if (!raw) return raw;
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("PN")) return trimmed;
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return trimmed.startsWith("+") ? trimmed : `+${digits}`;
+}
+const QUO_PHONE_NUMBER_ID = resolveQuoFrom(QUO_PHONE_NUMBER_RAW);
 
 async function quoFetch(path: string, init: RequestInit = {}) {
   const res = await fetch(`${QUO_BASE_URL}${path}`, {
