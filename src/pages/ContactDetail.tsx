@@ -1091,7 +1091,7 @@ const ContactDetail = () => {
                 </div>
               </CardContent>
             </Card>
-            {/* Family & Household */}
+            {/* Family > Household > Members (nested collapsibles) */}
             {(familyName || householdLabel || householdMembers.length > 0) && (
               <Card>
                 <CardHeader>
@@ -1100,47 +1100,71 @@ const ContactDetail = () => {
                     Family
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {familyName && contact.family_id && (
-                    <Link
-                      to="/families"
-                      className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                    >
-                      <span className="flex-1">{familyName}</span>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    </Link>
-                  )}
-                  {householdLabel && contact.household_id && (
-                    <Link
-                      to={`/households/${contact.household_id}`}
-                      className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                    >
-                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="flex-1">{householdLabel}</span>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                    </Link>
-                  )}
-                  {householdMembers.length > 0 && (
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Household Members</p>
-                      <ul className="space-y-1 text-sm">
-                        {householdMembers.map((hm) => (
-                          <li key={hm.id}>
-                            <Link
-                              to={`/contacts/${hm.id}`}
-                              className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
-                            >
-                              <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
-                              <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                <CardContent className="space-y-2">
+                  {familyName && contact.family_id ? (
+                    <Collapsible defaultOpen={false}>
+                      <div className="flex items-center gap-1">
+                        <CollapsibleTrigger className="group flex flex-1 items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
+                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+                          <span className="flex-1 text-left">{familyName}</span>
+                        </CollapsibleTrigger>
+                        <Link
+                          to="/families"
+                          className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          title="Open Families"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                      <CollapsibleContent className="pl-4 pt-2 space-y-2">
+                        {householdLabel && contact.household_id ? (
+                          <Collapsible defaultOpen={false}>
+                            <div className="flex items-center gap-1">
+                              <CollapsibleTrigger className="group flex flex-1 items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted">
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+                                <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="flex-1 text-left">{householdLabel}</span>
+                              </CollapsibleTrigger>
+                              <Link
+                                to={`/households/${contact.household_id}`}
+                                className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                title="Open Household"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </Link>
+                            </div>
+                            <CollapsibleContent className="pl-4 pt-2">
+                              {householdMembers.length > 0 ? (
+                                <ul className="space-y-1 text-sm">
+                                  {householdMembers.map((hm) => (
+                                    <li key={hm.id}>
+                                      <Link
+                                        to={`/contacts/${hm.id}`}
+                                        className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 transition-colors hover:bg-muted"
+                                      >
+                                        <span className="font-medium">{`${hm.first_name} ${hm.last_name || ""}`.trim()}</span>
+                                        <span className="text-xs text-muted-foreground capitalize">{hm.family_role.replace(/_/g, " ")}</span>
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No other household members.</p>
+                              )}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ) : (
+                          <p className="text-xs text-muted-foreground px-3">No household linked.</p>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No family linked.</p>
                   )}
                 </CardContent>
               </Card>
             )}
+
             {/* Professional Team */}
             <Card>
               <CardHeader>
