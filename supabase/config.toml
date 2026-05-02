@@ -60,3 +60,6 @@ verify_jwt = false
 [functions.georgia-session-update]
 verify_jwt = false
 
+[functions.quo-webhook]
+verify_jwt = false
+

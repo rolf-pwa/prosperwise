@@ -1633,6 +1633,213 @@ export type Database = {
         }
         Relationships: []
       }
+      quo_calls: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          direction: string
+          duration_seconds: number | null
+          from_number: string
+          id: string
+          next_steps: string | null
+          occurred_at: string
+          portal_visible: boolean
+          quo_call_id: string | null
+          quo_user_id: string | null
+          recording_url: string | null
+          status: string
+          summary: string | null
+          to_number: string
+          transcript: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          direction: string
+          duration_seconds?: number | null
+          from_number: string
+          id?: string
+          next_steps?: string | null
+          occurred_at?: string
+          portal_visible?: boolean
+          quo_call_id?: string | null
+          quo_user_id?: string | null
+          recording_url?: string | null
+          status?: string
+          summary?: string | null
+          to_number: string
+          transcript?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          from_number?: string
+          id?: string
+          next_steps?: string | null
+          occurred_at?: string
+          portal_visible?: boolean
+          quo_call_id?: string | null
+          quo_user_id?: string | null
+          recording_url?: string | null
+          status?: string
+          summary?: string | null
+          to_number?: string
+          transcript?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quo_calls_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quo_contact_sync: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          last_synced_at: string
+          quo_contact_id: string
+          sync_direction: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          last_synced_at?: string
+          quo_contact_id: string
+          sync_direction?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          last_synced_at?: string
+          quo_contact_id?: string
+          sync_direction?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quo_contact_sync_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quo_messages: {
+        Row: {
+          body: string
+          contact_id: string | null
+          created_at: string
+          direction: string
+          from_number: string
+          id: string
+          media_urls: string[] | null
+          occurred_at: string
+          pii_block_reason: string | null
+          pii_blocked: boolean
+          portal_visible: boolean
+          quo_message_id: string | null
+          quo_user_id: string | null
+          sent_by: string | null
+          status: string
+          to_number: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          contact_id?: string | null
+          created_at?: string
+          direction: string
+          from_number: string
+          id?: string
+          media_urls?: string[] | null
+          occurred_at?: string
+          pii_block_reason?: string | null
+          pii_blocked?: boolean
+          portal_visible?: boolean
+          quo_message_id?: string | null
+          quo_user_id?: string | null
+          sent_by?: string | null
+          status?: string
+          to_number: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          contact_id?: string | null
+          created_at?: string
+          direction?: string
+          from_number?: string
+          id?: string
+          media_urls?: string[] | null
+          occurred_at?: string
+          pii_block_reason?: string | null
+          pii_blocked?: boolean
+          portal_visible?: boolean
+          quo_message_id?: string | null
+          quo_user_id?: string | null
+          sent_by?: string | null
+          status?: string
+          to_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quo_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quo_webhook_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          processing_error: string | null
+          quo_event_id: string | null
+          received_at: string
+          signature_valid: boolean
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processing_error?: string | null
+          quo_event_id?: string | null
+          received_at?: string
+          signature_valid?: boolean
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processing_error?: string | null
+          quo_event_id?: string | null
+          received_at?: string
+          signature_valid?: boolean
+        }
+        Relationships: []
+      }
       review_queue: {
         Row: {
           action_description: string

@@ -23,6 +23,7 @@ import { ContactTaskList } from "@/components/ContactTaskList";
 import { ContactRequests } from "@/components/ContactRequests";
 import { ContactCalendar } from "@/components/ContactCalendar";
 import { ContactEmails } from "@/components/ContactEmails";
+import QuoCommunications from "@/components/QuoCommunications";
 import { SovereigntyAssistant } from "@/components/SovereigntyAssistant";
 import { AuditTrail } from "@/components/AuditTrail";
 import { StatementUpload } from "@/components/StatementUpload";
@@ -608,6 +609,11 @@ const ContactDetail = () => {
                 <ContactRequests contactId={id!} />
                 <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
                 <ContactEmails contactEmail={contact.email} />
+                <QuoCommunications
+                  contactId={contact.id}
+                  contactPhone={contact.phone}
+                  contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
+                />
               </TabsContent>
 
               {/* AI Assistant Tab */}
