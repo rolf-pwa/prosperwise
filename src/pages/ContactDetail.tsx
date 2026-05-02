@@ -585,25 +585,8 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* AI Workbench (collapsible) */}
-            <Collapsible defaultOpen={false}>
-              <Card>
-                <CollapsibleTrigger className="w-full group">
-                  <CardHeader className="flex flex-row items-center justify-between py-3">
-                    <CardTitle className="text-base">AI Workbench</CardTitle>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="flex flex-wrap gap-2 pt-0">
-                    <SovereigntyCharterButton contactId={id!} />
-                    <GenerateCharterDraftButton contactId={id!} />
-                    <StabilizationMapButton contactId={id!} />
-                    <QuarterlySystemReviewButton contactId={id!} />
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
+            {/* Calendar (placed where Workbench used to live) */}
+            <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
 
             {/* Main Tabs */}
             <Tabs defaultValue="comms" className="w-full">
@@ -627,11 +610,21 @@ const ContactDetail = () => {
                   contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
                 />
                 <ContactEmails contactEmail={contact.email} />
-                <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
               </TabsContent>
 
               {/* Action Items Tab */}
               <TabsContent value="actions" className="space-y-6 mt-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">AI Workbench</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    <SovereigntyCharterButton contactId={id!} />
+                    <GenerateCharterDraftButton contactId={id!} />
+                    <StabilizationMapButton contactId={id!} />
+                    <QuarterlySystemReviewButton contactId={id!} />
+                  </CardContent>
+                </Card>
                 <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
                 <ContactRequests contactId={id!} />
                 <AuditTrail contactId={id!} />
