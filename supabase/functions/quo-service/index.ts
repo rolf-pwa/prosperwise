@@ -211,6 +211,37 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ---- unreadCount (lightweight badge query) ----
+    if (action === "unreadCount") {
+      const [{ count: msgCount }, { count: callCount }] = await Promise.all([
+        supabase.from("quo_messages").select("id", { count: "exact", head: true })
+          .eq("direction", "inbound").is("read_at", null),
+        supabase.from("quo_calls").select("id", { count: "exact", head: true })
+          .eq("direction", "inbound").is("read_at", null),
+      ]);
+      return new Response(JSON.stringify({ unread: (msgCount || 0) + (callCount || 0) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---- markRead (single record or all) ----
+    if (action === "markRead") {
+      const { recordType, recordId, all } = body;
+      const stamp = new Date().toISOString();
+      if (all) {
+        await adminClient.from("quo_messages").update({ read_at: stamp })
+          .eq("direction", "inbound").is("read_at", null);
+        await adminClient.from("quo_calls").update({ read_at: stamp })
+          .eq("direction", "inbound").is("read_at", null);
+      } else if (recordType && recordId) {
+        const table = recordType === "call" ? "quo_calls" : "quo_messages";
+        await adminClient.from(table).update({ read_at: stamp }).eq("id", recordId);
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ---- togglePortalVisible ----
     if (action === "togglePortalVisible") {
       const { recordType, recordId, visible } = body;
