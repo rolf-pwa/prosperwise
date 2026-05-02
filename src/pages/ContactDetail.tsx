@@ -456,58 +456,8 @@ const ContactDetail = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <PortalMagicLinkButton contactId={id!} />
-            <Button
-              variant="outline"
-              size="icon"
-              title={contact.email_notifications_enabled !== false ? "Email notifications on" : "Email notifications off"}
-              onClick={async () => {
-                const newVal = contact.email_notifications_enabled === false;
-                await supabase.from("contacts").update({ email_notifications_enabled: newVal }).eq("id", id);
-                setContact((prev: any) => prev ? { ...prev, email_notifications_enabled: newVal } : prev);
-                toast.success(newVal ? "Notifications enabled" : "Notifications disabled");
-              }}
-            >
-              {contact.email_notifications_enabled !== false ? (
-                <Bell className="h-4 w-4" />
-              ) : (
-                <BellOff className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="icon" className="text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete contact</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete {contact.first_name} {contact.last_name} and all associated relationships. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={async () => {
-                      const { error } = await supabase.from("contacts").delete().eq("id", id!);
-                      if (error) {
-                        toast.error("Failed to delete contact.");
-                      } else {
-                        toast.success("Contact deleted.");
-                        navigate("/contacts");
-                      }
-                    }}
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          <div className="flex flex-wrap items-center gap-2" />
+
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
