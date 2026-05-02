@@ -1016,6 +1016,8 @@ const ContactDetail = () => {
                   <div className="flex items-start gap-2">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                     <span className="font-medium">{contact.address}</span>
+                  </div>
+                )}
                 {resourceLinks.some((l) => l.url) && (
                   <div className="pt-2 mt-2 border-t border-border/50 space-y-1.5">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Apps</p>
