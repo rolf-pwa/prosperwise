@@ -475,17 +475,6 @@ const ContactDetail = () => {
                 <BellOff className="h-4 w-4 text-muted-foreground" />
               )}
             </Button>
-            <ContactMerge
-              contactId={id!}
-              contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
-              onMerged={fetchData}
-            />
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/contacts/${id}/edit`)}
-            >
-              Edit Contact
-            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="icon" className="text-destructive hover:bg-destructive/10">
