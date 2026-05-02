@@ -12,8 +12,10 @@ import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Bell, BellOff, Trash2, Clock, AlertCircle, Shield, 
   ExternalLink, Bot, Grape, FileUp, Loader2, Building2, Users, Plus, X,
-  Folder, FolderOpen, CheckSquare, ShieldCheck, Landmark
+  Folder, FolderOpen, CheckSquare, ShieldCheck, Landmark, ChevronDown, ListChecks,
+  Mail, Phone, MapPin
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { format, differenceInDays, addDays } from "date-fns";
 import { PageBreadcrumbs } from "@/components/PageBreadcrumbs";
@@ -554,48 +556,62 @@ const ContactDetail = () => {
               </Card>
             )}
 
-            {/* Contact Info */}
+            {/* Compact Contact Info Strip */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground">Email</dt>
-                    <dd className="font-medium">{contact.email || "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Phone</dt>
-                    <dd className="font-medium">{contact.phone || "—"}</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-muted-foreground">Address</dt>
-                    <dd className="font-medium">{contact.address || "—"}</dd>
-                  </div>
-                </dl>
+              <CardContent className="p-4">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                  {contact.email && (
+                    <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 hover:underline">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">{contact.email}</span>
+                    </a>
+                  )}
+                  {contact.phone && (
+                    <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 hover:underline">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">{contact.phone}</span>
+                    </a>
+                  )}
+                  {contact.address && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">{contact.address}</span>
+                    </span>
+                  )}
+                  {!contact.email && !contact.phone && !contact.address && (
+                    <span className="text-muted-foreground">No contact info on file.</span>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">AI Workbench</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <SovereigntyCharterButton contactId={id!} />
-                <GenerateCharterDraftButton contactId={id!} />
-                <StabilizationMapButton contactId={id!} />
-                <QuarterlySystemReviewButton contactId={id!} />
-              </CardContent>
-            </Card>
+            {/* AI Workbench (collapsible) */}
+            <Collapsible defaultOpen={false}>
+              <Card>
+                <CollapsibleTrigger className="w-full group">
+                  <CardHeader className="flex flex-row items-center justify-between py-3">
+                    <CardTitle className="text-base">AI Workbench</CardTitle>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="flex flex-wrap gap-2 pt-0">
+                    <SovereigntyCharterButton contactId={id!} />
+                    <GenerateCharterDraftButton contactId={id!} />
+                    <StabilizationMapButton contactId={id!} />
+                    <QuarterlySystemReviewButton contactId={id!} />
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
 
             {/* Main Tabs */}
             <Tabs defaultValue="comms" className="w-full">
               <TabsList className="w-full">
                 <TabsTrigger value="comms" className="flex-1">Communications</TabsTrigger>
-                <TabsTrigger value="assistant" className="flex-1">
-                  <Bot className="mr-1.5 h-3.5 w-3.5" />
-                  AI Assistant
+                <TabsTrigger value="actions" className="flex-1">
+                  <ListChecks className="mr-1.5 h-3.5 w-3.5" />
+                  Action Items
                 </TabsTrigger>
                 <TabsTrigger value="vineyard" className="flex-1">
                   <Grape className="mr-1.5 h-3.5 w-3.5" />
@@ -603,46 +619,21 @@ const ContactDetail = () => {
                 </TabsTrigger>
               </TabsList>
 
-              {/* Communications Tab */}
+              {/* Communications Tab — Messaging first, above the fold */}
               <TabsContent value="comms" className="space-y-6 mt-4">
-                <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
-                <ContactRequests contactId={id!} />
-                <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
-                <ContactEmails contactEmail={contact.email} />
                 <QuoCommunications
                   contactId={contact.id}
                   contactPhone={contact.phone}
                   contactName={`${contact.first_name} ${contact.last_name || ""}`.trim()}
                 />
+                <ContactEmails contactEmail={contact.email} />
+                <ContactCalendar contactEmail={contact.email} contactName={contact.full_name} />
               </TabsContent>
 
-              {/* AI Assistant Tab */}
-              <TabsContent value="assistant" className="space-y-4 mt-4">
-                <SovereigntyAssistant
-                  variant="embedded"
-                  contactId={id}
-                  contactContext={{
-                    id: contact.id,
-                    name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
-                    email: contact.email,
-                    phone: contact.phone,
-                    governance_status: contact.governance_status,
-                    fiduciary_entity: contact.fiduciary_entity,
-                    vineyard_ebitda: contact.vineyard_ebitda,
-                    vineyard_operating_income: contact.vineyard_operating_income,
-                    vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
-                    storehouses: storehouses.map((s) => ({
-                      number: s.storehouse_number,
-                      label: s.label,
-                      asset_type: s.asset_type,
-                      risk_cap: s.risk_cap,
-                      charter_alignment: s.charter_alignment,
-                    })),
-                    quiet_period_start_date: contact.quiet_period_start_date,
-                    asana_url: contact.asana_url,
-                    google_drive_url: contact.google_drive_url,
-                  }}
-                />
+              {/* Action Items Tab */}
+              <TabsContent value="actions" className="space-y-6 mt-4">
+                <ContactTaskList asanaUrl={contact.asana_url} contactId={contact.id} householdMembers={householdMembers} />
+                <ContactRequests contactId={id!} />
                 <AuditTrail contactId={id!} />
               </TabsContent>
 
@@ -1031,6 +1022,51 @@ const ContactDetail = () => {
                 <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
               </Link>
             )}
+
+            {/* AI Assistant (collapsible) */}
+            <Collapsible defaultOpen={false}>
+              <Card>
+                <CollapsibleTrigger className="w-full group">
+                  <CardHeader className="flex flex-row items-center justify-between py-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Bot className="h-4 w-4 text-sanctuary-bronze" />
+                      AI Assistant
+                    </CardTitle>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <SovereigntyAssistant
+                      variant="embedded"
+                      contactId={id}
+                      contactContext={{
+                        id: contact.id,
+                        name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+                        email: contact.email,
+                        phone: contact.phone,
+                        governance_status: contact.governance_status,
+                        fiduciary_entity: contact.fiduciary_entity,
+                        vineyard_ebitda: contact.vineyard_ebitda,
+                        vineyard_operating_income: contact.vineyard_operating_income,
+                        vineyard_balance_sheet_summary: contact.vineyard_balance_sheet_summary,
+                        storehouses: storehouses.map((s) => ({
+                          number: s.storehouse_number,
+                          label: s.label,
+                          asset_type: s.asset_type,
+                          risk_cap: s.risk_cap,
+                          charter_alignment: s.charter_alignment,
+                        })),
+                        quiet_period_start_date: contact.quiet_period_start_date,
+                        asana_url: contact.asana_url,
+                        google_drive_url: contact.google_drive_url,
+                      }}
+                    />
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+
 
             <Card>
               <CardHeader>
