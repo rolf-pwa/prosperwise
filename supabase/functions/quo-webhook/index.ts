@@ -230,8 +230,8 @@ serve(async (req) => {
           occurred_at: data?.createdAt || new Date().toISOString(),
         }, { onConflict: "quo_message_id" });
 
-        // After-hours auto-reply (Mon–Fri 9am–5pm ET)
-        if (isAfterHoursEastern() && fromNum) {
+        // After-hours auto-reply (Mon–Fri 9am–5pm PT)
+        if (isAfterHoursPacific() && fromNum) {
           await sendAutoReply(admin, fromNum);
         }
       } else {
