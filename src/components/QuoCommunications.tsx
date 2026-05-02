@@ -141,56 +141,66 @@ export default function QuoCommunications({ contactId, contactPhone, contactName
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
   return (
-    <Card className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-amber-500" />
-          <h3 className="font-serif text-lg">SMS &amp; Voice</h3>
-        </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={syncContact} title="Sync contact">
-            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Sync
-          </Button>
-          <Button size="sm" variant="ghost" onClick={load}>Refresh</Button>
-        </div>
-      </div>
-
-      {/* Chat thread */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 border-t border-border pt-3">
-        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-        {!loading && timeline.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No SMS or call history yet.</p>
-        )}
-        {timeline.map((entry) => entry.kind === "msg" ? (
-          <MessageRow key={`m-${entry.item.id}`} m={entry.item}
-            onToggle={() => togglePortal("message", entry.item.id, entry.item.portal_visible)} />
-        ) : (
-          <CallRow key={`c-${entry.item.id}`} c={entry.item}
-            onToggle={() => togglePortal("call", entry.item.id, entry.item.portal_visible)} />
-        ))}
-      </div>
-
-      {/* Composer at bottom (chat-style) */}
-      <div className="space-y-2 border-t border-border pt-3">
-        <Textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={contactPhone
-            ? `Message ${contactName} · ${contactPhone}`
-            : "Contact has no phone number"}
-          disabled={!contactPhone || sending}
-          className="min-h-[70px]"
-        />
+    <Card className="p-3">
+      <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            🛡️ PII Shield active — financial figures, account #s, and health terms will be blocked.
-          </p>
-          <Button onClick={sendSms} disabled={!draft.trim() || !contactPhone || sending} size="sm">
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
-            Send SMS
-          </Button>
+          <CollapsibleTrigger className="flex items-center gap-2 flex-1 text-left hover:opacity-80">
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+            <MessageSquare className="h-4 w-4 text-amber-500" />
+            <h3 className="font-serif text-base">SMS &amp; Voice</h3>
+            {timeline.length > 0 && (
+              <Badge variant="outline" className="text-[10px] ml-1">{timeline.length}</Badge>
+            )}
+          </CollapsibleTrigger>
+          {open && (
+            <div className="flex gap-1">
+              <Button size="sm" variant="ghost" onClick={syncContact} title="Sync contact" className="h-7 px-2">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={load} className="h-7 px-2 text-xs">Refresh</Button>
+            </div>
+          )}
         </div>
-      </div>
+
+        <CollapsibleContent className="space-y-3 mt-3">
+          {/* Chat thread */}
+          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 border-t border-border pt-3">
+            {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {!loading && timeline.length === 0 && (
+              <p className="text-sm text-muted-foreground italic">No SMS or call history yet.</p>
+            )}
+            {timeline.map((entry) => entry.kind === "msg" ? (
+              <MessageRow key={`m-${entry.item.id}`} m={entry.item}
+                onToggle={() => togglePortal("message", entry.item.id, entry.item.portal_visible)} />
+            ) : (
+              <CallRow key={`c-${entry.item.id}`} c={entry.item}
+                onToggle={() => togglePortal("call", entry.item.id, entry.item.portal_visible)} />
+            ))}
+          </div>
+
+          {/* Composer at bottom (chat-style) */}
+          <div className="space-y-2 border-t border-border pt-3">
+            <Textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={contactPhone
+                ? `Message ${contactName} · ${contactPhone}`
+                : "Contact has no phone number"}
+              disabled={!contactPhone || sending}
+              className="min-h-[60px] text-sm"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] text-muted-foreground">
+                🛡️ PII Shield active
+              </p>
+              <Button onClick={sendSms} disabled={!draft.trim() || !contactPhone || sending} size="sm">
+                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                Send SMS
+              </Button>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
