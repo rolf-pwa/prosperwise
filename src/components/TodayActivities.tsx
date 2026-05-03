@@ -1,16 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckSquare, Calendar, Pin, Loader2 } from "lucide-react";
+import { CheckSquare, Calendar, Pin, Loader2, Pencil, Check, X } from "lucide-react";
 import { format, parseISO, isToday, differenceInCalendarDays } from "date-fns";
 import { parseLocalDate } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useCalendarEvents, useGoogleStatus } from "@/hooks/useGoogle";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
-// Pinned Asana project shown in the third dashboard widget.
-// Update PINNED_PROJECT_GID with the GID from the Asana project URL:
-// https://app.asana.com/0/{PROJECT_GID}/list
-const PINNED_PROJECT_GID = "1214066166978534";
+const DEFAULT_PINNED_PROJECT_GID = "1214066166978534";
 const PINNED_PROJECT_LABEL = "Pinned Project";
+const PINNED_PROJECT_STORAGE_KEY = "dashboard.pinnedProjectGid";
+
+function extractProjectGid(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  const m = trimmed.match(/(?:project\/|\/0\/)(\d+)/);
+  return m ? m[1] : null;
+}
 
 function TodayTasks() {
   const [tasks, setTasks] = useState<any[]>([]);
