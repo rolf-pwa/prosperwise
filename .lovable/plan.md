@@ -1,31 +1,39 @@
-## Save conversation context to memory
+# Click-to-Call from Contacts
 
-No code changes. Only writes a memory file so this analysis is available if the topic comes back up.
+Make the phone number on each row in `/contacts` clickable so staff can place a call through Quo (OpenPhone) without copy/pasting.
 
-### Create `mem://decisions/quo-vs-google-voice`
+## Approach
 
-Captures:
+OpenPhone (Quo) does not expose a public "place an outbound call" REST endpoint we can trigger from the browser. The supported pattern is a **deep link** that hands the number off to the OpenPhone desktop/web app, which then dials using the staff member's logged-in Quo identity (so the call is correctly logged and uses our Canadian number).
 
-- **Decision**: Stay on Quo for SMS/voice. Migration to Google Voice deferred.
-- **Why Google Voice doesn't fit**: no public API for SMS/voice, no webhooks, no programmatic send/receive.
-- **Embed feasibility per surface**:
-  - Gmail — cannot iframe (`X-Frame-Options` blocks it)
-  - Google Voice — cannot iframe, no API
-  - Google Calendar — yes, official embed iframe available (read-only)
-- **Twilio**: ruled out — Canadian Quo number already in place.
-- **Revival blueprint** (if revisited later):
-  1. New `google-voice` edge function parsing Voice→Gmail forwarded notifications
-  2. Communications tab becomes read-only Gmail-backed timeline
-  3. Deep-link out to `voice.google.com` for replies
-  4. Retire `quo-service`, `quo-webhook`, `QuoCommunications`, `PortalMessages` composer
-  5. Clients shift to Portal Requests instead of portal SMS
-  6. Per-staff onboarding step: enable Voice → Gmail forwarding
-  7. Update Charter; replace `mem://integrations/quo` with `mem://integrations/google-voice`
-- **Accepted tradeoffs if revived**: no in-app send, no portal SMS, no delivery receipts, parser fragility.
+Two link strategies, used together:
 
-### Update `mem://index.md`
+1. **Primary**: `openphone://call?to=+15551234567` — opens the OpenPhone desktop app directly to a pre-filled call screen.
+2. **Fallback**: `https://my.openphone.com/calls?to=+15551234567` — opens OpenPhone Web in a new tab if the desktop app isn't installed.
 
-Add reference line under Memories:
-- `[Quo vs Google Voice Decision](mem://decisions/quo-vs-google-voice) — Migration deferred May 2026; Voice has no API, Gmail/Voice not iframeable, Calendar is`
+We'll wire the desktop scheme as the click target and open the web URL in a new tab as a fallback after a short delay if the protocol handler doesn't fire.
 
-No other files touched.
+## Changes
+
+**`src/pages/Contacts.tsx`**
+- Wrap the existing phone span in a button/anchor.
+- `onClick`: stop propagation (so the row's contact link doesn't fire), normalize the number to E.164 (strip spaces/dashes/parens, ensure leading `+1` for 10-digit NA numbers), then `window.location.href = "openphone://call?to=..."` and schedule a `window.open("https://my.openphone.com/calls?to=...", "_blank")` fallback ~400ms later.
+- Add hover styling (underline + `hover:text-foreground`) and a Phone-icon tooltip hint "Call via Quo".
+
+**`src/pages/ContactDetail.tsx`** (same treatment, for consistency)
+- Apply the same click-to-call behaviour wherever the contact's phone is displayed on the detail page.
+
+**Small helper** `src/lib/quo-dial.ts`
+- Export `dialViaQuo(phone: string)` containing the normalization + deep-link + fallback logic so both pages share one implementation.
+
+## Out of scope
+
+- No backend / edge function changes — calls are placed by the OpenPhone client, not by our server.
+- No changes to the inbound call/SMS pipeline (`quo-webhook`, `quo_calls` table). Outbound calls placed this way will still be captured by the existing webhook because OpenPhone logs them server-side.
+- We are not adding in-browser WebRTC dialing (would require Twilio or a different provider — explicitly rejected earlier).
+
+## Notes
+
+- Numbers stored without country code are assumed Canadian/US and prefixed with `+1`.
+- If a contact has no phone, the field stays plain text (no link).
+- PII Shield is unaffected — we're only opening a URL, not transmitting content.
