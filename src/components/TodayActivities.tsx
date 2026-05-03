@@ -110,13 +110,20 @@ function TodayEvents() {
               const start = e.start?.dateTime || e.start?.date;
               const startDate = start ? parseISO(start) : null;
               return (
-                <li key={e.id} className="flex items-start gap-2 text-sm">
-                  <span className="text-xs text-muted-foreground w-14 shrink-0 mt-0.5">
-                    {startDate && e.start?.dateTime
-                      ? format(startDate, "h:mm a")
-                      : "All day"}
-                  </span>
-                  <span className="truncate text-foreground">{e.summary}</span>
+                <li key={e.id}>
+                  <a
+                    href={e.htmlLink || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-2 text-sm rounded-md px-1 py-0.5 -mx-1 hover:bg-muted/50 transition-colors"
+                  >
+                    <span className="text-xs text-muted-foreground w-14 shrink-0 mt-0.5">
+                      {startDate && e.start?.dateTime
+                        ? format(startDate, "h:mm a")
+                        : "All day"}
+                    </span>
+                    <span className="truncate text-foreground">{e.summary}</span>
+                  </a>
                 </li>
               );
             })}
