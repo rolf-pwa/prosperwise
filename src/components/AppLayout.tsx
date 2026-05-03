@@ -1,5 +1,6 @@
 import { AppSidebar, SidebarCollapseProvider } from "./AppSidebar";
 import { AssistantSidebar } from "./AssistantSidebar";
+import { DashboardSidebar } from "./DashboardSidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
