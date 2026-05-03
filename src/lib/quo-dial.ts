@@ -16,8 +16,8 @@ export function dialViaQuo(rawPhone: string) {
   const e164 = normalizePhone(rawPhone);
   if (!e164) return;
 
-  const desktop = `openphone://call?to=${encodeURIComponent(e164)}`;
-  const web = `https://my.openphone.com/calls?to=${encodeURIComponent(e164)}`;
+  const desktop = `openphone://dial?number=${encodeURIComponent(e164)}&action=call`;
+  const web = `https://my.openphone.com/dial?number=${encodeURIComponent(e164)}&action=call`;
 
   // Try the desktop app first.
   window.location.href = desktop;
