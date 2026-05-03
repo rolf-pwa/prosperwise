@@ -602,6 +602,20 @@ function AsanaMyTasksWidget() {
   const [error, setError] = useState(false);
   const [contactMap, setContactMap] = useState<Record<string, { id: string; name: string }>>({});
   const [expandedGid, setExpandedGid] = useState<string | null>(null);
+  const taskRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const gid = (e as CustomEvent).detail?.gid;
+      if (!gid) return;
+      setExpandedGid(gid);
+      setTimeout(() => {
+        taskRefs.current[gid]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    };
+    window.addEventListener("open-my-task", handler);
+    return () => window.removeEventListener("open-my-task", handler);
+  }, []);
 
   useEffect(() => {
     (async () => {
