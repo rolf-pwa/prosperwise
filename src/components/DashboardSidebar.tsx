@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingUp, Home, ShieldCheck, Clock, Anchor } from "lucide-react";
+import { Loader2, TrendingUp, Anchor } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
 interface Stats {
   totalAssets: number;
-  totalHouseholds: number;
-  sovereignCount: number;
-  coreCount: number;
-  stabilizationCount: number;
   holdingTankTotal: number;
   holdingTankCount: number;
 }
@@ -34,34 +29,6 @@ export function DashboardSidebar() {
           (vineyardAccounts || []).reduce((sum, a) => sum + (Number(a.current_value) || 0), 0) +
           (storehouseAccounts || []).reduce((sum, a) => sum + (Number(a.current_value) || 0), 0);
 
-        const { count: totalHouseholds } = await supabase
-          .from("households")
-          .select("id", { count: "exact", head: true });
-
-        const { data: contacts } = await supabase
-          .from("contacts")
-          .select("household_id, governance_status")
-          .eq("family_role", "head_of_family")
-          .not("household_id", "is", null);
-
-        const householdStatusMap = new Map<string, string>();
-        for (const c of contacts || []) {
-          if (c.household_id) {
-            householdStatusMap.set(c.household_id, c.governance_status);
-          }
-        }
-
-        const sovereignCount = Array.from(householdStatusMap.values()).filter(
-          (s) => s === "sovereign"
-        ).length;
-        const coreCount = Array.from(householdStatusMap.values()).filter(
-          (s) => s === "core"
-        ).length;
-        const stabilizationCount = Array.from(householdStatusMap.values()).filter(
-          (s) => s === "stabilization"
-        ).length;
-
-        // Holding tank summary
         const { data: holdingAccounts } = await supabase
           .from("holding_tank")
           .select("id, current_value")
@@ -73,15 +40,7 @@ export function DashboardSidebar() {
           0
         );
 
-        setStats({
-          totalAssets,
-          totalHouseholds: totalHouseholds ?? 0,
-          sovereignCount,
-          coreCount,
-          stabilizationCount,
-          holdingTankTotal,
-          holdingTankCount,
-        });
+        setStats({ totalAssets, holdingTankTotal, holdingTankCount });
       } catch {
         // silently fail
       } finally {
@@ -100,8 +59,8 @@ export function DashboardSidebar() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="flex justify-center py-2">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -109,86 +68,26 @@ export function DashboardSidebar() {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Total Assets */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Assets Under Governance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold text-foreground">
-            {formatCurrency(stats.totalAssets)}
-          </p>
-        </CardContent>
-      </Card>
+    <div className="flex items-center gap-6 border-y border-border/60 px-4 py-2 text-xs overflow-hidden whitespace-nowrap">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <TrendingUp className="h-3.5 w-3.5" />
+        <span>AUG</span>
+        <span className="font-semibold text-foreground">{formatCurrency(stats.totalAssets)}</span>
+      </div>
 
-      {/* Holding Tank */}
       {stats.holdingTankCount > 0 && (
-        <Card
-          className="border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition-colors"
+        <button
           onClick={() => navigate("/holding-tank")}
+          className="flex items-center gap-2 text-amber-600 hover:text-amber-500 transition-colors"
         >
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-amber-600">
-              <Anchor className="h-4 w-4" />
-              Holding Tank
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-amber-600">
-              {formatCurrency(stats.holdingTankTotal)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              {stats.holdingTankCount} account{stats.holdingTankCount !== 1 ? "s" : ""} staged
-            </p>
-          </CardContent>
-        </Card>
+          <Anchor className="h-3.5 w-3.5" />
+          <span>Holding Tank</span>
+          <span className="font-semibold">{formatCurrency(stats.holdingTankTotal)}</span>
+          <span className="text-muted-foreground">
+            ({stats.holdingTankCount} staged)
+          </span>
+        </button>
       )}
-
-      {/* Household Total */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Home className="h-4 w-4" />
-            Households
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold text-foreground">
-            {stats.totalHouseholds}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Governance Breakdown */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <ShieldCheck className="h-4 w-4" />
-            Governance Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center gap-4 flex-wrap">
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 text-sanctuary-green" />
-            Sovereign
-            <span className="font-semibold text-foreground ml-1">{stats.sovereignCount}</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 text-sanctuary-bronze" />
-            Core
-            <span className="font-semibold text-foreground ml-1">{stats.coreCount}</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            Stabilization
-            <span className="font-semibold text-foreground ml-1">{stats.stabilizationCount}</span>
-          </span>
-        </CardContent>
-      </Card>
     </div>
   );
 }
