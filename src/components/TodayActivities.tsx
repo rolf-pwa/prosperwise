@@ -9,7 +9,7 @@ import { useCalendarEvents, useGoogleStatus } from "@/hooks/useGoogle";
 // Pinned Asana project shown in the third dashboard widget.
 // Update PINNED_PROJECT_GID with the GID from the Asana project URL:
 // https://app.asana.com/0/{PROJECT_GID}/list
-const PINNED_PROJECT_GID = "";
+const PINNED_PROJECT_GID = "1214066166978534";
 const PINNED_PROJECT_LABEL = "Pinned Project";
 
 function TodayTasks() {
