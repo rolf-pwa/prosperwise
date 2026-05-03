@@ -767,7 +767,7 @@ function AsanaMyTasksWidget() {
               const section = getSectionLabel(task);
               const isExpanded = expandedGid === task.gid;
               return (
-                <div key={task.gid}>
+                <div key={task.gid} ref={(el) => (taskRefs.current[task.gid] = el)}>
                   <button
                     onClick={() => setExpandedGid(isExpanded ? null : task.gid)}
                     className={cn(
