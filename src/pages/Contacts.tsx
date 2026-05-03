@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ContactCsvImport } from "@/components/ContactCsvImport";
+import { dialViaQuo } from "@/lib/quo-dial";
 import {
   Tooltip,
   TooltipContent,
@@ -182,10 +183,15 @@ const Contacts = () => {
                         </span>
                       )}
                       {c.phone && (
-                        <span className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); dialViaQuo(c.phone!); }}
+                          title="Call via Quo"
+                          className="flex items-center gap-1 hover:text-foreground hover:underline"
+                        >
                           <Phone className="h-3 w-3 shrink-0" />
                           {c.phone}
-                        </span>
+                        </button>
                       )}
                       {c.address && (
                         <span className="flex items-center gap-1 truncate">
