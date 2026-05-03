@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { CommandCenter } from "@/components/CommandCenter";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { PipelineWidget } from "@/components/PipelineWidget";
+import { TodayActivities } from "@/components/TodayActivities";
 
 const Dashboard = () => {
   return (
@@ -9,6 +10,7 @@ const Dashboard = () => {
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-foreground">Command Center</h1>
         <DashboardSidebar />
+        <TodayActivities />
         <PipelineWidget />
         <CommandCenter />
       </div>
@@ -17,4 +19,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
