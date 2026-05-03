@@ -1054,10 +1054,15 @@ const ContactDetail = () => {
                   </a>
                 )}
                 {contact.phone && (
-                  <a href={`tel:${contact.phone}`} className="flex items-center gap-2 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => dialViaQuo(contact.phone!)}
+                    title="Call via Quo"
+                    className="flex items-center gap-2 hover:underline text-left"
+                  >
                     <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-medium">{contact.phone}</span>
-                  </a>
+                  </button>
                 )}
                 {contact.address && (
                   <div className="flex items-start gap-2">
