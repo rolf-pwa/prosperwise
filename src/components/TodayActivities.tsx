@@ -1,0 +1,152 @@
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckSquare, Calendar, Sparkles, Loader2 } from "lucide-react";
+import { format, parseISO, isToday } from "date-fns";
+import { parseLocalDate } from "@/lib/date-utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useCalendarEvents, useGoogleStatus } from "@/hooks/useGoogle";
+
+function TodayTasks() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const res = await supabase.functions.invoke("asana-service", {
+          body: { action: "getMyTasks" },
+        });
+        const all = res.data?.data || [];
+        const todays = all.filter(
+          (t: any) =>
+            !t.completed &&
+            t.due_on &&
+            isToday(parseLocalDate(t.due_on))
+        );
+        setTasks(todays);
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <CheckSquare className="h-4 w-4" />
+          Today's Tasks
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : tasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing due today.</p>
+        ) : (
+          <ul className="space-y-2">
+            {tasks.slice(0, 6).map((t) => (
+              <li
+                key={t.gid}
+                className="flex items-start gap-2 text-sm text-foreground"
+              >
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sanctuary-bronze shrink-0" />
+                <span className="truncate">{t.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TodayEvents() {
+  const { data: status } = useGoogleStatus();
+  const { timeMin, timeMax } = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+  }, []);
+  const { data, isLoading } = useCalendarEvents(timeMin, timeMax);
+
+  const events = (data?.items || []).filter((e: any) => e.start?.dateTime || e.start?.date);
+
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          Today's Events
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!status?.connected ? (
+          <p className="text-sm text-muted-foreground">Connect Google to view events.</p>
+        ) : isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No events today.</p>
+        ) : (
+          <ul className="space-y-2">
+            {events.slice(0, 6).map((e: any) => {
+              const start = e.start?.dateTime || e.start?.date;
+              const startDate = start ? parseISO(start) : null;
+              return (
+                <li key={e.id} className="flex items-start gap-2 text-sm">
+                  <span className="text-xs text-muted-foreground w-14 shrink-0 mt-0.5">
+                    {startDate && e.start?.dateTime
+                      ? format(startDate, "h:mm a")
+                      : "All day"}
+                  </span>
+                  <span className="truncate text-foreground">{e.summary}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlaceholderCard() {
+  return (
+    <Card className="h-full border-dashed">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Sparkles className="h-4 w-4" />
+          Coming Soon
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center justify-center py-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          Reserved for a future widget.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function TodayActivities() {
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-3">Today</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <TodayTasks />
+        <TodayEvents />
+        <PlaceholderCard />
+      </div>
+    </div>
+  );
+}
