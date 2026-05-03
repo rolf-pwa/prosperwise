@@ -142,6 +142,7 @@ function TodayEvents() {
 
 function PinnedProjectTasks() {
   const [tasks, setTasks] = useState<any[]>([]);
+  const [projectName, setProjectName] = useState<string>(PINNED_PROJECT_LABEL);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -151,10 +152,15 @@ function PinnedProjectTasks() {
     }
     (async () => {
       try {
-        const res = await supabase.functions.invoke("asana-service", {
-          body: { action: "getTasksForProject", project_gid: PINNED_PROJECT_GID },
-        });
-        const all = res.data?.data || res.data || [];
+        const [tasksRes, projRes] = await Promise.all([
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getTasksForProject", project_gid: PINNED_PROJECT_GID },
+          }),
+          supabase.functions.invoke("asana-service", {
+            body: { action: "getProject", project_gid: PINNED_PROJECT_GID },
+          }),
+        ]);
+        const all = tasksRes.data?.data || tasksRes.data || [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const upcoming = (Array.isArray(all) ? all : [])
@@ -166,6 +172,8 @@ function PinnedProjectTasks() {
           })
           .sort((a: any, b: any) => a._due.getTime() - b._due.getTime());
         setTasks(upcoming);
+        const name = projRes.data?.data?.name || projRes.data?.name;
+        if (name) setProjectName(name);
       } catch {
         // silent
       } finally {
@@ -179,7 +187,7 @@ function PinnedProjectTasks() {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Pin className="h-4 w-4" />
-          {PINNED_PROJECT_LABEL} — Next 7 Days
+          <span className="truncate">{projectName} — Next 7 Days</span>
         </CardTitle>
       </CardHeader>
       <CardContent>

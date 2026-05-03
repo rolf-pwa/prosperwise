@@ -859,6 +859,23 @@ serve(async (req) => {
         result = await service.getProjectStatus(params as any);
         break;
 
+      case "getProject": {
+        const { project_gid: gpProjectGid } = params;
+        if (!gpProjectGid) {
+          return new Response(
+            JSON.stringify({ error: "project_gid is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const r = await fetch(
+          `https://app.asana.com/api/1.0/projects/${gpProjectGid}?opt_fields=name`,
+          { headers: { Authorization: `Bearer ${Deno.env.get("ASANA_ACCESS_TOKEN")}` } },
+        );
+        const j = await r.json();
+        result = j.data || {};
+        break;
+      }
+
       case "getTasksForProject": {
         // Helper: filter to client-visible tasks
         const filterVisible = (tasks: any[]) =>
