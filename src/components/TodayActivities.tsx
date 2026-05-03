@@ -205,20 +205,17 @@ function PinnedProjectTasks() {
           <ul className="space-y-2">
             {tasks.slice(0, 6).map((t) => (
               <li key={t.gid}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.dispatchEvent(
-                      new CustomEvent("open-my-task", { detail: { gid: t.gid } })
-                    );
-                  }}
+                <a
+                  href={t.permalink_url || `https://app.asana.com/0/${PINNED_PROJECT_GID}/${t.gid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex w-full items-start gap-2 text-sm rounded-md px-1 py-0.5 -mx-1 hover:bg-muted/50 transition-colors text-left"
                 >
                   <span className="text-xs text-muted-foreground w-14 shrink-0 mt-0.5">
                     {format(t._due, "MMM d")}
                   </span>
                   <span className="truncate text-foreground">{t.name}</span>
-                </button>
+                </a>
               </li>
             ))}
           </ul>
