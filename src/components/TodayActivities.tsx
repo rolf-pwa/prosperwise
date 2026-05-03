@@ -52,12 +52,16 @@ function TodayTasks() {
         ) : (
           <ul className="space-y-2">
             {tasks.slice(0, 6).map((t) => (
-              <li
-                key={t.gid}
-                className="flex items-start gap-2 text-sm text-foreground"
-              >
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sanctuary-bronze shrink-0" />
-                <span className="truncate">{t.name}</span>
+              <li key={t.gid}>
+                <a
+                  href={t.permalink_url || `https://app.asana.com/0/0/${t.gid}/f`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-2 text-sm text-foreground rounded-md px-1 py-0.5 -mx-1 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-sanctuary-bronze shrink-0" />
+                  <span className="truncate">{t.name}</span>
+                </a>
               </li>
             ))}
           </ul>
