@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, TrendingUp, Anchor } from "lucide-react";
+import { Loader2, TrendingUp, Anchor, Briefcase, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -7,6 +7,10 @@ interface Stats {
   totalAssets: number;
   holdingTankTotal: number;
   holdingTankCount: number;
+  pipelineTotal: number;
+  pipelineCount: number;
+  aumDepositsTotal: number;
+  aumDepositsCount: number;
 }
 
 export function DashboardSidebar() {
