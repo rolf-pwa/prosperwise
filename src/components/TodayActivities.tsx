@@ -149,23 +149,30 @@ function TodayEvents() {
 }
 
 function PinnedProjectTasks() {
+  const [projectGid, setProjectGid] = useState<string>(() => {
+    if (typeof window === "undefined") return DEFAULT_PINNED_PROJECT_GID;
+    return localStorage.getItem(PINNED_PROJECT_STORAGE_KEY) || DEFAULT_PINNED_PROJECT_GID;
+  });
   const [tasks, setTasks] = useState<any[]>([]);
   const [projectName, setProjectName] = useState<string>(PINNED_PROJECT_LABEL);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    if (!PINNED_PROJECT_GID) {
+    if (!projectGid) {
       setLoading(false);
       return;
     }
+    setLoading(true);
     (async () => {
       try {
         const [tasksRes, projRes] = await Promise.all([
           supabase.functions.invoke("asana-service", {
-            body: { action: "getTasksForProject", project_gid: PINNED_PROJECT_GID },
+            body: { action: "getTasksForProject", project_gid: projectGid },
           }),
           supabase.functions.invoke("asana-service", {
-            body: { action: "getProject", project_gid: PINNED_PROJECT_GID },
+            body: { action: "getProject", project_gid: projectGid },
           }),
         ]);
         const all = tasksRes.data?.data || tasksRes.data || [];
@@ -181,28 +188,70 @@ function PinnedProjectTasks() {
           .sort((a: any, b: any) => a._due.getTime() - b._due.getTime());
         setTasks(upcoming);
         const name = projRes.data?.data?.name || projRes.data?.name;
-        if (name) setProjectName(name);
+        setProjectName(name || PINNED_PROJECT_LABEL);
       } catch {
         // silent
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [projectGid]);
+
+  const saveDraft = () => {
+    const gid = extractProjectGid(draft);
+    if (!gid) return;
+    localStorage.setItem(PINNED_PROJECT_STORAGE_KEY, gid);
+    setProjectGid(gid);
+    setEditing(false);
+  };
 
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Pin className="h-4 w-4" />
-          <span className="truncate">{projectName} — Next 7 Days</span>
+          <Pin className="h-4 w-4 shrink-0" />
+          {editing ? (
+            <div className="flex items-center gap-1 flex-1">
+              <Input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveDraft();
+                  if (e.key === "Escape") setEditing(false);
+                }}
+                placeholder="Asana project URL or GID"
+                className="h-7 text-xs"
+              />
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={saveDraft}>
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <span className="truncate flex-1">{projectName} — Next 7 Days</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 shrink-0"
+                onClick={() => {
+                  setDraft(projectGid);
+                  setEditing(true);
+                }}
+                title="Change pinned project"
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!PINNED_PROJECT_GID ? (
-          <p className="text-sm text-muted-foreground">
-            Set <code>PINNED_PROJECT_GID</code> in <code>TodayActivities.tsx</code>.
-          </p>
+        {!projectGid ? (
+          <p className="text-sm text-muted-foreground">No project pinned.</p>
         ) : loading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -214,7 +263,7 @@ function PinnedProjectTasks() {
             {tasks.slice(0, 6).map((t) => (
               <li key={t.gid}>
                 <a
-                  href={t.permalink_url || `https://app.asana.com/0/${PINNED_PROJECT_GID}/${t.gid}`}
+                  href={t.permalink_url || `https://app.asana.com/0/${projectGid}/${t.gid}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex w-full items-start gap-2 text-sm rounded-md px-1 py-0.5 -mx-1 hover:bg-muted/50 transition-colors text-left"
