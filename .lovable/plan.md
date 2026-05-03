@@ -1,54 +1,31 @@
+## Save conversation context to memory
 
+No code changes. Only writes a memory file so this analysis is available if the topic comes back up.
 
-## Daily Recap Journal — `/recaps`
+### Create `mem://decisions/quo-vs-google-voice`
 
-### Overview
+Captures:
 
-A dedicated page where you (or your admin assistant) can log daily recap entries. Each entry combines an AI-generated draft summary of the day's activity with free-form text editing. Only admin/assistant users can create entries; other staff can view them.
+- **Decision**: Stay on Quo for SMS/voice. Migration to Google Voice deferred.
+- **Why Google Voice doesn't fit**: no public API for SMS/voice, no webhooks, no programmatic send/receive.
+- **Embed feasibility per surface**:
+  - Gmail — cannot iframe (`X-Frame-Options` blocks it)
+  - Google Voice — cannot iframe, no API
+  - Google Calendar — yes, official embed iframe available (read-only)
+- **Twilio**: ruled out — Canadian Quo number already in place.
+- **Revival blueprint** (if revisited later):
+  1. New `google-voice` edge function parsing Voice→Gmail forwarded notifications
+  2. Communications tab becomes read-only Gmail-backed timeline
+  3. Deep-link out to `voice.google.com` for replies
+  4. Retire `quo-service`, `quo-webhook`, `QuoCommunications`, `PortalMessages` composer
+  5. Clients shift to Portal Requests instead of portal SMS
+  6. Per-staff onboarding step: enable Voice → Gmail forwarding
+  7. Update Charter; replace `mem://integrations/quo` with `mem://integrations/google-voice`
+- **Accepted tradeoffs if revived**: no in-app send, no portal SMS, no delivery receipts, parser fragility.
 
-### Database
+### Update `mem://index.md`
 
-**New table: `daily_recaps`**
+Add reference line under Memories:
+- `[Quo vs Google Voice Decision](mem://decisions/quo-vs-google-voice) — Migration deferred May 2026; Voice has no API, Gmail/Voice not iframeable, Calendar is`
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid PK | default gen_random_uuid() |
-| recap_date | date NOT NULL | unique per author |
-| author_id | uuid NOT NULL | references auth.users |
-| body | text | the recap content (markdown) |
-| ai_draft | text | the raw AI-generated draft |
-| created_at | timestamptz | default now() |
-| updated_at | timestamptz | default now() |
-
-RLS: authenticated users can SELECT all rows; INSERT/UPDATE restricted to the author.
-
-### AI-Assisted Draft
-
-**New edge function: `recap-draft`**
-
-Queries the day's activity from the database (tasks completed, requests handled, pipeline changes, holding tank activity, contacts modified) and sends it to the Lovable AI Gateway to produce a structured daily summary. The user can then edit before saving.
-
-### UI Components
-
-**Page: `/recaps`**
-
-- Date-ordered list of past recaps (card per day, showing date + preview)
-- "New Recap" button at top — defaults to today's date
-- On click, fires the AI draft edge function, populates a textarea with the generated summary
-- User edits freely, then saves
-- Past entries are viewable and editable by the original author
-- Search/filter by date range
-
-**Dashboard widget (optional follow-up)**: A small "Today's Recap" card on the dashboard linking to the full page.
-
-### Navigation
-
-Add `/recaps` route (protected) and a sidebar link labeled "Daily Recaps" with a `NotebookPen` icon.
-
-### Technical Steps
-
-1. Create `daily_recaps` table with migration + RLS policies + updated_at trigger
-2. Create `recap-draft` edge function that aggregates today's activity and calls Lovable AI
-3. Build the `/recaps` page with list view and editor
-4. Add route to App.tsx and sidebar link
-
+No other files touched.
