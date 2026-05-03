@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, TrendingUp, Anchor, Briefcase, CalendarClock } from "lucide-react";
+import { Loader2, TrendingUp, Anchor, Landmark, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -7,8 +7,8 @@ interface Stats {
   totalAssets: number;
   holdingTankTotal: number;
   holdingTankCount: number;
-  pipelineTotal: number;
-  pipelineCount: number;
+  newAumTotal: number;
+  newAumCount: number;
   aumDepositsTotal: number;
   aumDepositsCount: number;
 }
@@ -52,10 +52,11 @@ export function DashboardSidebar() {
         );
 
         const { data: pipelineRows } = await (supabase.from("business_pipeline" as any) as any)
-          .select("amount, status")
-          .neq("status", "lost");
-        const pipelineCount = pipelineRows?.length ?? 0;
-        const pipelineTotal = (pipelineRows || []).reduce(
+          .select("amount, status, category")
+          .eq("category", "new_aum")
+          .in("status", ["pending", "in_process"]);
+        const newAumCount = pipelineRows?.length ?? 0;
+        const newAumTotal = (pipelineRows || []).reduce(
           (sum: number, p: any) => sum + (Number(p.amount) || 0),
           0
         );
@@ -64,8 +65,8 @@ export function DashboardSidebar() {
           totalAssets,
           holdingTankTotal,
           holdingTankCount,
-          pipelineTotal,
-          pipelineCount,
+          newAumTotal,
+          newAumCount,
           aumDepositsTotal,
           aumDepositsCount,
         });
@@ -103,25 +104,15 @@ export function DashboardSidebar() {
         <span className="font-semibold text-foreground">{formatCurrency(stats.totalAssets)}</span>
       </div>
 
-      <button
-        onClick={() => navigate("/pipeline")}
-        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <Briefcase className="h-3.5 w-3.5" />
-        <span>Revenue Pipeline</span>
-        <span className="font-semibold text-foreground">{formatCurrency(stats.pipelineTotal)}</span>
-        <span>({stats.pipelineCount})</span>
-      </button>
-
-      {stats.aumDepositsCount > 0 && (
+      {stats.newAumCount > 0 && (
         <button
-          onClick={() => navigate("/holding-tank")}
+          onClick={() => navigate("/pipeline")}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <CalendarClock className="h-3.5 w-3.5" />
-          <span>AUM Deposits</span>
-          <span className="font-semibold text-foreground">{formatCurrency(stats.aumDepositsTotal)}</span>
-          <span>({stats.aumDepositsCount} scheduled)</span>
+          <Landmark className="h-3.5 w-3.5" />
+          <span>New AUM</span>
+          <span className="font-semibold text-foreground">{formatCurrency(stats.newAumTotal)}</span>
+          <span>({stats.newAumCount})</span>
         </button>
       )}
 
