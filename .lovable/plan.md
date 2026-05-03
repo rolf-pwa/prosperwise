@@ -1,39 +1,30 @@
-# Click-to-Call from Contacts
+## Goal
 
-Make the phone number on each row in `/contacts` clickable so staff can place a call through Quo (OpenPhone) without copy/pasting.
+Replace the `PlaceholderCard` ("Coming Soon") in `TodayActivities` on the Dashboard with a widget showing tasks from a **specific pinned Asana project**, filtered to those due within the next 7 days.
 
-## Approach
+## How to pin the project
 
-OpenPhone (Quo) does not expose a public "place an outbound call" REST endpoint we can trigger from the browser. The supported pattern is a **deep link** that hands the number off to the OpenPhone desktop/web app, which then dials using the staff member's logged-in Quo identity (so the call is correctly logged and uses our Canadian number).
+The project GID will be stored as a constant in the widget file (simplest, no UI/DB needed). If you'd prefer to make it configurable later (env var or per-user setting), we can move it.
 
-Two link strategies, used together:
+**You'll need to provide the Asana project GID.** You can grab it from the project URL in Asana: `https://app.asana.com/0/{PROJECT_GID}/list`. I'll add a `PINNED_PROJECT_GID` constant at the top of the file — paste yours in.
 
-1. **Primary**: `openphone://call?to=+15551234567` — opens the OpenPhone desktop app directly to a pre-filled call screen.
-2. **Fallback**: `https://my.openphone.com/calls?to=+15551234567` — opens OpenPhone Web in a new tab if the desktop app isn't installed.
+## Implementation
 
-We'll wire the desktop scheme as the click target and open the web URL in a new tab as a fallback after a short delay if the protocol handler doesn't fire.
+### 1. `supabase/functions/asana-service/index.ts`
+Add a lightweight `getProjectUpcomingTasks` action (or reuse logic) that, given `project_gid`, fetches tasks from that project with `opt_fields=gid,name,completed,due_on,permalink_url,assignee.name` and returns incomplete tasks where `due_on` is within today..today+7. Filtering done server-side to keep payload small. No `PW_Visibility` filter — this is a staff dashboard widget.
 
-## Changes
+### 2. `src/components/TodayActivities.tsx`
+Replace `PlaceholderCard` with a new `PinnedProjectTasks` component:
+- `PINNED_PROJECT_GID` constant at top of file
+- Calls `supabase.functions.invoke("asana-service", { body: { action: "getProjectUpcomingTasks", project_gid: PINNED_PROJECT_GID } })`
+- Renders up to ~6 tasks with name + due date, sorted by `due_on` ascending
+- Each task is a button that dispatches the existing `open-my-task` event (same pattern as `TodayTasks`) so it opens in the task drawer
+- Card title shows the project name (fetched once, or hardcoded alongside the GID)
+- Loading / empty states matching existing widget style
 
-**`src/pages/Contacts.tsx`**
-- Wrap the existing phone span in a button/anchor.
-- `onClick`: stop propagation (so the row's contact link doesn't fire), normalize the number to E.164 (strip spaces/dashes/parens, ensure leading `+1` for 10-digit NA numbers), then `window.location.href = "openphone://call?to=..."` and schedule a `window.open("https://my.openphone.com/calls?to=...", "_blank")` fallback ~400ms later.
-- Add hover styling (underline + `hover:text-foreground`) and a Phone-icon tooltip hint "Call via Quo".
+### 3. Header / icon
+Use a `Pin` (or `Briefcase`) lucide icon and replace "Coming Soon" with the project name (e.g. "Operations" or whatever you pin).
 
-**`src/pages/ContactDetail.tsx`** (same treatment, for consistency)
-- Apply the same click-to-call behaviour wherever the contact's phone is displayed on the detail page.
+## Open question
 
-**Small helper** `src/lib/quo-dial.ts`
-- Export `dialViaQuo(phone: string)` containing the normalization + deep-link + fallback logic so both pages share one implementation.
-
-## Out of scope
-
-- No backend / edge function changes — calls are placed by the OpenPhone client, not by our server.
-- No changes to the inbound call/SMS pipeline (`quo-webhook`, `quo_calls` table). Outbound calls placed this way will still be captured by the existing webhook because OpenPhone logs them server-side.
-- We are not adding in-browser WebRTC dialing (would require Twilio or a different provider — explicitly rejected earlier).
-
-## Notes
-
-- Numbers stored without country code are assumed Canadian/US and prefixed with `+1`.
-- If a contact has no phone, the field stays plain text (no link).
-- PII Shield is unaffected — we're only opening a URL, not transmitting content.
+What's the Asana project GID (and a short display label) you'd like pinned?
