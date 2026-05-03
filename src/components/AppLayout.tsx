@@ -1,5 +1,6 @@
 import { AppSidebar, SidebarCollapseProvider } from "./AppSidebar";
 import { AssistantSidebar } from "./AssistantSidebar";
+import { DashboardSidebar } from "./DashboardSidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,9 +18,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Header */}
-          <header className="flex items-center justify-between border-b border-border px-6 py-3">
-            <span className="text-sm text-muted-foreground">{today}</span>
-            <div className="flex items-center gap-3">
+          <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-3">
+            <div className="flex items-center gap-6 min-w-0 flex-1">
+              <span className="text-sm text-muted-foreground shrink-0">{today}</span>
+              <div className="min-w-0 flex-1">
+                <DashboardSidebar />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
               <NotificationBell />
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.user_metadata?.avatar_url} />
