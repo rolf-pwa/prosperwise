@@ -234,6 +234,7 @@ export type Database = {
           quiet_period_start_date: string | null
           sidedrawer_url: string | null
           updated_at: string
+          vault_root_folder_id: string | null
           vineyard_balance_sheet_summary: string | null
           vineyard_ebitda: number | null
           vineyard_operating_income: number | null
@@ -272,6 +273,7 @@ export type Database = {
           quiet_period_start_date?: string | null
           sidedrawer_url?: string | null
           updated_at?: string
+          vault_root_folder_id?: string | null
           vineyard_balance_sheet_summary?: string | null
           vineyard_ebitda?: number | null
           vineyard_operating_income?: number | null
@@ -310,6 +312,7 @@ export type Database = {
           quiet_period_start_date?: string | null
           sidedrawer_url?: string | null
           updated_at?: string
+          vault_root_folder_id?: string | null
           vineyard_balance_sheet_summary?: string | null
           vineyard_ebitda?: number | null
           vineyard_operating_income?: number | null
@@ -2675,6 +2678,268 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vault_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_label: string | null
+          actor_type: string
+          contact_id: string | null
+          created_at: string
+          drive_id: string | null
+          drive_name: string | null
+          id: string
+          ip: string | null
+          metadata: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_label?: string | null
+          actor_type: string
+          contact_id?: string | null
+          created_at?: string
+          drive_id?: string | null
+          drive_name?: string | null
+          id?: string
+          ip?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_label?: string | null
+          actor_type?: string
+          contact_id?: string | null
+          created_at?: string
+          drive_id?: string | null
+          drive_name?: string | null
+          id?: string
+          ip?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      vault_collaborator_grants: {
+        Row: {
+          collaborator_id: string
+          created_at: string
+          drive_id: string
+          expires_at: string
+          granted_at: string
+          granted_by: string | null
+          id: string
+          permission: string
+          revoked_at: string | null
+          scope_type: string
+        }
+        Insert: {
+          collaborator_id: string
+          created_at?: string
+          drive_id: string
+          expires_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          permission?: string
+          revoked_at?: string | null
+          scope_type: string
+        }
+        Update: {
+          collaborator_id?: string
+          created_at?: string
+          drive_id?: string
+          expires_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          permission?: string
+          revoked_at?: string | null
+          scope_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_collaborator_grants_collaborator_id_fkey"
+            columns: ["collaborator_id"]
+            isOneToOne: false
+            referencedRelation: "vault_collaborators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vault_collaborators: {
+        Row: {
+          contact_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          professional_contact_id: string | null
+          revoked_at: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          professional_contact_id?: string | null
+          revoked_at?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          professional_contact_id?: string | null
+          revoked_at?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vault_files: {
+        Row: {
+          ancestor_folder_ids: string[]
+          client_visible: boolean
+          contact_id: string
+          created_at: string
+          drive_id: string
+          is_folder: boolean
+          mime_type: string
+          modified_at: string | null
+          name: string
+          parent_folder_id: string | null
+          size_bytes: number | null
+          staff_reviewed: boolean
+          updated_at: string
+          uploaded_by_collaborator_id: string | null
+        }
+        Insert: {
+          ancestor_folder_ids?: string[]
+          client_visible?: boolean
+          contact_id: string
+          created_at?: string
+          drive_id: string
+          is_folder?: boolean
+          mime_type: string
+          modified_at?: string | null
+          name: string
+          parent_folder_id?: string | null
+          size_bytes?: number | null
+          staff_reviewed?: boolean
+          updated_at?: string
+          uploaded_by_collaborator_id?: string | null
+        }
+        Update: {
+          ancestor_folder_ids?: string[]
+          client_visible?: boolean
+          contact_id?: string
+          created_at?: string
+          drive_id?: string
+          is_folder?: boolean
+          mime_type?: string
+          modified_at?: string | null
+          name?: string
+          parent_folder_id?: string | null
+          size_bytes?: number | null
+          staff_reviewed?: boolean
+          updated_at?: string
+          uploaded_by_collaborator_id?: string | null
+        }
+        Relationships: []
+      }
+      vault_folder_templates: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          position: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          position?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          position?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vault_guest_tokens: {
+        Row: {
+          bound_ip: string | null
+          bound_user_agent: string | null
+          collaborator_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          revoked: boolean
+          token: string
+          unlock_code: string
+          unlock_verified_at: string | null
+        }
+        Insert: {
+          bound_ip?: string | null
+          bound_user_agent?: string | null
+          collaborator_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          revoked?: boolean
+          token?: string
+          unlock_code: string
+          unlock_verified_at?: string | null
+        }
+        Update: {
+          bound_ip?: string | null
+          bound_user_agent?: string | null
+          collaborator_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          revoked?: boolean
+          token?: string
+          unlock_code?: string
+          unlock_verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_guest_tokens_collaborator_id_fkey"
+            columns: ["collaborator_id"]
+            isOneToOne: false
+            referencedRelation: "vault_collaborators"
             referencedColumns: ["id"]
           },
         ]
