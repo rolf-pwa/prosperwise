@@ -42,41 +42,61 @@ function formatSize(n: number | null) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+async function callVault(action: string, payload: Record<string, unknown> = {}) {
+  const { data: sess } = await supabase.auth.getSession();
+  const res = await fetch(FUNCTIONS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+    },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return json;
+}
+
 function FolderNode({
   folderId,
   name,
   depth,
+  contactId,
   onPreview,
 }: {
   folderId: string;
   name: string;
   depth: number;
+  contactId?: string;
   onPreview: (file: DriveFile) => void;
 }) {
   const [open, setOpen] = useState(depth === 0);
   const [loading, setLoading] = useState(false);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [files, setFiles] = useState<DriveFile[]>([]);
+  const [visMap, setVisMap] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+
+  const loadVisibility = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { data } = await supabase
+      .from("vault_files")
+      .select("drive_id, client_visible")
+      .in("drive_id", ids);
+    const m: Record<string, boolean> = {};
+    (data ?? []).forEach((r: any) => (m[r.drive_id] = r.client_visible));
+    setVisMap(m);
+  };
 
   useEffect(() => {
     if (!open || loaded) return;
     (async () => {
       setLoading(true);
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const res = await fetch(FUNCTIONS_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
-          },
-          body: JSON.stringify({ action: "listFolder", folderId }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "list_failed");
+        const json = await callVault("listFolder", { folderId });
         setFolders(json.folders ?? []);
         setFiles(json.files ?? []);
+        await loadVisibility((json.files ?? []).map((f: DriveFile) => f.id));
         setLoaded(true);
       } catch (e: any) {
         toast.error(`Vault: ${e.message}`);
@@ -85,6 +105,16 @@ function FolderNode({
       }
     })();
   }, [open, loaded, folderId]);
+
+  const toggleVisibility = async (file: DriveFile, next: boolean) => {
+    try {
+      await callVault("setVisibility", { fileId: file.id, contactId, clientVisible: next });
+      setVisMap((m) => ({ ...m, [file.id]: next }));
+      toast.success(next ? "Visible to client" : "Hidden from client");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
 
   return (
     <div style={{ paddingLeft: depth === 0 ? 0 : 16 }}>
@@ -105,35 +135,32 @@ function FolderNode({
               folderId={f.id}
               name={f.name}
               depth={depth + 1}
+              contactId={contactId}
               onPreview={onPreview}
             />
           ))}
-          {files.map((f) => (
-            <div
-              key={f.id}
-              className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              <span className="flex-1 truncate">{f.name}</span>
-              <span className="text-xs">{formatSize(f.size)}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2"
-                onClick={() => onPreview(f)}
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2"
-                onClick={() => downloadFile(f)}
-              >
-                <Download className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          ))}
+          {files.map((f) => {
+            const visible = visMap[f.id] === true;
+            return (
+              <div key={f.id} className="flex items-center gap-2 py-1.5 text-sm">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 truncate">{f.name}</span>
+                {contactId && (
+                  <span className="flex items-center gap-1.5 mr-2" title="Visible to client">
+                    <ShieldCheck className={`h-3.5 w-3.5 ${visible ? "text-amber-500" : "text-muted-foreground/40"}`} />
+                    <Switch checked={visible} onCheckedChange={(v) => toggleVisibility(f, v)} />
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground">{formatSize(f.size)}</span>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onPreview(f)}>
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadFile(f)}>
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })}
           {loaded && folders.length === 0 && files.length === 0 && (
             <div className="text-xs text-muted-foreground py-1 italic">Empty</div>
           )}
