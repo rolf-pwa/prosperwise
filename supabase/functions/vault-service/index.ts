@@ -363,6 +363,24 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, folderId: root.id }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
+    // ─── COLLABORATOR: list own grant roots (post-unlock) ───
+    if (action === "myGrants") {
+      if (actor.kind !== "collaborator")
+        return new Response(JSON.stringify({ error: "collaborator_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const ids = actor.grants.map((g) => g.drive_id);
+      const roots: { id: string; name: string }[] = [];
+      for (const id of ids) {
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,name`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (r.ok) {
+          const j = await r.json();
+          roots.push({ id: j.id, name: j.name });
+        }
+      }
+      return new Response(JSON.stringify({ roots }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
     // ─── LIST FOLDER ───
     if (action === "listFolder") {
       const folderId = body.folderId ?? url.searchParams.get("folderId");
