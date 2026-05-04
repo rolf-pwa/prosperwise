@@ -604,6 +604,75 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, fileId: created.id }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
+    // ─── LIST GRANTS for a collaborator (staff only) ───
+    if (action === "listGrants") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { collaboratorId } = body;
+      const { data: grants } = await supabaseAdmin
+        .from("vault_collaborator_grants")
+        .select("id, scope_type, drive_id, permission, expires_at, revoked_at, created_at")
+        .eq("collaborator_id", collaboratorId)
+        .order("created_at", { ascending: false });
+      // Resolve display names from Drive (best-effort)
+      const enriched = await Promise.all((grants ?? []).map(async (g) => {
+        try {
+          const r = await fetch(`https://www.googleapis.com/drive/v3/files/${g.drive_id}?fields=id,name`, { headers: { Authorization: `Bearer ${accessToken}` } });
+          const j = r.ok ? await r.json() : null;
+          return { ...g, drive_name: j?.name ?? g.drive_id };
+        } catch { return { ...g, drive_name: g.drive_id }; }
+      }));
+      return new Response(JSON.stringify({ grants: enriched }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    // ─── ADD GRANT to existing collaborator (staff only) ───
+    if (action === "addGrant") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { collaboratorId, scope_type, drive_id, permission, expires_at } = body;
+      if (!collaboratorId || !scope_type || !drive_id)
+        return new Response(JSON.stringify({ error: "missing_fields" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+      const { data: g, error } = await supabaseAdmin.from("vault_collaborator_grants").insert({
+        collaborator_id: collaboratorId,
+        scope_type,
+        drive_id,
+        permission: permission ?? "view",
+        expires_at: expires_at ?? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        granted_by: actor.userId,
+      }).select().single();
+      if (error) throw error;
+      await audit(actor, "add_grant", null, drive_id, null, req, { collaborator_id: collaboratorId, scope_type, permission });
+      return new Response(JSON.stringify({ ok: true, grant: g }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    // ─── REVOKE / UPDATE single grant (staff only) ───
+    if (action === "updateGrant") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { grantId, revoke, expires_at, permission } = body;
+      const patch: Record<string, unknown> = {};
+      if (revoke === true) patch.revoked_at = new Date().toISOString();
+      if (revoke === false) patch.revoked_at = null;
+      if (expires_at !== undefined) patch.expires_at = expires_at; // null = no expiry
+      if (permission) patch.permission = permission;
+      await supabaseAdmin.from("vault_collaborator_grants").update(patch).eq("id", grantId);
+      await audit(actor, "update_grant", null, null, null, req, { grantId, patch });
+      return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    // ─── REISSUE guest token for an existing collaborator (staff only) ───
+    if (action === "reissueGuestToken") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { collaboratorId } = body;
+      // Revoke previous tokens
+      await supabaseAdmin.from("vault_guest_tokens").update({ revoked: true }).eq("collaborator_id", collaboratorId);
+      const code = genUnlockCode();
+      const { data: tok } = await supabaseAdmin.from("vault_guest_tokens").insert({ collaborator_id: collaboratorId, unlock_code: code }).select().single();
+      await audit(actor, "reissue_guest_token", null, null, null, req, { collaborator_id: collaboratorId });
+      return new Response(JSON.stringify({ ok: true, magicToken: tok?.token, unlockCode: code }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
     return new Response(JSON.stringify({ error: "unknown_action", action }), {
       status: 400,
       headers: { ...cors, "Content-Type": "application/json" },

@@ -21,6 +21,9 @@ import {
   ShieldCheck,
   Trash2,
   Copy,
+  Share2,
+  Plus,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +35,7 @@ type DriveFile = {
   size: number | null;
   modifiedTime?: string;
 };
+type ShareTarget = { driveId: string; name: string; isFolder: boolean };
 
 const FUNCTIONS_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/vault-service`;
 
@@ -63,12 +67,14 @@ function FolderNode({
   depth,
   contactId,
   onPreview,
+  onShare,
 }: {
   folderId: string;
   name: string;
   depth: number;
   contactId?: string;
   onPreview: (file: DriveFile) => void;
+  onShare: (target: ShareTarget) => void;
 }) {
   const [open, setOpen] = useState(depth === 0);
   const [loading, setLoading] = useState(false);
@@ -118,15 +124,28 @@ function FolderNode({
 
   return (
     <div style={{ paddingLeft: depth === 0 ? 0 : 16 }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 py-1.5 text-left hover:text-amber-500 w-full"
-      >
-        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        <Folder className="h-4 w-4 text-amber-500" />
-        <span className="font-serif">{name}</span>
-        {loading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
-      </button>
+      <div className="flex items-center gap-2 py-1.5 group">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 text-left hover:text-amber-500 flex-1"
+        >
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          <Folder className="h-4 w-4 text-amber-500" />
+          <span className="font-serif">{name}</span>
+          {loading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+        </button>
+        {contactId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 opacity-0 group-hover:opacity-100"
+            title="Share folder with collaborator"
+            onClick={() => onShare({ driveId: folderId, name, isFolder: true })}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
       {open && (
         <div className="border-l border-border ml-2 pl-2">
           {folders.map((f) => (
@@ -137,12 +156,13 @@ function FolderNode({
               depth={depth + 1}
               contactId={contactId}
               onPreview={onPreview}
+              onShare={onShare}
             />
           ))}
           {files.map((f) => {
             const visible = visMap[f.id] === true;
             return (
-              <div key={f.id} className="flex items-center gap-2 py-1.5 text-sm">
+              <div key={f.id} className="flex items-center gap-2 py-1.5 text-sm group">
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <span className="flex-1 truncate">{f.name}</span>
                 {contactId && (
@@ -158,6 +178,17 @@ function FolderNode({
                 <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadFile(f)}>
                   <Download className="h-3.5 w-3.5" />
                 </Button>
+                {contactId && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 opacity-0 group-hover:opacity-100"
+                    title="Share file with collaborator"
+                    onClick={() => onShare({ driveId: f.id, name: f.name, isFolder: false })}
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             );
           })}
@@ -210,11 +241,90 @@ type Collaborator = {
   revoked_at: string | null;
 };
 
-function CollaboratorsPanel({ contactId, rootId }: { contactId: string; rootId: string }) {
+type Grant = {
+  id: string;
+  scope_type: "folder" | "file";
+  drive_id: string;
+  drive_name?: string;
+  permission: "view" | "upload";
+  expires_at: string | null;
+  revoked_at: string | null;
+};
+
+function GrantsList({ collaboratorId }: { collaboratorId: string }) {
+  const [grants, setGrants] = useState<Grant[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const res = await callVault("listGrants", { collaboratorId });
+      setGrants(res.grants ?? []);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { refresh(); }, [collaboratorId]);
+
+  const updateGrant = async (grantId: string, patch: Record<string, unknown>) => {
+    try {
+      await callVault("updateGrant", { grantId, ...patch });
+      toast.success("Grant updated");
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  if (loading) return <div className="text-xs text-muted-foreground py-2">Loading grants…</div>;
+  if (!grants.length) return <div className="text-xs text-muted-foreground py-2 italic">No grants — collaborator can't see anything yet. Click a Share icon on a folder/file above.</div>;
+
+  return (
+    <div className="space-y-1.5 mt-2">
+      {grants.map((g) => {
+        const expired = g.expires_at && new Date(g.expires_at) <= new Date();
+        const active = !g.revoked_at && !expired;
+        return (
+          <div key={g.id} className="flex items-center gap-2 text-xs bg-muted/30 rounded px-2 py-1.5">
+            <Badge variant="outline" className="capitalize text-[10px]">{g.scope_type}</Badge>
+            <Badge variant={g.permission === "upload" ? "default" : "secondary"} className="capitalize text-[10px]">{g.permission}</Badge>
+            <span className="flex-1 truncate font-mono">{g.drive_name ?? g.drive_id}</span>
+            <span className="text-muted-foreground">
+              {g.revoked_at ? "revoked" : g.expires_at ? `exp ${new Date(g.expires_at).toLocaleDateString()}` : "no expiry"}
+            </span>
+            {active && (
+              <>
+                <Button size="sm" variant="ghost" className="h-6 px-1.5" title="Extend +30 days" onClick={() => updateGrant(g.id, { expires_at: new Date(Date.now() + 30 * 86400000).toISOString() })}>+30d</Button>
+                <Button size="sm" variant="ghost" className="h-6 px-1.5" title="Remove expiry" onClick={() => updateGrant(g.id, { expires_at: null })}>∞</Button>
+                <Button size="sm" variant="ghost" className="h-6 px-1.5" title="Toggle permission" onClick={() => updateGrant(g.id, { permission: g.permission === "view" ? "upload" : "view" })}>{g.permission === "view" ? "→upload" : "→view"}</Button>
+                <Button size="sm" variant="ghost" className="h-6 px-1.5 text-destructive" title="Revoke" onClick={() => updateGrant(g.id, { revoke: true })}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CollaboratorsPanel({
+  contactId,
+  rootId,
+  shareTarget,
+  onShareHandled,
+}: {
+  contactId: string;
+  rootId: string;
+  shareTarget: ShareTarget | null;
+  onShareHandled: () => void;
+}) {
   const [list, setList] = useState<Collaborator[]>([]);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", fullName: "", role: "lawyer", expiresInDays: "30" });
-  const [issued, setIssued] = useState<{ token: string; code: string } | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [form, setForm] = useState({ email: "", fullName: "", role: "lawyer" });
+  const [grantForm, setGrantForm] = useState({ collaboratorId: "", permission: "view", expiresInDays: "30" });
+  const [issued, setIssued] = useState<{ token: string; code: string; name: string } | null>(null);
 
   const refresh = async () => {
     const { data } = await supabase
@@ -224,28 +334,35 @@ function CollaboratorsPanel({ contactId, rootId }: { contactId: string; rootId: 
       .order("invited_at", { ascending: false });
     setList((data ?? []) as Collaborator[]);
   };
+  useEffect(() => { if (contactId) refresh(); }, [contactId]);
+
+  // When a share request comes in from the file tree, open share dialog
   useEffect(() => {
-    if (contactId) refresh();
-  }, [contactId]);
+    if (shareTarget) {
+      setGrantForm({ collaboratorId: list[0]?.id ?? "", permission: "view", expiresInDays: "30" });
+      setShareOpen(true);
+    }
+  }, [shareTarget]);
+
+  const computeExpiry = (days: string) => {
+    const n = Number(days);
+    if (!n || n <= 0) return null;
+    return new Date(Date.now() + n * 86400000).toISOString();
+  };
 
   const invite = async () => {
     try {
-      const expires_at = new Date(
-        Date.now() + Number(form.expiresInDays) * 24 * 3600 * 1000,
-      ).toISOString();
       const res = await callVault("inviteCollaborator", {
         contactId,
         email: form.email,
         fullName: form.fullName,
         role: form.role,
-        grants: [{ scope_type: "folder", drive_id: rootId, permission: "view", expires_at }],
+        grants: [], // no auto-grants — staff explicitly shares folders/files after
       });
-      setIssued({ token: res.magicToken, code: res.unlockCode });
+      setIssued({ token: res.magicToken, code: res.unlockCode, name: form.fullName });
       toast.success("Collaborator invited");
       await refresh();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const revoke = async (id: string) => {
@@ -253,9 +370,31 @@ function CollaboratorsPanel({ contactId, rootId }: { contactId: string; rootId: 
       await callVault("revokeCollaborator", { collaboratorId: id });
       toast.success("Access revoked");
       await refresh();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const reissue = async (c: Collaborator) => {
+    try {
+      const res = await callVault("reissueGuestToken", { collaboratorId: c.id });
+      setIssued({ token: res.magicToken, code: res.unlockCode, name: c.full_name });
+      setInviteOpen(true);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const submitShare = async () => {
+    if (!shareTarget || !grantForm.collaboratorId) return;
+    try {
+      await callVault("addGrant", {
+        collaboratorId: grantForm.collaboratorId,
+        scope_type: shareTarget.isFolder ? "folder" : "file",
+        drive_id: shareTarget.driveId,
+        permission: grantForm.permission,
+        expires_at: computeExpiry(grantForm.expiresInDays),
+      });
+      toast.success(`Shared with ${list.find((c) => c.id === grantForm.collaboratorId)?.full_name}`);
+      setShareOpen(false);
+      onShareHandled();
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const guestUrl = (token: string) => `${window.location.origin}/vault/guest/${token}`;
@@ -264,39 +403,48 @@ function CollaboratorsPanel({ contactId, rootId }: { contactId: string; rootId: 
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base font-serif">Collaborators</CardTitle>
-        <Button size="sm" onClick={() => { setIssued(null); setOpen(true); }}>
+        <Button size="sm" onClick={() => { setIssued(null); setForm({ email: "", fullName: "", role: "lawyer" }); setInviteOpen(true); }}>
           <UserPlus className="h-4 w-4 mr-1" /> Invite
         </Button>
       </CardHeader>
       <CardContent>
         {list.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">No collaborators yet.</p>
+          <p className="text-sm text-muted-foreground italic">No collaborators yet. Invite one, then click the Share icon on any folder or file above.</p>
         ) : (
           <div className="space-y-2">
             {list.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 border rounded p-2 text-sm">
-                <Badge variant="outline" className="capitalize">{c.role}</Badge>
-                <div className="flex-1">
-                  <div className="font-medium">{c.full_name}</div>
-                  <div className="text-xs text-muted-foreground">{c.email}</div>
+              <div key={c.id} className="border rounded p-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="outline" className="capitalize">{c.role}</Badge>
+                  <button className="flex-1 text-left" onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}>
+                    <div className="font-medium">{c.full_name}</div>
+                    <div className="text-xs text-muted-foreground">{c.email}</div>
+                  </button>
+                  {c.revoked_at ? (
+                    <Badge variant="secondary">Revoked</Badge>
+                  ) : (
+                    <>
+                      <Button size="sm" variant="ghost" title="Reissue magic link" onClick={() => reissue(c)}>
+                        <KeyRound className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Revoke all access" onClick={() => revoke(c.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
                 </div>
-                {c.revoked_at ? (
-                  <Badge variant="secondary">Revoked</Badge>
-                ) : (
-                  <Button size="sm" variant="ghost" onClick={() => revoke(c.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                {expandedId === c.id && !c.revoked_at && <GrantsList collaboratorId={c.id} />}
               </div>
             ))}
           </div>
         )}
       </CardContent>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* Invite dialog (also reused for displaying reissued tokens) */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-serif">Invite collaborator</DialogTitle>
+            <DialogTitle className="font-serif">{issued ? "Magic link" : "Invite collaborator"}</DialogTitle>
           </DialogHeader>
           {!issued ? (
             <div className="space-y-3">
@@ -308,33 +456,27 @@ function CollaboratorsPanel({ contactId, rootId }: { contactId: string; rootId: 
                 <Label>Email</Label>
                 <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Role</Label>
-                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lawyer">Lawyer</SelectItem>
-                      <SelectItem value="accountant">Accountant</SelectItem>
-                      <SelectItem value="executor">Executor</SelectItem>
-                      <SelectItem value="poa">Power of Attorney</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Expires in (days)</Label>
-                  <Input type="number" value={form.expiresInDays} onChange={(e) => setForm({ ...form, expiresInDays: e.target.value })} />
-                </div>
+              <div>
+                <Label>Role</Label>
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lawyer">Lawyer</SelectItem>
+                    <SelectItem value="accountant">Accountant</SelectItem>
+                    <SelectItem value="executor">Executor</SelectItem>
+                    <SelectItem value="poa">Power of Attorney</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <p className="text-xs text-muted-foreground">
-                Default scope: full vault root (view-only). Refine grants per folder/file after inviting.
+                After inviting, click the Share icon on any folder or file to grant access. Each grant has its own permission and expiry.
               </p>
               <Button onClick={invite} className="w-full">Invite & generate link</Button>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm">Send these to <strong>{form.fullName}</strong> via your normal secure channel.</p>
+              <p className="text-sm">Send these to <strong>{issued.name}</strong> via your normal secure channel.</p>
               <div>
                 <Label>Magic link</Label>
                 <div className="flex gap-2">
@@ -354,9 +496,58 @@ function CollaboratorsPanel({ contactId, rootId }: { contactId: string; rootId: 
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">Link valid 24 hours. After unlock, session is bound to their browser.</p>
-              <Button onClick={() => setOpen(false)} className="w-full">Done</Button>
+              <Button onClick={() => setInviteOpen(false)} className="w-full">Done</Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Share dialog (per folder/file) */}
+      <Dialog open={shareOpen} onOpenChange={(o) => { setShareOpen(o); if (!o) onShareHandled(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">
+              Share {shareTarget?.isFolder ? "folder" : "file"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm bg-muted/40 rounded p-2 truncate">{shareTarget?.name}</div>
+            {list.filter((c) => !c.revoked_at).length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">Invite a collaborator first.</p>
+            ) : (
+              <>
+                <div>
+                  <Label>Collaborator</Label>
+                  <Select value={grantForm.collaboratorId} onValueChange={(v) => setGrantForm({ ...grantForm, collaboratorId: v })}>
+                    <SelectTrigger><SelectValue placeholder="Choose…" /></SelectTrigger>
+                    <SelectContent>
+                      {list.filter((c) => !c.revoked_at).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.role})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Permission</Label>
+                    <Select value={grantForm.permission} onValueChange={(v) => setGrantForm({ ...grantForm, permission: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="view">View only</SelectItem>
+                        {shareTarget?.isFolder && <SelectItem value="upload">View + upload</SelectItem>}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Expires in (days)</Label>
+                    <Input type="number" min={0} value={grantForm.expiresInDays} onChange={(e) => setGrantForm({ ...grantForm, expiresInDays: e.target.value })} />
+                    <p className="text-[10px] text-muted-foreground mt-1">0 or empty = no expiry</p>
+                  </div>
+                </div>
+                <Button onClick={submitShare} className="w-full" disabled={!grantForm.collaboratorId}>Grant access</Button>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
@@ -370,6 +561,7 @@ export default function Vault() {
   const [input, setInput] = useState<string>("");
   const [preview, setPreview] = useState<{ file: DriveFile; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
 
   useEffect(() => {
     if (!contactId) return;
@@ -381,7 +573,6 @@ export default function Vault() {
         .maybeSingle();
       if (data) {
         setContactName(data.full_name ?? "");
-        // Prefer the proper vault root; fall back to legacy google_drive_url
         const fallbackId = data.google_drive_url?.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1];
         const id = data.vault_root_folder_id ?? fallbackId ?? "";
         if (id) {
@@ -478,12 +669,20 @@ export default function Vault() {
               depth={0}
               contactId={contactId}
               onPreview={openPreview}
+              onShare={setShareTarget}
             />
           </CardContent>
         </Card>
       )}
 
-      {contactId && rootId && <CollaboratorsPanel contactId={contactId} rootId={rootId} />}
+      {contactId && rootId && (
+        <CollaboratorsPanel
+          contactId={contactId}
+          rootId={rootId}
+          shareTarget={shareTarget}
+          onShareHandled={() => setShareTarget(null)}
+        />
+      )}
 
       <Dialog
         open={!!preview}
