@@ -1,12 +1,22 @@
-// Vault Service — Proof of Concept
-// Proxies Google Drive folder listings and file content through Supabase
-// so clients never see Drive directly. Uses the firm's Ghost User Google token.
+// Vault Service — proxies Google Drive through Supabase with a strict
+// per-contact ancestry firewall. Drive is invisible to clients and to
+// invited collaborators (lawyers, accountants, etc.).
+//
+// Actor types:
+//   - 'staff'        — authenticated Supabase user (CRM)
+//   - 'client'       — portal session (Bearer = portal token from portal_tokens)
+//   - 'collaborator' — guest session (Bearer = vault_guest_tokens.token + verified unlock_code)
+//
+// Every byte that leaves this function passes the firewall check:
+//   ensureAccess(actor, fileOrFolderId)
+// which verifies the file's ancestor chain contains the actor's allowed root(s).
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
@@ -22,20 +32,23 @@ function getCorsHeaders(req: Request) {
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+      "authorization, x-client-info, apikey, content-type, x-vault-guest-token, x-vault-unlock-code, x-portal-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   };
 }
 
-async function getValidGoogleToken(supabaseAdmin: any): Promise<string | null> {
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// ───── Google token (firm Workspace ghost user) ─────
+async function getValidGoogleToken(): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("google_tokens")
     .select("*")
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!data) return null;
-
-  if (new Date(data.token_expiry) <= new Date()) {
+  if (new Date(data.token_expiry) <= new Date(Date.now() + 60_000)) {
     const res = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -66,21 +79,226 @@ const GOOGLE_NATIVE = new Set([
   "application/vnd.google-apps.spreadsheet",
   "application/vnd.google-apps.presentation",
 ]);
-
 function googleExportMime(mime: string) {
   if (mime === "application/vnd.google-apps.spreadsheet")
     return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  // Docs + Slides → PDF for inline preview
   return "application/pdf";
 }
 
+// ───── Actor resolution ─────
+type Actor =
+  | { kind: "staff"; userId: string }
+  | { kind: "client"; contactId: string; vaultRootId: string }
+  | {
+      kind: "collaborator";
+      collaboratorId: string;
+      contactId: string;
+      grants: Array<{ scope_type: string; drive_id: string; permission: string }>;
+    };
+
+async function resolveActor(req: Request): Promise<Actor | null> {
+  // 1. Collaborator guest token (highest specificity — checked first)
+  const guestToken = req.headers.get("x-vault-guest-token");
+  const unlockCode = req.headers.get("x-vault-unlock-code");
+  if (guestToken) {
+    const { data: tokenRow } = await supabaseAdmin
+      .from("vault_guest_tokens")
+      .select("*, vault_collaborators(id, contact_id, revoked_at)")
+      .eq("token", guestToken)
+      .maybeSingle();
+    if (!tokenRow || tokenRow.revoked) return null;
+    if (new Date(tokenRow.expires_at) <= new Date()) return null;
+    if (tokenRow.vault_collaborators?.revoked_at) return null;
+    // Require unlock code on first use; afterwards bound to user_agent
+    const ua = req.headers.get("User-Agent") ?? "";
+    if (!tokenRow.unlock_verified_at) {
+      if (!unlockCode || unlockCode !== tokenRow.unlock_code) return null;
+      await supabaseAdmin
+        .from("vault_guest_tokens")
+        .update({ unlock_verified_at: new Date().toISOString(), bound_user_agent: ua })
+        .eq("id", tokenRow.id);
+    } else if (tokenRow.bound_user_agent && tokenRow.bound_user_agent !== ua) {
+      return null;
+    }
+    const { data: grants } = await supabaseAdmin
+      .from("vault_collaborator_grants")
+      .select("scope_type, drive_id, permission, expires_at, revoked_at")
+      .eq("collaborator_id", tokenRow.vault_collaborators.id);
+    const active = (grants ?? []).filter(
+      (g) => !g.revoked_at && new Date(g.expires_at) > new Date(),
+    );
+    return {
+      kind: "collaborator",
+      collaboratorId: tokenRow.vault_collaborators.id,
+      contactId: tokenRow.vault_collaborators.contact_id,
+      grants: active,
+    };
+  }
+
+  // 2. Portal client session (x-portal-token = portal_tokens.token)
+  const portalToken = req.headers.get("x-portal-token");
+  if (portalToken) {
+    const { data: tok } = await supabaseAdmin
+      .from("portal_tokens")
+      .select("contact_id, expires_at, revoked")
+      .eq("token", portalToken)
+      .maybeSingle();
+    if (!tok || tok.revoked || new Date(tok.expires_at) <= new Date()) return null;
+    const { data: contact } = await supabaseAdmin
+      .from("contacts")
+      .select("vault_root_folder_id")
+      .eq("id", tok.contact_id)
+      .maybeSingle();
+    if (!contact?.vault_root_folder_id) return null;
+    return { kind: "client", contactId: tok.contact_id, vaultRootId: contact.vault_root_folder_id };
+  }
+
+  // 3. Staff JWT
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader.startsWith("Bearer ")) {
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data } = await userClient.auth.getUser();
+    if (data?.user) return { kind: "staff", userId: data.user.id };
+  }
+  return null;
+}
+
+// ───── Firewall: confirm a Drive id is reachable from the actor's allowed roots ─────
+async function getAncestors(driveId: string, accessToken: string): Promise<string[]> {
+  // Try cache first
+  const { data: cached } = await supabaseAdmin
+    .from("vault_files")
+    .select("ancestor_folder_ids, parent_folder_id")
+    .eq("drive_id", driveId)
+    .maybeSingle();
+  if (cached?.ancestor_folder_ids?.length) return cached.ancestor_folder_ids;
+
+  // Walk Drive (cap depth = 12)
+  const chain: string[] = [];
+  let current = driveId;
+  for (let i = 0; i < 12; i++) {
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${current}?fields=id,parents`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!r.ok) break;
+    const j = await r.json();
+    const parent = j.parents?.[0];
+    if (!parent) break;
+    chain.push(parent);
+    current = parent;
+  }
+  return chain;
+}
+
+async function ensureAccess(
+  actor: Actor,
+  driveId: string,
+  accessToken: string,
+  needWrite = false,
+): Promise<{ ok: boolean; reason?: string }> {
+  if (actor.kind === "staff") return { ok: true };
+
+  const ancestors = await getAncestors(driveId, accessToken);
+  const chain = [driveId, ...ancestors];
+
+  if (actor.kind === "client") {
+    if (needWrite) return { ok: false, reason: "client_read_only" };
+    if (chain.includes(actor.vaultRootId)) {
+      // Also enforce client_visible flag from cache when available
+      const { data: row } = await supabaseAdmin
+        .from("vault_files")
+        .select("client_visible, is_folder")
+        .eq("drive_id", driveId)
+        .maybeSingle();
+      if (row && row.is_folder === false && row.client_visible === false) {
+        return { ok: false, reason: "not_client_visible" };
+      }
+      return { ok: true };
+    }
+    return { ok: false, reason: "outside_vault_root" };
+  }
+
+  if (actor.kind === "collaborator") {
+    for (const g of actor.grants) {
+      if (needWrite && g.permission !== "upload") continue;
+      if (chain.includes(g.drive_id)) return { ok: true };
+    }
+    return { ok: false, reason: "no_matching_grant" };
+  }
+  return { ok: false, reason: "unknown_actor" };
+}
+
+async function audit(
+  actor: Actor | null,
+  action: string,
+  contactId: string | null,
+  driveId: string | null,
+  driveName: string | null,
+  req: Request,
+  metadata: Record<string, unknown> = {},
+) {
+  await supabaseAdmin.from("vault_audit_log").insert({
+    contact_id: contactId,
+    actor_type: actor?.kind ?? "anonymous",
+    actor_id:
+      actor?.kind === "staff"
+        ? actor.userId
+        : actor?.kind === "collaborator"
+          ? actor.collaboratorId
+          : null,
+    actor_label:
+      actor?.kind === "client" ? `client:${actor.contactId}` : actor?.kind ?? "anonymous",
+    action,
+    drive_id: driveId,
+    drive_name: driveName,
+    ip: req.headers.get("x-forwarded-for"),
+    user_agent: req.headers.get("user-agent"),
+    metadata,
+  });
+}
+
+// ───── Drive helpers ─────
+async function driveCreateFolder(name: string, parentId: string, accessToken: string) {
+  const r = await fetch("https://www.googleapis.com/drive/v3/files?fields=id,name,parents", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [parentId],
+    }),
+  });
+  if (!r.ok) throw new Error(`drive_create_folder_failed: ${await r.text()}`);
+  return r.json();
+}
+
+async function driveListChildren(folderId: string, accessToken: string) {
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+  const fields = encodeURIComponent("files(id,name,mimeType,size,modifiedTime,parents)");
+  const r = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&orderBy=folder,name`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!r.ok) throw new Error(`drive_list_failed: ${await r.text()}`);
+  return (await r.json()).files ?? [];
+}
+
+function genUnlockCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// ─────────────────────────────────────────────────────────
 serve(async (req) => {
   const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const url = new URL(req.url);
-  // Action can be in query (?action=) or in JSON body
   let action = url.searchParams.get("action") ?? "";
   let body: any = {};
   if (req.method === "POST") {
@@ -88,127 +306,284 @@ serve(async (req) => {
       body = await req.json();
       action = body.action ?? action;
     } catch {
-      /* no body */
+      /* empty */
     }
   }
 
-  // Staff auth gate (POC). Portal session validation comes in phase 2.
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: userData } = await userClient.auth.getUser();
-  if (!userData?.user) {
+  const actor = await resolveActor(req);
+  if (!actor) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
-  const accessToken = await getValidGoogleToken(supabaseAdmin);
+  const accessToken = await getValidGoogleToken();
   if (!accessToken) {
-    return new Response(
-      JSON.stringify({ error: "no_google_token", hint: "Connect Google Workspace first." }),
-      { status: 400, headers: { ...cors, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "no_google_token" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
   }
 
   try {
-    if (action === "listFolder") {
-      const folderId = body.folderId ?? url.searchParams.get("folderId");
-      if (!folderId) {
-        return new Response(JSON.stringify({ error: "folderId required" }), {
-          status: 400,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
+    // ─── PROVISION VAULT (staff only) ───
+    if (action === "provisionVault") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { contactId, parentFolderId } = body;
+      if (!contactId || !parentFolderId)
+        return new Response(JSON.stringify({ error: "contactId and parentFolderId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
+      const { data: contact } = await supabaseAdmin
+        .from("contacts")
+        .select("id, full_name, vault_root_folder_id, family_id, families(name)")
+        .eq("id", contactId)
+        .maybeSingle();
+      if (!contact) return new Response(JSON.stringify({ error: "contact_not_found" }), { status: 404, headers: { ...cors, "Content-Type": "application/json" } });
+      if (contact.vault_root_folder_id) {
+        return new Response(JSON.stringify({ ok: true, folderId: contact.vault_root_folder_id, alreadyExists: true }), { headers: { ...cors, "Content-Type": "application/json" } });
       }
-      const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
-      const fields = encodeURIComponent("files(id,name,mimeType,size,modifiedTime,iconLink)");
-      const driveRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&orderBy=folder,name`,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-      );
-      const driveJson = await driveRes.json();
-      if (!driveRes.ok) {
-        return new Response(JSON.stringify({ error: "drive_error", detail: driveJson }), {
-          status: driveRes.status,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
+
+      const familyName = (contact as any).families?.name ?? contact.full_name;
+      const root = await driveCreateFolder(`ProsperWise Vault — ${familyName}`, parentFolderId, accessToken);
+
+      const { data: tmpls } = await supabaseAdmin
+        .from("vault_folder_templates")
+        .select("display_name, position")
+        .eq("is_active", true)
+        .order("position");
+      for (const t of tmpls ?? []) {
+        await driveCreateFolder(t.display_name, root.id, accessToken);
       }
-      const folders = (driveJson.files ?? [])
-        .filter((f: any) => f.mimeType === "application/vnd.google-apps.folder")
-        .map((f: any) => ({ id: f.id, name: f.name, modifiedTime: f.modifiedTime }));
-      const files = (driveJson.files ?? [])
-        .filter((f: any) => f.mimeType !== "application/vnd.google-apps.folder")
-        .map((f: any) => ({
-          id: f.id,
-          name: f.name,
-          mimeType: f.mimeType,
-          size: f.size ? Number(f.size) : null,
-          modifiedTime: f.modifiedTime,
-        }));
-      return new Response(JSON.stringify({ folders, files }), {
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+
+      await supabaseAdmin.from("contacts").update({ vault_root_folder_id: root.id }).eq("id", contactId);
+      await audit(actor, "provision", contactId, root.id, root.name, req);
+
+      return new Response(JSON.stringify({ ok: true, folderId: root.id }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
+    // ─── LIST FOLDER ───
+    if (action === "listFolder") {
+      const folderId = body.folderId ?? url.searchParams.get("folderId");
+      if (!folderId)
+        return new Response(JSON.stringify({ error: "folderId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
+      const access = await ensureAccess(actor, folderId, accessToken);
+      if (!access.ok) {
+        await audit(actor, "firewall_block", null, folderId, null, req, { reason: access.reason });
+        return new Response(JSON.stringify({ error: "forbidden", reason: access.reason }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      }
+
+      const files = await driveListChildren(folderId, accessToken);
+      let folders = files.filter((f: any) => f.mimeType === "application/vnd.google-apps.folder");
+      let docs = files.filter((f: any) => f.mimeType !== "application/vnd.google-apps.folder");
+
+      // Client view: hide files not marked client_visible
+      if (actor.kind === "client") {
+        const ids = docs.map((d: any) => d.id);
+        const { data: visRows } = await supabaseAdmin
+          .from("vault_files")
+          .select("drive_id, client_visible")
+          .in("drive_id", ids.length ? ids : ["__none__"]);
+        const visMap = new Map((visRows ?? []).map((r) => [r.drive_id, r.client_visible]));
+        docs = docs.filter((d: any) => visMap.get(d.id) === true);
+      }
+
+      // Collaborator view: only files/folders inside one of their grants
+      if (actor.kind === "collaborator") {
+        const grantIds = new Set(actor.grants.map((g) => g.drive_id));
+        const filterByGrant = async (item: any) => {
+          if (grantIds.has(item.id)) return true;
+          const anc = await getAncestors(item.id, accessToken);
+          return [item.id, ...anc].some((id) => grantIds.has(id));
+        };
+        folders = (await Promise.all(folders.map(async (f: any) => ((await filterByGrant(f)) ? f : null)))).filter(Boolean);
+        docs = (await Promise.all(docs.map(async (f: any) => ((await filterByGrant(f)) ? f : null)))).filter(Boolean);
+      }
+
+      await audit(actor, "list", null, folderId, null, req, { count: folders.length + docs.length });
+
+      return new Response(
+        JSON.stringify({
+          folders: folders.map((f: any) => ({ id: f.id, name: f.name, modifiedTime: f.modifiedTime })),
+          files: docs.map((f: any) => ({
+            id: f.id,
+            name: f.name,
+            mimeType: f.mimeType,
+            size: f.size ? Number(f.size) : null,
+            modifiedTime: f.modifiedTime,
+          })),
+        }),
+        { headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ─── STREAM FILE ───
     if (action === "streamFile") {
       const fileId = body.fileId ?? url.searchParams.get("fileId");
       const disposition = url.searchParams.get("disposition") ?? "inline";
-      if (!fileId) {
-        return new Response(JSON.stringify({ error: "fileId required" }), {
-          status: 400,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
+      if (!fileId)
+        return new Response(JSON.stringify({ error: "fileId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
+      const access = await ensureAccess(actor, fileId, accessToken);
+      if (!access.ok) {
+        await audit(actor, "firewall_block", null, fileId, null, req, { reason: access.reason });
+        return new Response(JSON.stringify({ error: "forbidden", reason: access.reason }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
       }
-      // Get metadata first to know mime + name
+
       const metaRes = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
       const meta = await metaRes.json();
-      if (!metaRes.ok) {
-        return new Response(JSON.stringify({ error: "drive_meta_error", detail: meta }), {
-          status: metaRes.status,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
-      }
+      if (!metaRes.ok)
+        return new Response(JSON.stringify({ error: "drive_meta_error", detail: meta }), { status: metaRes.status, headers: { ...cors, "Content-Type": "application/json" } });
 
       let downloadUrl: string;
       let outMime = meta.mimeType;
       let outName = meta.name;
-
       if (GOOGLE_NATIVE.has(meta.mimeType)) {
         outMime = googleExportMime(meta.mimeType);
         downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(outMime)}`;
-        if (outMime === "application/pdf" && !outName.toLowerCase().endsWith(".pdf")) {
-          outName = `${outName}.pdf`;
-        }
+        if (outMime === "application/pdf" && !outName.toLowerCase().endsWith(".pdf")) outName += ".pdf";
       } else {
         downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
       }
-
-      const dlRes = await fetch(downloadUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const dlRes = await fetch(downloadUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (!dlRes.ok) {
         const text = await dlRes.text();
-        return new Response(JSON.stringify({ error: "drive_download_error", detail: text }), {
-          status: dlRes.status,
-          headers: { ...cors, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ error: "drive_download_error", detail: text }), { status: dlRes.status, headers: { ...cors, "Content-Type": "application/json" } });
       }
+
+      await audit(actor, disposition === "attachment" ? "download" : "preview", null, fileId, outName, req);
 
       const headers: Record<string, string> = {
         ...cors,
         "Content-Type": outMime || "application/octet-stream",
-        "Content-Disposition": `${disposition}; filename="${outName.replace(/"/g, "")}"`,
-        "Cache-Control": "private, max-age=60",
+        "Content-Disposition": `${disposition}; filename="${(outName ?? "file").replace(/"/g, "")}"`,
+        "Cache-Control": "private, no-store",
       };
       const len = dlRes.headers.get("Content-Length");
       if (len) headers["Content-Length"] = len;
-
       return new Response(dlRes.body, { status: 200, headers });
+    }
+
+    // ─── SET CLIENT VISIBILITY (staff only) ───
+    if (action === "setVisibility") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { fileId, contactId, clientVisible } = body;
+      const ancestors = await getAncestors(fileId, accessToken);
+      const metaRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,parents`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      const meta = await metaRes.json();
+      await supabaseAdmin
+        .from("vault_files")
+        .upsert({
+          drive_id: fileId,
+          contact_id: contactId,
+          parent_folder_id: meta.parents?.[0] ?? null,
+          ancestor_folder_ids: ancestors,
+          name: meta.name,
+          mime_type: meta.mimeType,
+          is_folder: meta.mimeType === "application/vnd.google-apps.folder",
+          size_bytes: meta.size ? Number(meta.size) : null,
+          modified_at: meta.modifiedTime,
+          client_visible: !!clientVisible,
+          staff_reviewed: true,
+        });
+      await audit(actor, clientVisible ? "make_visible" : "hide", contactId, fileId, meta.name, req);
+      return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    // ─── COLLABORATOR INVITE (staff only) ───
+    if (action === "inviteCollaborator") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { contactId, email, fullName, role, grants } = body;
+      const { data: collab, error: cErr } = await supabaseAdmin
+        .from("vault_collaborators")
+        .upsert(
+          { contact_id: contactId, email, full_name: fullName, role, invited_by: actor.userId, revoked_at: null },
+          { onConflict: "contact_id,email" },
+        )
+        .select()
+        .single();
+      if (cErr) throw cErr;
+      for (const g of grants ?? []) {
+        await supabaseAdmin.from("vault_collaborator_grants").insert({
+          collaborator_id: collab.id,
+          scope_type: g.scope_type,
+          drive_id: g.drive_id,
+          permission: g.permission ?? "view",
+          expires_at: g.expires_at ?? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+          granted_by: actor.userId,
+        });
+      }
+      // Issue first guest token (magic link + code)
+      const code = genUnlockCode();
+      const { data: tok } = await supabaseAdmin
+        .from("vault_guest_tokens")
+        .insert({ collaborator_id: collab.id, unlock_code: code })
+        .select()
+        .single();
+      await audit(actor, "invite_collaborator", contactId, null, null, req, { collaborator_id: collab.id, email });
+      return new Response(JSON.stringify({ ok: true, collaborator: collab, magicToken: tok?.token, unlockCode: code }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    // ─── REVOKE COLLABORATOR (staff only) ───
+    if (action === "revokeCollaborator") {
+      if (actor.kind !== "staff")
+        return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      const { collaboratorId } = body;
+      await supabaseAdmin.from("vault_collaborators").update({ revoked_at: new Date().toISOString() }).eq("id", collaboratorId);
+      await supabaseAdmin.from("vault_guest_tokens").update({ revoked: true }).eq("collaborator_id", collaboratorId);
+      await audit(actor, "revoke_collaborator", null, null, null, req, { collaborator_id: collaboratorId });
+      return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, "Content-Type": "application/json" } });
+    }
+
+    // ─── UPLOAD (staff or collaborator with upload permission) ───
+    if (action === "uploadFile") {
+      const { folderId, fileName, mimeType, base64, contactId } = body;
+      const access = await ensureAccess(actor, folderId, accessToken, true);
+      if (!access.ok) {
+        await audit(actor, "firewall_block", contactId ?? null, folderId, fileName, req, { reason: access.reason });
+        return new Response(JSON.stringify({ error: "forbidden", reason: access.reason }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+      }
+      // Decode base64 in chunks (avoid stack-limit on large files)
+      const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const boundary = "----vault" + Math.random().toString(36).slice(2);
+      const meta = JSON.stringify({ name: fileName, parents: [folderId], mimeType });
+      const pre = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`;
+      const post = `\r\n--${boundary}--`;
+      const bodyBytes = new Uint8Array(pre.length + binary.length + post.length);
+      bodyBytes.set(new TextEncoder().encode(pre), 0);
+      bodyBytes.set(binary, pre.length);
+      bodyBytes.set(new TextEncoder().encode(post), pre.length + binary.length);
+      const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+        body: bodyBytes,
+      });
+      if (!r.ok) throw new Error(`upload_failed: ${await r.text()}`);
+      const created = await r.json();
+      await supabaseAdmin.from("vault_files").insert({
+        drive_id: created.id,
+        contact_id: contactId ?? (actor.kind === "collaborator" ? actor.contactId : null),
+        parent_folder_id: folderId,
+        ancestor_folder_ids: [folderId, ...(await getAncestors(folderId, accessToken))],
+        name: fileName,
+        mime_type: mimeType,
+        is_folder: false,
+        client_visible: false, // staff review required
+        uploaded_by_collaborator_id: actor.kind === "collaborator" ? actor.collaboratorId : null,
+        staff_reviewed: actor.kind === "staff",
+      });
+      await audit(actor, "upload", contactId ?? null, created.id, fileName, req);
+      return new Response(JSON.stringify({ ok: true, fileId: created.id }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ error: "unknown_action", action }), {
