@@ -30,6 +30,7 @@ import Workbench from "./pages/Workbench";
 import Pipeline from "./pages/Pipeline";
 import SideDrawer from "./pages/SideDrawer";
 import Vault from "./pages/Vault";
+import VaultGuest from "./pages/VaultGuest";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import HoldingTankPage from "./pages/HoldingTankPage";
 import Onboarding from "./pages/Onboarding";
