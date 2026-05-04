@@ -24,6 +24,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Lock,
 } from "lucide-react";
 
 interface Contact {
