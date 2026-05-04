@@ -24,6 +24,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Lock,
 } from "lucide-react";
 
 interface Contact {
@@ -205,6 +206,20 @@ const Contacts = () => {
 
                   {/* Resource Icons */}
                   <div className="flex items-center gap-1 shrink-0">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          to={`/vault/${c.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 rounded-md text-sanctuary-bronze hover:text-sanctuary-bronze hover:bg-sanctuary-bronze/10 transition-colors"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Vault
+                      </TooltipContent>
+                    </Tooltip>
                     {RESOURCE_ICONS.map(({ key, label, icon: Icon }) => {
                       const url = c[key];
                       if (!url) return null;
