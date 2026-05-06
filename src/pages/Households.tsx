@@ -12,7 +12,13 @@ import {
   Loader2,
   ChevronRight,
   Anchor,
+  Lock,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface HouseholdListItem {
   id: string;
