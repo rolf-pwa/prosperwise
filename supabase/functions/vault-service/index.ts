@@ -533,12 +533,22 @@ serve(async (req) => {
     if (action === "inviteCollaborator") {
       if (actor.kind !== "staff")
         return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
-      const { contactId, email, fullName, role, grants } = body;
+      const { householdId, contactId, email, fullName, role, grants } = body;
+      // Resolve household: prefer explicit, fall back to contact's household
+      let hhId = householdId as string | undefined;
+      let cId = contactId as string | undefined;
+      if (!hhId && cId) {
+        const { data: c } = await supabaseAdmin.from("contacts").select("household_id").eq("id", cId).maybeSingle();
+        hhId = c?.household_id ?? undefined;
+      }
+      if (!hhId)
+        return new Response(JSON.stringify({ error: "household_required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
       const { data: collab, error: cErr } = await supabaseAdmin
         .from("vault_collaborators")
         .upsert(
-          { contact_id: contactId, email, full_name: fullName, role, invited_by: actor.userId, revoked_at: null },
-          { onConflict: "contact_id,email" },
+          { household_id: hhId, contact_id: cId ?? null, email, full_name: fullName, role, invited_by: actor.userId, revoked_at: null },
+          { onConflict: "household_id,email" },
         )
         .select()
         .single();
@@ -553,14 +563,13 @@ serve(async (req) => {
           granted_by: actor.userId,
         });
       }
-      // Issue first guest token (magic link + code)
       const code = genUnlockCode();
       const { data: tok } = await supabaseAdmin
         .from("vault_guest_tokens")
         .insert({ collaborator_id: collab.id, unlock_code: code })
         .select()
         .single();
-      await audit(actor, "invite_collaborator", contactId, null, null, req, { collaborator_id: collab.id, email });
+      await audit(actor, "invite_collaborator", cId ?? null, null, null, req, { collaborator_id: collab.id, email, household_id: hhId });
       return new Response(JSON.stringify({ ok: true, collaborator: collab, magicToken: tok?.token, unlockCode: code }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
