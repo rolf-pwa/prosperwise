@@ -134,7 +134,7 @@ function FolderNode({
           <span className="font-serif">{name}</span>
           {loading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
         </button>
-        {contactId && (
+        {householdId && (
           <Button
             size="sm"
             variant="ghost"
@@ -154,7 +154,7 @@ function FolderNode({
               folderId={f.id}
               name={f.name}
               depth={depth + 1}
-              contactId={contactId}
+              householdId={householdId}
               onPreview={onPreview}
               onShare={onShare}
             />
@@ -165,7 +165,7 @@ function FolderNode({
               <div key={f.id} className="flex items-center gap-2 py-1.5 text-sm group">
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <span className="flex-1 truncate">{f.name}</span>
-                {contactId && (
+                {householdId && (
                   <span className="flex items-center gap-1.5 mr-2" title="Visible to client">
                     <ShieldCheck className={`h-3.5 w-3.5 ${visible ? "text-amber-500" : "text-muted-foreground/40"}`} />
                     <Switch checked={visible} onCheckedChange={(v) => toggleVisibility(f, v)} />
@@ -178,7 +178,7 @@ function FolderNode({
                 <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadFile(f)}>
                   <Download className="h-3.5 w-3.5" />
                 </Button>
-                {contactId && (
+                {householdId && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -652,7 +652,7 @@ export default function Vault() {
           >
             Load
           </Button>
-          {contactId && (
+          {householdId && (
             <Button variant="outline" onClick={provision}>
               Provision
             </Button>
@@ -667,7 +667,7 @@ export default function Vault() {
               folderId={rootId}
               name={contactName ? `${contactName} — Vault` : "Vault Root"}
               depth={0}
-              contactId={contactId}
+              householdId={householdId}
               onPreview={openPreview}
               onShare={setShareTarget}
             />
@@ -677,7 +677,7 @@ export default function Vault() {
 
       {contactId && rootId && (
         <CollaboratorsPanel
-          contactId={contactId}
+          householdId={householdId}
           rootId={rootId}
           shareTarget={shareTarget}
           onShareHandled={() => setShareTarget(null)}
