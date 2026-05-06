@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,14 +65,14 @@ function FolderNode({
   folderId,
   name,
   depth,
-  contactId,
+  householdId,
   onPreview,
   onShare,
 }: {
   folderId: string;
   name: string;
   depth: number;
-  contactId?: string;
+  householdId?: string;
   onPreview: (file: DriveFile) => void;
   onShare: (target: ShareTarget) => void;
 }) {
@@ -114,9 +114,9 @@ function FolderNode({
 
   const toggleVisibility = async (file: DriveFile, next: boolean) => {
     try {
-      await callVault("setVisibility", { fileId: file.id, contactId, clientVisible: next });
+      await callVault("setVisibility", { fileId: file.id, householdId, clientVisible: next });
       setVisMap((m) => ({ ...m, [file.id]: next }));
-      toast.success(next ? "Visible to client" : "Hidden from client");
+      toast.success(next ? "Visible to household" : "Hidden from household");
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -134,7 +134,7 @@ function FolderNode({
           <span className="font-serif">{name}</span>
           {loading && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
         </button>
-        {contactId && (
+        {householdId && (
           <Button
             size="sm"
             variant="ghost"
@@ -154,7 +154,7 @@ function FolderNode({
               folderId={f.id}
               name={f.name}
               depth={depth + 1}
-              contactId={contactId}
+              householdId={householdId}
               onPreview={onPreview}
               onShare={onShare}
             />
@@ -165,7 +165,7 @@ function FolderNode({
               <div key={f.id} className="flex items-center gap-2 py-1.5 text-sm group">
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <span className="flex-1 truncate">{f.name}</span>
-                {contactId && (
+                {householdId && (
                   <span className="flex items-center gap-1.5 mr-2" title="Visible to client">
                     <ShieldCheck className={`h-3.5 w-3.5 ${visible ? "text-amber-500" : "text-muted-foreground/40"}`} />
                     <Switch checked={visible} onCheckedChange={(v) => toggleVisibility(f, v)} />
@@ -178,7 +178,7 @@ function FolderNode({
                 <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => downloadFile(f)}>
                   <Download className="h-3.5 w-3.5" />
                 </Button>
-                {contactId && (
+                {householdId && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -308,12 +308,12 @@ function GrantsList({ collaboratorId }: { collaboratorId: string }) {
 }
 
 function CollaboratorsPanel({
-  contactId,
+  householdId,
   rootId,
   shareTarget,
   onShareHandled,
 }: {
-  contactId: string;
+  householdId: string;
   rootId: string;
   shareTarget: ShareTarget | null;
   onShareHandled: () => void;
@@ -330,11 +330,11 @@ function CollaboratorsPanel({
     const { data } = await supabase
       .from("vault_collaborators")
       .select("id, email, full_name, role, invited_at, revoked_at")
-      .eq("contact_id", contactId)
+      .eq("household_id", householdId)
       .order("invited_at", { ascending: false });
     setList((data ?? []) as Collaborator[]);
   };
-  useEffect(() => { if (contactId) refresh(); }, [contactId]);
+  useEffect(() => { if (householdId) refresh(); }, [householdId]);
 
   // When a share request comes in from the file tree, open share dialog
   useEffect(() => {
@@ -353,11 +353,11 @@ function CollaboratorsPanel({
   const invite = async () => {
     try {
       const res = await callVault("inviteCollaborator", {
-        contactId,
+        householdId,
         email: form.email,
         fullName: form.fullName,
         role: form.role,
-        grants: [], // no auto-grants — staff explicitly shares folders/files after
+        grants: [],
       });
       setIssued({ token: res.magicToken, code: res.unlockCode, name: form.fullName });
       toast.success("Collaborator invited");
@@ -555,42 +555,72 @@ function CollaboratorsPanel({
 }
 
 export default function Vault() {
-  const { contactId } = useParams<{ contactId?: string }>();
+  const params = useParams<{ householdId?: string; contactId?: string }>();
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [householdLabel, setHouseholdLabel] = useState<string>("");
+  const [familyName, setFamilyName] = useState<string>("");
+  const [memberNames, setMemberNames] = useState<string[]>([]);
   const [rootId, setRootId] = useState<string>("");
-  const [contactName, setContactName] = useState<string>("");
   const [input, setInput] = useState<string>("");
   const [preview, setPreview] = useState<{ file: DriveFile; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
+  // Resolve household: from URL, or from a contactId (legacy URL → redirect)
   useEffect(() => {
-    if (!contactId) return;
     (async () => {
-      const { data } = await supabase
-        .from("contacts")
-        .select("full_name, vault_root_folder_id, google_drive_url")
-        .eq("id", contactId)
-        .maybeSingle();
-      if (data) {
-        setContactName(data.full_name ?? "");
-        const fallbackId = data.google_drive_url?.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1];
-        const id = data.vault_root_folder_id ?? fallbackId ?? "";
-        if (id) {
-          setRootId(id);
-          setInput(id);
+      const hh = params.householdId;
+      if (!hh && params.contactId) {
+        const { data: c } = await supabase
+          .from("contacts")
+          .select("household_id, vault_root_folder_id, google_drive_url")
+          .eq("id", params.contactId)
+          .maybeSingle();
+        if (c?.household_id) {
+          setRedirectTo(`/vault/household/${c.household_id}`);
+          return;
         }
+        const fallbackId = c?.google_drive_url?.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1];
+        const id = c?.vault_root_folder_id ?? fallbackId ?? "";
+        if (id) { setRootId(id); setInput(id); }
+        return;
       }
+      if (!hh) return;
+
+      const { data: row } = await supabase
+        .from("households")
+        .select("id, label, vault_root_folder_id, families(name)")
+        .eq("id", hh)
+        .maybeSingle();
+      const { data: members } = await supabase
+        .from("contacts")
+        .select("first_name, last_name")
+        .eq("household_id", hh)
+        .order("family_role");
+
+      setHouseholdId(hh);
+      setHouseholdLabel(row?.label ?? "");
+      setFamilyName((row as any)?.families?.name ?? "");
+      setMemberNames((members ?? []).map((m: any) => `${m.first_name} ${m.last_name ?? ""}`.trim()));
+      const id = row?.vault_root_folder_id ?? "";
+      if (id) { setRootId(id); setInput(id); }
     })();
-  }, [contactId]);
+  }, [params.householdId, params.contactId]);
+
+  if (redirectTo) return <Navigate to={redirectTo} replace />;
 
   const provision = async () => {
-    if (!contactId) return;
+    if (!householdId) {
+      toast.error("Open this vault from a household.");
+      return;
+    }
     const parentFolderId = window.prompt(
-      "Drive parent folder ID where the new vault root should be created (e.g. firm 'ProsperWise Vaults' folder):",
+      "Drive parent folder ID where the new household vault root should be created:",
     );
     if (!parentFolderId) return;
     try {
-      const res = await callVault("provisionVault", { contactId, parentFolderId: parentFolderId.trim() });
+      const res = await callVault("provisionVault", { householdId, parentFolderId: parentFolderId.trim() });
       toast.success("Vault provisioned");
       setRootId(res.folderId);
     } catch (e: any) {
@@ -625,12 +655,19 @@ export default function Vault() {
     );
   }, [preview]);
 
+  const heading = familyName
+    ? `${familyName}${householdLabel && householdLabel !== "Primary" ? ` — ${householdLabel}` : ""}`
+    : "Household Vault";
+
   return (
     <div className="container max-w-5xl mx-auto py-8 space-y-6">
       <div>
         <h1 className="text-3xl font-serif">The Vault</h1>
         <p className="text-muted-foreground">
-          {contactName ? `Documents for ${contactName}` : "In-portal document workspace"}
+          {heading}
+          {memberNames.length > 0 && (
+            <span className="block text-xs mt-1">Shared by: {memberNames.join(" • ")}</span>
+          )}
         </p>
       </div>
 
@@ -652,7 +689,7 @@ export default function Vault() {
           >
             Load
           </Button>
-          {contactId && (
+          {householdId && (
             <Button variant="outline" onClick={provision}>
               Provision
             </Button>
@@ -665,9 +702,9 @@ export default function Vault() {
           <CardContent className="pt-6">
             <FolderNode
               folderId={rootId}
-              name={contactName ? `${contactName} — Vault` : "Vault Root"}
+              name={heading}
               depth={0}
-              contactId={contactId}
+              householdId={householdId ?? undefined}
               onPreview={openPreview}
               onShare={setShareTarget}
             />
@@ -675,9 +712,9 @@ export default function Vault() {
         </Card>
       )}
 
-      {contactId && rootId && (
+      {householdId && rootId && (
         <CollaboratorsPanel
-          contactId={contactId}
+          householdId={householdId}
           rootId={rootId}
           shareTarget={shareTarget}
           onShareHandled={() => setShareTarget(null)}

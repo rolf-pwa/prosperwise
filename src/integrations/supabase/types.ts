@@ -1032,6 +1032,7 @@ export type Database = {
           label: string
           quiet_period_start_date: string | null
           updated_at: string
+          vault_root_folder_id: string | null
         }
         Insert: {
           address?: string | null
@@ -1044,6 +1045,7 @@ export type Database = {
           label?: string
           quiet_period_start_date?: string | null
           updated_at?: string
+          vault_root_folder_id?: string | null
         }
         Update: {
           address?: string | null
@@ -1056,6 +1058,7 @@ export type Database = {
           label?: string
           quiet_period_start_date?: string | null
           updated_at?: string
+          vault_root_folder_id?: string | null
         }
         Relationships: [
           {
@@ -2692,6 +2695,7 @@ export type Database = {
           created_at: string
           drive_id: string | null
           drive_name: string | null
+          household_id: string | null
           id: string
           ip: string | null
           metadata: Json | null
@@ -2706,6 +2710,7 @@ export type Database = {
           created_at?: string
           drive_id?: string | null
           drive_name?: string | null
+          household_id?: string | null
           id?: string
           ip?: string | null
           metadata?: Json | null
@@ -2720,6 +2725,7 @@ export type Database = {
           created_at?: string
           drive_id?: string | null
           drive_name?: string | null
+          household_id?: string | null
           id?: string
           ip?: string | null
           metadata?: Json | null
@@ -2780,6 +2786,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          household_id: string | null
           id: string
           invited_at: string
           invited_by: string | null
@@ -2793,6 +2800,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name: string
+          household_id?: string | null
           id?: string
           invited_at?: string
           invited_by?: string | null
@@ -2806,6 +2814,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
+          household_id?: string | null
           id?: string
           invited_at?: string
           invited_by?: string | null
@@ -2823,6 +2832,7 @@ export type Database = {
           contact_id: string
           created_at: string
           drive_id: string
+          household_id: string | null
           is_folder: boolean
           mime_type: string
           modified_at: string | null
@@ -2839,6 +2849,7 @@ export type Database = {
           contact_id: string
           created_at?: string
           drive_id: string
+          household_id?: string | null
           is_folder?: boolean
           mime_type: string
           modified_at?: string | null
@@ -2855,6 +2866,7 @@ export type Database = {
           contact_id?: string
           created_at?: string
           drive_id?: string
+          household_id?: string | null
           is_folder?: boolean
           mime_type?: string
           modified_at?: string | null

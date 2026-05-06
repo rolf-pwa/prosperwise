@@ -146,11 +146,13 @@ async function resolveActor(req: Request): Promise<Actor | null> {
     if (!tok || tok.revoked || new Date(tok.expires_at) <= new Date()) return null;
     const { data: contact } = await supabaseAdmin
       .from("contacts")
-      .select("vault_root_folder_id")
+      .select("household_id, vault_root_folder_id, households(vault_root_folder_id)")
       .eq("id", tok.contact_id)
       .maybeSingle();
-    if (!contact?.vault_root_folder_id) return null;
-    return { kind: "client", contactId: tok.contact_id, vaultRootId: contact.vault_root_folder_id };
+    // Prefer household-level vault; fall back to legacy per-contact vault
+    const vaultRootId = (contact as any)?.households?.vault_root_folder_id ?? contact?.vault_root_folder_id;
+    if (!vaultRootId) return null;
+    return { kind: "client", contactId: tok.contact_id, vaultRootId };
   }
 
   // 3. Staff JWT
@@ -331,22 +333,32 @@ serve(async (req) => {
     if (action === "provisionVault") {
       if (actor.kind !== "staff")
         return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
-      const { contactId, parentFolderId } = body;
-      if (!contactId || !parentFolderId)
-        return new Response(JSON.stringify({ error: "contactId and parentFolderId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+      const { householdId, contactId, parentFolderId } = body;
+      if (!parentFolderId || (!householdId && !contactId))
+        return new Response(JSON.stringify({ error: "householdId (or contactId) and parentFolderId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
 
-      const { data: contact } = await supabaseAdmin
-        .from("contacts")
-        .select("id, full_name, vault_root_folder_id, family_id, families(name)")
-        .eq("id", contactId)
+      // Resolve household
+      let hhId = householdId as string | undefined;
+      if (!hhId && contactId) {
+        const { data: c } = await supabaseAdmin.from("contacts").select("household_id").eq("id", contactId).maybeSingle();
+        hhId = c?.household_id ?? undefined;
+      }
+      if (!hhId)
+        return new Response(JSON.stringify({ error: "contact_has_no_household" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
+      const { data: hh } = await supabaseAdmin
+        .from("households")
+        .select("id, label, vault_root_folder_id, family_id, families(name)")
+        .eq("id", hhId)
         .maybeSingle();
-      if (!contact) return new Response(JSON.stringify({ error: "contact_not_found" }), { status: 404, headers: { ...cors, "Content-Type": "application/json" } });
-      if (contact.vault_root_folder_id) {
-        return new Response(JSON.stringify({ ok: true, folderId: contact.vault_root_folder_id, alreadyExists: true }), { headers: { ...cors, "Content-Type": "application/json" } });
+      if (!hh) return new Response(JSON.stringify({ error: "household_not_found" }), { status: 404, headers: { ...cors, "Content-Type": "application/json" } });
+      if (hh.vault_root_folder_id) {
+        return new Response(JSON.stringify({ ok: true, folderId: hh.vault_root_folder_id, alreadyExists: true }), { headers: { ...cors, "Content-Type": "application/json" } });
       }
 
-      const familyName = (contact as any).families?.name ?? contact.full_name;
-      const root = await driveCreateFolder(`ProsperWise Vault — ${familyName}`, parentFolderId, accessToken);
+      const familyName = (hh as any).families?.name ?? hh.label ?? "Household";
+      const folderLabel = `ProsperWise Vault — ${familyName}${hh.label && hh.label !== "Primary" ? ` (${hh.label})` : ""}`;
+      const root = await driveCreateFolder(folderLabel, parentFolderId, accessToken);
 
       const { data: tmpls } = await supabaseAdmin
         .from("vault_folder_templates")
@@ -357,10 +369,10 @@ serve(async (req) => {
         await driveCreateFolder(t.display_name, root.id, accessToken);
       }
 
-      await supabaseAdmin.from("contacts").update({ vault_root_folder_id: root.id }).eq("id", contactId);
-      await audit(actor, "provision", contactId, root.id, root.name, req);
+      await supabaseAdmin.from("households").update({ vault_root_folder_id: root.id }).eq("id", hhId);
+      await audit(actor, "provision", contactId ?? null, root.id, root.name, req, { household_id: hhId });
 
-      return new Response(JSON.stringify({ ok: true, folderId: root.id }), { headers: { ...cors, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, folderId: root.id, householdId: hhId }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
     // ─── COLLABORATOR: list own grant roots (post-unlock) ───
@@ -491,7 +503,7 @@ serve(async (req) => {
     if (action === "setVisibility") {
       if (actor.kind !== "staff")
         return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
-      const { fileId, contactId, clientVisible } = body;
+      const { fileId, householdId, contactId, clientVisible } = body;
       const ancestors = await getAncestors(fileId, accessToken);
       const metaRes = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,parents`,
@@ -502,7 +514,8 @@ serve(async (req) => {
         .from("vault_files")
         .upsert({
           drive_id: fileId,
-          contact_id: contactId,
+          household_id: householdId ?? null,
+          contact_id: contactId ?? null,
           parent_folder_id: meta.parents?.[0] ?? null,
           ancestor_folder_ids: ancestors,
           name: meta.name,
@@ -513,7 +526,7 @@ serve(async (req) => {
           client_visible: !!clientVisible,
           staff_reviewed: true,
         });
-      await audit(actor, clientVisible ? "make_visible" : "hide", contactId, fileId, meta.name, req);
+      await audit(actor, clientVisible ? "make_visible" : "hide", contactId ?? null, fileId, meta.name, req, { household_id: householdId });
       return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
@@ -521,12 +534,22 @@ serve(async (req) => {
     if (action === "inviteCollaborator") {
       if (actor.kind !== "staff")
         return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
-      const { contactId, email, fullName, role, grants } = body;
+      const { householdId, contactId, email, fullName, role, grants } = body;
+      // Resolve household: prefer explicit, fall back to contact's household
+      let hhId = householdId as string | undefined;
+      let cId = contactId as string | undefined;
+      if (!hhId && cId) {
+        const { data: c } = await supabaseAdmin.from("contacts").select("household_id").eq("id", cId).maybeSingle();
+        hhId = c?.household_id ?? undefined;
+      }
+      if (!hhId)
+        return new Response(JSON.stringify({ error: "household_required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
       const { data: collab, error: cErr } = await supabaseAdmin
         .from("vault_collaborators")
         .upsert(
-          { contact_id: contactId, email, full_name: fullName, role, invited_by: actor.userId, revoked_at: null },
-          { onConflict: "contact_id,email" },
+          { household_id: hhId, contact_id: cId ?? null, email, full_name: fullName, role, invited_by: actor.userId, revoked_at: null },
+          { onConflict: "household_id,email" },
         )
         .select()
         .single();
@@ -541,14 +564,13 @@ serve(async (req) => {
           granted_by: actor.userId,
         });
       }
-      // Issue first guest token (magic link + code)
       const code = genUnlockCode();
       const { data: tok } = await supabaseAdmin
         .from("vault_guest_tokens")
         .insert({ collaborator_id: collab.id, unlock_code: code })
         .select()
         .single();
-      await audit(actor, "invite_collaborator", contactId, null, null, req, { collaborator_id: collab.id, email });
+      await audit(actor, "invite_collaborator", cId ?? null, null, null, req, { collaborator_id: collab.id, email, household_id: hhId });
       return new Response(JSON.stringify({ ok: true, collaborator: collab, magicToken: tok?.token, unlockCode: code }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
