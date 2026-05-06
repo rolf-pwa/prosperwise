@@ -146,11 +146,13 @@ async function resolveActor(req: Request): Promise<Actor | null> {
     if (!tok || tok.revoked || new Date(tok.expires_at) <= new Date()) return null;
     const { data: contact } = await supabaseAdmin
       .from("contacts")
-      .select("vault_root_folder_id")
+      .select("household_id, vault_root_folder_id, households(vault_root_folder_id)")
       .eq("id", tok.contact_id)
       .maybeSingle();
-    if (!contact?.vault_root_folder_id) return null;
-    return { kind: "client", contactId: tok.contact_id, vaultRootId: contact.vault_root_folder_id };
+    // Prefer household-level vault; fall back to legacy per-contact vault
+    const vaultRootId = (contact as any)?.households?.vault_root_folder_id ?? contact?.vault_root_folder_id;
+    if (!vaultRootId) return null;
+    return { kind: "client", contactId: tok.contact_id, vaultRootId };
   }
 
   // 3. Staff JWT
