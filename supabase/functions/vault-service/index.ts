@@ -503,7 +503,7 @@ serve(async (req) => {
     if (action === "setVisibility") {
       if (actor.kind !== "staff")
         return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
-      const { fileId, contactId, clientVisible } = body;
+      const { fileId, householdId, contactId, clientVisible } = body;
       const ancestors = await getAncestors(fileId, accessToken);
       const metaRes = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size,modifiedTime,parents`,
@@ -514,7 +514,8 @@ serve(async (req) => {
         .from("vault_files")
         .upsert({
           drive_id: fileId,
-          contact_id: contactId,
+          household_id: householdId ?? null,
+          contact_id: contactId ?? null,
           parent_folder_id: meta.parents?.[0] ?? null,
           ancestor_folder_ids: ancestors,
           name: meta.name,
@@ -525,7 +526,7 @@ serve(async (req) => {
           client_visible: !!clientVisible,
           staff_reviewed: true,
         });
-      await audit(actor, clientVisible ? "make_visible" : "hide", contactId, fileId, meta.name, req);
+      await audit(actor, clientVisible ? "make_visible" : "hide", contactId ?? null, fileId, meta.name, req, { household_id: householdId });
       return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
