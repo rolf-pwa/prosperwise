@@ -308,12 +308,12 @@ function GrantsList({ collaboratorId }: { collaboratorId: string }) {
 }
 
 function CollaboratorsPanel({
-  contactId,
+  householdId,
   rootId,
   shareTarget,
   onShareHandled,
 }: {
-  contactId: string;
+  householdId: string;
   rootId: string;
   shareTarget: ShareTarget | null;
   onShareHandled: () => void;
@@ -330,11 +330,11 @@ function CollaboratorsPanel({
     const { data } = await supabase
       .from("vault_collaborators")
       .select("id, email, full_name, role, invited_at, revoked_at")
-      .eq("contact_id", contactId)
+      .eq("household_id", householdId)
       .order("invited_at", { ascending: false });
     setList((data ?? []) as Collaborator[]);
   };
-  useEffect(() => { if (contactId) refresh(); }, [contactId]);
+  useEffect(() => { if (householdId) refresh(); }, [householdId]);
 
   // When a share request comes in from the file tree, open share dialog
   useEffect(() => {
@@ -353,11 +353,11 @@ function CollaboratorsPanel({
   const invite = async () => {
     try {
       const res = await callVault("inviteCollaborator", {
-        contactId,
+        householdId,
         email: form.email,
         fullName: form.fullName,
         role: form.role,
-        grants: [], // no auto-grants — staff explicitly shares folders/files after
+        grants: [],
       });
       setIssued({ token: res.magicToken, code: res.unlockCode, name: form.fullName });
       toast.success("Collaborator invited");
