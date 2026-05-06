@@ -188,6 +188,18 @@ const Households = () => {
                         <Badge variant="secondary" className="shrink-0">
                           {hh.memberCount} member{hh.memberCount !== 1 ? "s" : ""}
                         </Badge>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              to={`/vault/household/${hh.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 rounded-md text-sanctuary-bronze hover:bg-sanctuary-bronze/10 transition-colors"
+                            >
+                              <Lock className="h-3.5 w-3.5" />
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs">Household Vault</TooltipContent>
+                        </Tooltip>
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       </div>
                     </div>
