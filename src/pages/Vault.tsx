@@ -65,14 +65,14 @@ function FolderNode({
   folderId,
   name,
   depth,
-  contactId,
+  householdId,
   onPreview,
   onShare,
 }: {
   folderId: string;
   name: string;
   depth: number;
-  contactId?: string;
+  householdId?: string;
   onPreview: (file: DriveFile) => void;
   onShare: (target: ShareTarget) => void;
 }) {
@@ -114,9 +114,9 @@ function FolderNode({
 
   const toggleVisibility = async (file: DriveFile, next: boolean) => {
     try {
-      await callVault("setVisibility", { fileId: file.id, contactId, clientVisible: next });
+      await callVault("setVisibility", { fileId: file.id, householdId, clientVisible: next });
       setVisMap((m) => ({ ...m, [file.id]: next }));
-      toast.success(next ? "Visible to client" : "Hidden from client");
+      toast.success(next ? "Visible to household" : "Hidden from household");
     } catch (e: any) {
       toast.error(e.message);
     }
