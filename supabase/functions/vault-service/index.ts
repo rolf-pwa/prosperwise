@@ -333,22 +333,32 @@ serve(async (req) => {
     if (action === "provisionVault") {
       if (actor.kind !== "staff")
         return new Response(JSON.stringify({ error: "staff_only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
-      const { contactId, parentFolderId } = body;
-      if (!contactId || !parentFolderId)
-        return new Response(JSON.stringify({ error: "contactId and parentFolderId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+      const { householdId, contactId, parentFolderId } = body;
+      if (!parentFolderId || (!householdId && !contactId))
+        return new Response(JSON.stringify({ error: "householdId (or contactId) and parentFolderId required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
 
-      const { data: contact } = await supabaseAdmin
-        .from("contacts")
-        .select("id, full_name, vault_root_folder_id, family_id, families(name)")
-        .eq("id", contactId)
+      // Resolve household
+      let hhId = householdId as string | undefined;
+      if (!hhId && contactId) {
+        const { data: c } = await supabaseAdmin.from("contacts").select("household_id").eq("id", contactId).maybeSingle();
+        hhId = c?.household_id ?? undefined;
+      }
+      if (!hhId)
+        return new Response(JSON.stringify({ error: "contact_has_no_household" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+
+      const { data: hh } = await supabaseAdmin
+        .from("households")
+        .select("id, label, vault_root_folder_id, family_id, families(name)")
+        .eq("id", hhId)
         .maybeSingle();
-      if (!contact) return new Response(JSON.stringify({ error: "contact_not_found" }), { status: 404, headers: { ...cors, "Content-Type": "application/json" } });
-      if (contact.vault_root_folder_id) {
-        return new Response(JSON.stringify({ ok: true, folderId: contact.vault_root_folder_id, alreadyExists: true }), { headers: { ...cors, "Content-Type": "application/json" } });
+      if (!hh) return new Response(JSON.stringify({ error: "household_not_found" }), { status: 404, headers: { ...cors, "Content-Type": "application/json" } });
+      if (hh.vault_root_folder_id) {
+        return new Response(JSON.stringify({ ok: true, folderId: hh.vault_root_folder_id, alreadyExists: true }), { headers: { ...cors, "Content-Type": "application/json" } });
       }
 
-      const familyName = (contact as any).families?.name ?? contact.full_name;
-      const root = await driveCreateFolder(`ProsperWise Vault — ${familyName}`, parentFolderId, accessToken);
+      const familyName = (hh as any).families?.name ?? hh.label ?? "Household";
+      const folderLabel = `ProsperWise Vault — ${familyName}${hh.label && hh.label !== "Primary" ? ` (${hh.label})` : ""}`;
+      const root = await driveCreateFolder(folderLabel, parentFolderId, accessToken);
 
       const { data: tmpls } = await supabaseAdmin
         .from("vault_folder_templates")
@@ -359,10 +369,10 @@ serve(async (req) => {
         await driveCreateFolder(t.display_name, root.id, accessToken);
       }
 
-      await supabaseAdmin.from("contacts").update({ vault_root_folder_id: root.id }).eq("id", contactId);
-      await audit(actor, "provision", contactId, root.id, root.name, req);
+      await supabaseAdmin.from("households").update({ vault_root_folder_id: root.id }).eq("id", hhId);
+      await audit(actor, "provision", contactId ?? null, root.id, root.name, req, { household_id: hhId });
 
-      return new Response(JSON.stringify({ ok: true, folderId: root.id }), { headers: { ...cors, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, folderId: root.id, householdId: hhId }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 
     // ─── COLLABORATOR: list own grant roots (post-unlock) ───
