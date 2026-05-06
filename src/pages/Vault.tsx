@@ -555,42 +555,72 @@ function CollaboratorsPanel({
 }
 
 export default function Vault() {
-  const { contactId } = useParams<{ contactId?: string }>();
+  const params = useParams<{ householdId?: string; contactId?: string }>();
+  const [householdId, setHouseholdId] = useState<string | null>(null);
+  const [householdLabel, setHouseholdLabel] = useState<string>("");
+  const [familyName, setFamilyName] = useState<string>("");
+  const [memberNames, setMemberNames] = useState<string[]>([]);
   const [rootId, setRootId] = useState<string>("");
-  const [contactName, setContactName] = useState<string>("");
   const [input, setInput] = useState<string>("");
   const [preview, setPreview] = useState<{ file: DriveFile; url: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
+  // Resolve household: from URL, or from a contactId (legacy URL → redirect)
   useEffect(() => {
-    if (!contactId) return;
     (async () => {
-      const { data } = await supabase
-        .from("contacts")
-        .select("full_name, vault_root_folder_id, google_drive_url")
-        .eq("id", contactId)
-        .maybeSingle();
-      if (data) {
-        setContactName(data.full_name ?? "");
-        const fallbackId = data.google_drive_url?.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1];
-        const id = data.vault_root_folder_id ?? fallbackId ?? "";
-        if (id) {
-          setRootId(id);
-          setInput(id);
+      const hh = params.householdId;
+      if (!hh && params.contactId) {
+        const { data: c } = await supabase
+          .from("contacts")
+          .select("household_id, vault_root_folder_id, google_drive_url")
+          .eq("id", params.contactId)
+          .maybeSingle();
+        if (c?.household_id) {
+          setRedirectTo(`/vault/household/${c.household_id}`);
+          return;
         }
+        const fallbackId = c?.google_drive_url?.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1];
+        const id = c?.vault_root_folder_id ?? fallbackId ?? "";
+        if (id) { setRootId(id); setInput(id); }
+        return;
       }
+      if (!hh) return;
+
+      const { data: row } = await supabase
+        .from("households")
+        .select("id, label, vault_root_folder_id, families(name)")
+        .eq("id", hh)
+        .maybeSingle();
+      const { data: members } = await supabase
+        .from("contacts")
+        .select("first_name, last_name")
+        .eq("household_id", hh)
+        .order("family_role");
+
+      setHouseholdId(hh);
+      setHouseholdLabel(row?.label ?? "");
+      setFamilyName((row as any)?.families?.name ?? "");
+      setMemberNames((members ?? []).map((m: any) => `${m.first_name} ${m.last_name ?? ""}`.trim()));
+      const id = row?.vault_root_folder_id ?? "";
+      if (id) { setRootId(id); setInput(id); }
     })();
-  }, [contactId]);
+  }, [params.householdId, params.contactId]);
+
+  if (redirectTo) return <Navigate to={redirectTo} replace />;
 
   const provision = async () => {
-    if (!contactId) return;
+    if (!householdId) {
+      toast.error("Open this vault from a household.");
+      return;
+    }
     const parentFolderId = window.prompt(
-      "Drive parent folder ID where the new vault root should be created (e.g. firm 'ProsperWise Vaults' folder):",
+      "Drive parent folder ID where the new household vault root should be created:",
     );
     if (!parentFolderId) return;
     try {
-      const res = await callVault("provisionVault", { contactId, parentFolderId: parentFolderId.trim() });
+      const res = await callVault("provisionVault", { householdId, parentFolderId: parentFolderId.trim() });
       toast.success("Vault provisioned");
       setRootId(res.folderId);
     } catch (e: any) {
@@ -625,12 +655,19 @@ export default function Vault() {
     );
   }, [preview]);
 
+  const heading = familyName
+    ? `${familyName}${householdLabel && householdLabel !== "Primary" ? ` — ${householdLabel}` : ""}`
+    : "Household Vault";
+
   return (
     <div className="container max-w-5xl mx-auto py-8 space-y-6">
       <div>
         <h1 className="text-3xl font-serif">The Vault</h1>
         <p className="text-muted-foreground">
-          {contactName ? `Documents for ${contactName}` : "In-portal document workspace"}
+          {heading}
+          {memberNames.length > 0 && (
+            <span className="block text-xs mt-1">Shared by: {memberNames.join(" • ")}</span>
+          )}
         </p>
       </div>
 
@@ -665,9 +702,9 @@ export default function Vault() {
           <CardContent className="pt-6">
             <FolderNode
               folderId={rootId}
-              name={contactName ? `${contactName} — Vault` : "Vault Root"}
+              name={heading}
               depth={0}
-              householdId={householdId}
+              householdId={householdId ?? undefined}
               onPreview={openPreview}
               onShare={setShareTarget}
             />
@@ -675,7 +712,7 @@ export default function Vault() {
         </Card>
       )}
 
-      {contactId && rootId && (
+      {householdId && rootId && (
         <CollaboratorsPanel
           householdId={householdId}
           rootId={rootId}
